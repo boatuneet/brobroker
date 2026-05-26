@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,24 @@ function validateCredentials(
   return null;
 }
 
+function getSafeNext(value?: string | null) {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+}
+
+async function getRequestOrigin() {
+  const headerStore = await headers();
+  const forwardedHost = headerStore.get("x-forwarded-host");
+  const host = forwardedHost ?? headerStore.get("host");
+  const forwardedProto = headerStore.get("x-forwarded-proto");
+  const protocol = forwardedProto ?? (host?.startsWith("localhost") ? "http" : "https");
+
+  if (host) return `${protocol}://${host}`;
+
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+}
+
 export async function login(
   _previousState: AuthFormState,
   formData: FormData,
@@ -39,7 +58,7 @@ export async function login(
 
   const email = formData.get("email")?.toString().trim() ?? null;
   const password = formData.get("password")?.toString() ?? null;
-  const next = formData.get("next")?.toString() || "/dashboard";
+  const next = getSafeNext(formData.get("next")?.toString());
 
   const validation = validateCredentials(email, password);
   if (validation) return validation;
@@ -55,7 +74,7 @@ export async function login(
   }
 
   revalidatePath("/", "layout");
-  redirect(next.startsWith("/") ? next : "/dashboard");
+  redirect(next);
 }
 
 export async function signup(
@@ -66,14 +85,19 @@ export async function signup(
 
   const email = formData.get("email")?.toString().trim() ?? null;
   const password = formData.get("password")?.toString() ?? null;
+  const next = getSafeNext(formData.get("next")?.toString());
 
   const validation = validateCredentials(email, password);
   if (validation) return validation;
 
   const supabase = await createClient();
+  const origin = await getRequestOrigin();
   const { error } = await supabase.auth.signUp({
     email: email!,
     password: password!,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
   });
 
   if (error) {
@@ -81,7 +105,7 @@ export async function signup(
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(next);
 }
 
 export async function signOut() {
