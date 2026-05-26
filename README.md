@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Date: 2026-05-26
+Relevancy: Current project overview for the BroBroker prototype, its setup, and the main product workflows.
+
+# BroBroker
+
+BroBroker is a private broker workspace for high-value assets. It helps brokers manage listings, buyer memory, matching, document readiness, owner context, and buyer-safe intelligence across yachts, collector cars, and luxury real estate.
+
+The current build is a Next.js 16 prototype with Supabase-backed persistence for listings and buyers, plus seeded demo data for product exploration.
+
+## Core Workflows
+
+- Segment-aware broker workspace for yachts, cars, and real estate.
+- Listing intake, editing, media galleries, location previews, and listing intelligence pages.
+- Bulk yacht CSV import with image copy into Supabase Storage.
+- Buyer memory profiles with criteria, relationship context, rejected assets, and generated matches.
+- Matching workspace that ranks current listings against saved buyer profiles and ad-hoc briefs.
+- Knowledge Vault that regenerates source-linked workspace memory from current stored records.
+- Owner context, verification, deal rooms, reports, and voice-to-CRM prototype flows.
+
+## Tech Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Supabase Auth, Database, and Storage
+- Vitest
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create a local environment file with Supabase credentials:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The Supabase schema is documented in:
 
-## Learn More
+```bash
+supabase/brobroker-manual-setup.sql
+```
 
-To learn more about Next.js, take a look at the following resources:
+Apply it to a Supabase project before using persisted auth, listings, buyers, storage uploads, or imported yacht data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Useful Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run dev
+npm run lint
+npm test
+npx tsc --noEmit
+```
 
-## Deploy on Vercel
+## Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This is an active prototype. Some records are seeded locally in code while newer listings and buyers are stored in Supabase and merged into the workspace at runtime.
