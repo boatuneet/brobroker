@@ -36,8 +36,8 @@ import {
   getVerificationForBuyer,
   getVerificationTone,
 } from "@/lib/services";
-import type { BuyerProfile, MatchResult, Priority } from "@/lib/types";
-import { daysUntil, formatCurrency, formatDate, percentage } from "@/lib/utils";
+import type { BuyerProfile, MatchResult, Priority, YachtListing } from "@/lib/types";
+import { cn, daysUntil, formatCurrency, formatDate, percentage } from "@/lib/utils";
 import {
   Badge,
   Button,
@@ -49,7 +49,6 @@ import {
   ProgressBar,
   Stat,
   StatusDot,
-  TabList,
 } from "./ui";
 import { ExpandablePreferenceChips } from "./expandable-preference-chips";
 import { SessionBuyerQueue } from "./intake-panels";
@@ -89,12 +88,22 @@ function stageTone(
 
 type BuyerMemoryModel = NonNullable<ReturnType<typeof getBuyerMemoryProfile>>;
 
-function getBuyerMemoryModel(buyer: BuyerProfile, segment?: BrokerSegment): BuyerMemoryModel {
+function getBuyerMemoryModel(
+  buyer: BuyerProfile,
+  segment?: BrokerSegment,
+  inventoryOverride?: YachtListing[],
+): BuyerMemoryModel {
+  if (inventoryOverride) return buildBuyerMemoryModel(buyer, segment, inventoryOverride);
   return getBuyerMemoryProfile(buyer.id, segment) ?? buildBuyerMemoryModel(buyer, segment);
 }
 
-function buildBuyerMemoryModel(buyer: BuyerProfile, segment?: BrokerSegment): BuyerMemoryModel {
-  const matches = generateMatchesForBuyer(buyer, getListingsForSegment(segment));
+function buildBuyerMemoryModel(
+  buyer: BuyerProfile,
+  segment?: BrokerSegment,
+  inventoryOverride?: YachtListing[],
+): BuyerMemoryModel {
+  const inventory = inventoryOverride ?? getListingsForSegment(segment);
+  const matches = generateMatchesForBuyer(buyer, inventory);
   const tasks = getTasksForSegment(segment).filter(
     (task) => task.buyerId === buyer.id && task.status !== "Done",
   );
@@ -104,7 +113,7 @@ function buildBuyerMemoryModel(buyer: BuyerProfile, segment?: BrokerSegment): Bu
   const drafts = getFollowUpDraftsForSegment(segment).filter((draft) => draft.buyerId === buyer.id);
   const rejectedListings = buyer.rejectedAssets.map((rejection) => ({
     rejection,
-    listing: getListingById(rejection.listingId, segment),
+    listing: inventory.find((listing) => listing.id === rejection.listingId) ?? getListingById(rejection.listingId, segment),
   }));
 
   return {
@@ -126,6 +135,16 @@ function mergeBuyers(demoBuyers: BuyerProfile[], storedBuyers: BuyerProfile[]) {
   return [...storedBuyers, ...demoBuyers].filter((buyer) => {
     if (seen.has(buyer.id)) return false;
     seen.add(buyer.id);
+    return true;
+  });
+}
+
+function mergeListings(storedListings: YachtListing[], demoListings: YachtListing[]) {
+  const seen = new Set<string>();
+
+  return [...storedListings, ...demoListings].filter((listing) => {
+    if (seen.has(listing.id)) return false;
+    seen.add(listing.id);
     return true;
   });
 }
@@ -181,12 +200,15 @@ export function BuyerIndex({
   query,
   segment,
   storedBuyers = [],
+  storedListings = [],
 }: {
   query?: string;
   segment?: BrokerSegment;
   storedBuyers?: BuyerProfile[];
+  storedListings?: YachtListing[];
 }) {
   const allBuyers = mergeBuyers(getBuyersForSegment(segment), storedBuyers);
+  const inventory = mergeListings(storedListings, getListingsForSegment(segment));
   const visibleBuyers = filterBuyers(allBuyers, query);
 
   if (allBuyers.length === 0 && !query) {
@@ -194,7 +216,7 @@ export function BuyerIndex({
   }
 
   const buyerProfiles = visibleBuyers
-    .map((buyer) => getBuyerMemoryModel(buyer, segment))
+    .map((buyer) => getBuyerMemoryModel(buyer, segment, inventory))
     .filter(Boolean);
   const totalBudget = visibleBuyers.reduce((total, buyer) => total + buyer.budgetMaxEur, 0);
   const dueNow = visibleBuyers.filter((buyer) => daysUntil(buyer.nextActionDueAt) <= 0).length;
@@ -266,7 +288,7 @@ export function BuyerIndex({
         <>
           <section className="mt-12 grid gap-5 xl:grid-cols-2">
             {visibleBuyers.map((buyer) => (
-              <BuyerCard key={buyer.id} buyer={buyer} segment={segment} />
+              <BuyerCard key={buyer.id} buyer={buyer} inventory={inventory} segment={segment} />
             ))}
           </section>
 
@@ -390,7 +412,7 @@ function FirstRunBuyers() {
         </div>
       </section>
 
-      <Card className="mt-12">
+      <Card className="mt-12 scroll-mt-8" id="buyer-profile">
         <CardHeader
           eyebrow="What each buyer remembers"
           title="Memory you'll have on every conversation"
@@ -483,8 +505,16 @@ function BuyersExplainerRow({
   );
 }
 
-function BuyerCard({ buyer, segment }: { buyer: BuyerProfile; segment?: BrokerSegment }) {
-  const profile = getBuyerMemoryModel(buyer, segment);
+function BuyerCard({
+  buyer,
+  inventory,
+  segment,
+}: {
+  buyer: BuyerProfile;
+  inventory?: YachtListing[];
+  segment?: BrokerSegment;
+}) {
+  const profile = getBuyerMemoryModel(buyer, segment, inventory);
   const verification = profile?.verification;
   const tone = getVerificationTone(verification?.status ?? "Needs Review");
   const topMatch = profile?.matches[0];
@@ -545,7 +575,7 @@ function BuyerCard({ buyer, segment }: { buyer: BuyerProfile; segment?: BrokerSe
             <dd className="mt-2 text-[17px] font-medium tracking-[-0.01em] text-[#17171c]">
               {dueLabel(buyer.nextActionDueAt)}
             </dd>
-            <dd className="mt-1 line-clamp-2 text-[13px] leading-5 text-[#616161]">
+            <dd className="mt-1 truncate text-[13px] leading-5 text-[#616161]">
               {profile?.nextActions[0]?.label ?? "No open action"}
             </dd>
           </div>
@@ -595,14 +625,20 @@ export function BuyerMemoryProfile({
   buyerId,
   buyerOverride,
   segment,
+  storedListings = [],
 }: {
   buyerId: string;
   buyerOverride?: BuyerProfile;
   segment?: BrokerSegment;
+  storedListings?: YachtListing[];
 }) {
+  const inventory = mergeListings(storedListings, getListingsForSegment(segment));
+  const staticProfile = getBuyerMemoryProfile(buyerId, segment);
   const profile = buyerOverride
-    ? getBuyerMemoryModel(buyerOverride, segment)
-    : getBuyerMemoryProfile(buyerId, segment);
+    ? getBuyerMemoryModel(buyerOverride, segment, inventory)
+    : staticProfile
+      ? buildBuyerMemoryModel(staticProfile.buyer, segment, inventory)
+      : undefined;
 
   if (!profile) {
     return null;
@@ -668,7 +704,7 @@ export function BuyerMemoryProfile({
         <CardHeader
           eyebrow="Buyer profile"
           title="Criteria and relationship memory"
-          action={<TabList active="Memory" items={["Memory", "Matches", "Drafts"]} />}
+          action={<BuyerMemoryNav />}
         />
         <div className="grid gap-x-12 gap-y-5 px-6 py-5 lg:grid-cols-2">
           <InfoColumn
@@ -747,19 +783,19 @@ export function BuyerMemoryProfile({
             </ul>
           </Card>
 
-          <Card>
+          <Card id="buyer-matches">
             <CardHeader
               eyebrow="Matching memory"
               title="Current recommendations and missing criteria"
             />
             <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
               {matches.map((match) => (
-                <MatchPanel key={match.id} match={match} segment={segment} />
+                <MatchPanel key={match.id} inventory={inventory} match={match} segment={segment} />
               ))}
             </ul>
           </Card>
 
-          <Card>
+          <Card id="buyer-drafts">
             <CardHeader
               eyebrow="Conversation continuity"
               title="Recent conversations and drafts"
@@ -870,14 +906,44 @@ export function BuyerMemoryProfile({
   );
 }
 
+function BuyerMemoryNav() {
+  const items = [
+    { label: "Memory", href: "#buyer-profile", active: true },
+    { label: "Matches", href: "#buyer-matches", active: false },
+    { label: "Drafts", href: "#buyer-drafts", active: false },
+  ];
+
+  return (
+    <nav
+      aria-label="Buyer memory sections"
+      className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-[#d9d9dd] bg-white p-1"
+    >
+      {items.map((item) => (
+        <Link
+          className={cn(
+            "inline-flex min-h-8 shrink-0 items-center rounded-full px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
+            item.active ? "bg-[#17171c] text-white" : "text-[#3f3f46] hover:bg-[#f5f4ef]",
+          )}
+          href={item.href}
+          key={item.label}
+        >
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 function MatchPanel({
+  inventory,
   match,
   segment,
 }: {
+  inventory?: YachtListing[];
   match: MatchResult;
   segment?: BrokerSegment;
 }) {
-  const listing = getListingById(match.listingId, segment);
+  const listing = inventory?.find((listing) => listing.id === match.listingId) ?? getListingById(match.listingId, segment);
   const owner = listing ? getSellerById(listing.ownerId, segment) : undefined;
 
   return (
@@ -885,8 +951,14 @@ function MatchPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Badge tone="info">{match.category}</Badge>
-          <h2 className="mt-2 text-[14px] font-medium text-[#17171c]">
-            {listing ? `${listing.name} · ${listing.builder} ${listing.model}` : "Unknown asset"}
+          <h2 className="mt-2 text-[14px] font-medium">
+            {listing ? (
+              <Link className="text-[#17171c] hover:text-[#1863dc] hover:underline" href={`/listings/${listing.id}`}>
+                {listing.name} · {listing.builder} {listing.model}
+              </Link>
+            ) : (
+              <span className="text-[#17171c]">Unknown asset</span>
+            )}
           </h2>
           {owner ? (
             <Link

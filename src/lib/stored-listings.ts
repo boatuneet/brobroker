@@ -62,12 +62,13 @@ export type StoredListingPayload = {
 export function mapStoredAssetToListing(
   row: StoredAssetRow,
   photoUrls: Record<string, string> = {},
+  options: { includePhotos?: boolean } = {},
 ): YachtListing {
   const payload = asRecord(row.payload) as StoredListingPayload;
   const fields = asRecord(payload.fields);
   const assetType = row.asset_type;
   const metricValue = readNumber(row.metric_value);
-  const photos = normalizePhotos(payload.photos, photoUrls, assetType);
+  const photos = options.includePhotos === false ? [] : normalizePhotos(payload.photos, photoUrls, assetType);
 
   return {
     id: row.id,
@@ -149,7 +150,7 @@ function normalizePhotos(
 
   return photos.map((photo) => ({
     ...photo,
-    src: photo.storagePath ? photoUrls[photo.storagePath] ?? photo.src : photo.src,
+    src: photo.storagePath ? photoUrls[photo.storagePath] ?? fallback : photo.src,
   }));
 }
 

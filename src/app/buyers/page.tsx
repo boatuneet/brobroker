@@ -2,6 +2,7 @@ import { AppShell } from "@/components/app-shell";
 import { BuyerIndex } from "@/components/client-memory";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
+import { getStoredListingsForSegment } from "@/lib/supabase/listings";
 
 export const metadata = {
   title: "Buyers · BroBroker",
@@ -16,11 +17,14 @@ export default async function BuyersPage({
   const params = await searchParams;
   const query = Array.isArray(params.q) ? params.q[0] : params.q;
   const segment = await getActiveBrokerSegment();
-  const storedBuyers = await getStoredBuyersForSegment(segment);
+  const [storedBuyers, storedListings] = await Promise.all([
+    getStoredBuyersForSegment(segment),
+    getStoredListingsForSegment(segment),
+  ]);
 
   return (
     <AppShell active="Buyers">
-      <BuyerIndex query={query} segment={segment} storedBuyers={storedBuyers} />
+      <BuyerIndex query={query} segment={segment} storedBuyers={storedBuyers} storedListings={storedListings} />
     </AppShell>
   );
 }

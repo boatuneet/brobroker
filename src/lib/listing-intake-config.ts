@@ -134,6 +134,25 @@ const houseTypeOptions = [
   "Other",
 ].map((value) => ({ label: value, value }));
 
+const yachtPropulsionOptions: ListingFieldOption[] = [
+  { label: "Select propulsion", value: "" },
+  { label: "Motor", value: "Motor" },
+  { label: "Twin diesel", value: "Twin diesel" },
+  { label: "Diesel", value: "Diesel" },
+  { label: "Hybrid", value: "Hybrid" },
+  { label: "Electric", value: "Electric" },
+  { label: "Sail", value: "Sail" },
+  { label: "Other", value: "Other" },
+];
+
+const yachtConditionOptions: ListingFieldOption[] = [
+  { label: "Select condition", value: "" },
+  { label: "New", value: "New" },
+  { label: "Used", value: "Used" },
+  { label: "Refit", value: "Refit" },
+  { label: "Project / needs work", value: "Project / needs work" },
+];
+
 const objectType = (value: string | string[]): ListingField["showWhen"] => ({
   fieldId: "objectType",
   value,
@@ -408,6 +427,8 @@ const yachtConfig: ListingIntakeConfig = {
         { id: "lengthFt", label: "Length overall (ft)", kind: "number", placeholder: "72" },
         { id: "cabins", label: "Cabins", kind: "number", placeholder: "4" },
         { id: "engines", label: "Engines", kind: "text", placeholder: "Twin MAN V12" },
+        { id: "propulsion", label: "Propulsion", kind: "select", options: yachtPropulsionOptions },
+        { id: "condition", label: "Condition", kind: "select", options: yachtConditionOptions },
         { id: "engineHours", label: "Engine hours", kind: "number", placeholder: "690" },
         { id: "vatStatus", label: "VAT status", kind: "select", options: ["EU VAT Paid", "Not Paid", "Unknown", "Commercial"].map((value) => ({ label: value, value })) },
         { id: "priceEur", label: "Asking price EUR", kind: "number", placeholder: "3450000" },
@@ -654,6 +675,8 @@ export function generateSpecSummary(segment: BrokerSegment, values: ListingDraft
   return [
     readText(values, "lengthFt") ? `${readText(values, "lengthFt")}ft` : "",
     readText(values, "cabins") ? `${readText(values, "cabins")} cabins` : "",
+    readText(values, "propulsion"),
+    readText(values, "condition"),
     readText(values, "engineHours") ? `${readText(values, "engineHours")}h` : "",
     readText(values, "location"),
   ]

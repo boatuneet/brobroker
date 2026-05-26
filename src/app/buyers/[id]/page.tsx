@@ -5,6 +5,7 @@ import { BuyerMemoryProfile, getBuyerIds } from "@/components/client-memory";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { getBuyerMemoryProfile } from "@/lib/services";
 import { getStoredBuyerById } from "@/lib/supabase/buyers";
+import { getStoredListingsForSegment } from "@/lib/supabase/listings";
 
 export function generateStaticParams() {
   return getBuyerIds().map((id) => ({ id }));
@@ -39,7 +40,10 @@ export default async function BuyerMemoryPage({
   const { id } = await params;
   const segment = await getActiveBrokerSegment();
   const profile = getBuyerMemoryProfile(id, segment);
-  const storedBuyer = profile ? undefined : await getStoredBuyerById(id);
+  const [storedBuyer, storedListings] = await Promise.all([
+    profile ? Promise.resolve(undefined) : getStoredBuyerById(id),
+    getStoredListingsForSegment(segment),
+  ]);
 
   if (!profile && !storedBuyer) {
     notFound();
@@ -47,7 +51,7 @@ export default async function BuyerMemoryPage({
 
   return (
     <AppShell active="Buyers">
-      <BuyerMemoryProfile buyerId={id} buyerOverride={storedBuyer} segment={segment} />
+      <BuyerMemoryProfile buyerId={id} buyerOverride={storedBuyer} segment={segment} storedListings={storedListings} />
     </AppShell>
   );
 }

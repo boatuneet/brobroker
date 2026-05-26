@@ -9,14 +9,23 @@ import {
   MessageSquareText,
   Sparkles,
 } from "lucide-react";
-import { type BrokerSegment, getListingsForSegment } from "@/lib/broker-segments";
+import {
+  type BrokerSegment,
+  getBuyersForSegment,
+  getListingsForSegment,
+} from "@/lib/broker-segments";
 import {
   mirrorWorkflowEvent,
   readPersisted,
   saveSessionBuyer,
   writePersisted,
 } from "@/lib/browser-persistence";
-import { discoverHiddenOpportunities, generateClientBriefShortlist } from "@/lib/services";
+import {
+  discoverHiddenOpportunities,
+  generateClientBriefShortlist,
+  generateMatchesForBuyer,
+} from "@/lib/services";
+import type { BuyerProfile, YachtListing } from "@/lib/types";
 import { formatCurrency, percentage } from "@/lib/utils";
 import {
   Badge,
@@ -47,14 +56,41 @@ type PersistedBrief = {
   createdAt: string;
 };
 
+function mergeListings(primary: YachtListing[], fallback: YachtListing[]) {
+  const seen = new Set<string>();
+  return [...primary, ...fallback].filter((listing) => {
+    if (seen.has(listing.id)) return false;
+    seen.add(listing.id);
+    return true;
+  });
+}
+
+function mergeBuyers(primary: BuyerProfile[], fallback: BuyerProfile[]) {
+  const seen = new Set<string>();
+  return [...primary, ...fallback].filter((buyer) => {
+    if (seen.has(buyer.id)) return false;
+    seen.add(buyer.id);
+    return true;
+  });
+}
+
 function categoryTone(category: string): "success" | "info" | "warning" {
   if (category === "Exact Match") return "success";
   if (category === "Close Match") return "info";
   return "warning";
 }
 
-export function MatchingWorkspace({ segment = "Yacht" }: { segment?: BrokerSegment }) {
-  const listings = getListingsForSegment(segment);
+export function MatchingWorkspace({
+  segment = "Yacht",
+  storedBuyers = [],
+  storedListings = [],
+}: {
+  segment?: BrokerSegment;
+  storedBuyers?: BuyerProfile[];
+  storedListings?: YachtListing[];
+}) {
+  const listings = mergeListings(storedListings, getListingsForSegment(segment));
+  const buyers = mergeBuyers(storedBuyers, getBuyersForSegment(segment));
   const exampleBrief = exampleBriefs[segment];
   const [brief, setBrief] = useState("");
   const [parsedBrief, setParsedBrief] = useState("");
@@ -64,12 +100,15 @@ export function MatchingWorkspace({ segment = "Yacht" }: { segment?: BrokerSegme
   );
 
   const shortlist = useMemo(
-    () => generateClientBriefShortlist(parsedBrief, segment),
-    [parsedBrief, segment],
+    () => generateClientBriefShortlist(parsedBrief, segment, listings),
+    [listings, parsedBrief, segment],
   );
   const opportunities = useMemo(
-    () => (opportunityListingId ? discoverHiddenOpportunities(opportunityListingId, segment) : []),
-    [opportunityListingId, segment],
+    () =>
+      opportunityListingId
+        ? discoverHiddenOpportunities(opportunityListingId, segment, listings, buyers)
+        : [],
+    [buyers, listings, opportunityListingId, segment],
   );
   const selectedListing = listings.find((listing) => listing.id === opportunityListingId);
 
@@ -80,7 +119,7 @@ export function MatchingWorkspace({ segment = "Yacht" }: { segment?: BrokerSegme
     const trimmed = brief.trim();
     if (!trimmed) return;
     setParsedBrief(brief);
-    const nextShortlist = generateClientBriefShortlist(brief, segment);
+    const nextShortlist = generateClientBriefShortlist(brief, segment, listings);
     saveSessionBuyer({
       id: `brief-buyer-${Date.now()}`,
       name: "Buyer brief draft",
@@ -139,6 +178,10 @@ export function MatchingWorkspace({ segment = "Yacht" }: { segment?: BrokerSegme
             label: "Hidden opportunities",
             value: listings.length > 0 ? `${opportunities.length}` : "—",
           },
+          {
+            label: "Saved buyer checks",
+            value: `${buyers.length}`,
+          },
         ]}
         actions={
           hasBrief ? (
@@ -187,6 +230,47 @@ export function MatchingWorkspace({ segment = "Yacht" }: { segment?: BrokerSegme
               </div>
             </div>
           </Card>
+
+          {buyers.length ? (
+            <Card>
+              <CardHeader
+                eyebrow="Saved buyer matches"
+                title="Current buyer profiles against inventory"
+                description="Automatically refreshed from saved buyer profiles and current listings."
+              />
+              <div className="grid gap-0 divide-y divide-[#f2f2f2]">
+                {buyers.map((buyer) => {
+                  const matches = generateMatchesForBuyer(buyer, listings);
+                  const topMatch = matches[0];
+                  const topListing = listings.find((listing) => listing.id === topMatch?.listingId);
+
+                  return (
+                    <article key={buyer.id} className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-center">
+                      <div className="min-w-0">
+                        <Link
+                          className="text-[15px] font-semibold text-[#17171c] hover:text-[#1863dc]"
+                          href={`/buyers/${buyer.id}`}
+                        >
+                          {buyer.name}
+                        </Link>
+                        <p className="mt-1 text-[13px] leading-6 text-[#616161]">
+                          {topListing
+                            ? `Top fit: ${topListing.name}`
+                            : "No listing fit found yet."}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-[#f7f7f9] p-4 lg:text-right">
+                        <p className="bb-mono-label">Top fit</p>
+                        <p className="mt-1 font-mono text-xl font-semibold text-[#17171c]">
+                          {topMatch ? percentage(topMatch.fitScore) : "—"}
+                        </p>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader

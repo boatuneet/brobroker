@@ -33,7 +33,7 @@ export const getStoredListingsForSegment = cache(async (segment?: BrokerSegment)
     return [];
   }
 
-  return Promise.all((data ?? []).map((row) => hydrateStoredListing(row as StoredAssetRow)));
+  return (data ?? []).map((row) => mapStoredAssetToListing(row as StoredAssetRow, {}, { includePhotos: false }));
 });
 
 export const getStoredListingById = cache(async (id: string) => {

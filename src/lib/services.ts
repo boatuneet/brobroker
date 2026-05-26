@@ -632,10 +632,14 @@ export function parseClientBrief(raw: string): ParsedClientBrief {
   };
 }
 
-export function generateClientBriefShortlist(raw: string, segment?: BrokerSegment) {
+export function generateClientBriefShortlist(
+  raw: string,
+  segment?: BrokerSegment,
+  inventoryOverride?: YachtListing[],
+) {
   const criteria = parseClientBrief(raw);
   const normalizedModel = criteria.model?.toLowerCase();
-  const inventory = getListingsForSegment(segment);
+  const inventory = inventoryOverride ?? getListingsForSegment(segment);
   const scored = inventory.map((listing) => {
     const criteriaMet: string[] = [];
     const missingCriteria: string[] = [];
@@ -766,15 +770,20 @@ export function generateClientBriefShortlist(raw: string, segment?: BrokerSegmen
   };
 }
 
-export function discoverHiddenOpportunities(listingId: string, segment?: BrokerSegment) {
-  const inventory = getListingsForSegment(segment);
+export function discoverHiddenOpportunities(
+  listingId: string,
+  segment?: BrokerSegment,
+  inventoryOverride?: YachtListing[],
+  buyersOverride?: BuyerProfile[],
+) {
+  const inventory = inventoryOverride ?? getListingsForSegment(segment);
   const listing = getListingById(listingId, segment) ?? inventory[0];
 
   if (!listing) {
     return [];
   }
 
-  return getBuyersForSegment(segment ?? getListingAssetType(listing))
+  return (buyersOverride ?? getBuyersForSegment(segment ?? getListingAssetType(listing)))
     .map((buyer) => {
       const match = generateMatchesForBuyer(buyer, [listing])[0];
       const rejected = buyer.rejectedAssets.some((rejection) => rejection.listingId === listing.id);

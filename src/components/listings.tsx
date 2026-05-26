@@ -12,6 +12,7 @@ import {
   HelpCircle,
   MapPin,
   MessageSquareText,
+  Pencil,
   PlusCircle,
   Radio,
   Search,
@@ -228,7 +229,7 @@ export function ListingIndex({
         </Card>
       ) : (
         <section className="mt-8 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_18px_55px_rgba(23,23,28,0.04)]">
-          <div className="hidden grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_170px_180px_140px] border-b border-[#f2f2f2] bg-[#fbfbfa] px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a8a96] lg:grid">
+          <div className="hidden grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_210px_140px_140px] border-b border-[#f2f2f2] bg-[#fbfbfa] px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a8a96] lg:grid">
             <span>Asset</span>
             <span>Location and specs</span>
             <span>Status</span>
@@ -414,12 +415,12 @@ function ListingListRow({
 
   return (
     <Link
-      className="grid gap-4 border-b border-[#f2f2f2] px-6 py-5 transition-colors last:border-b-0 hover:bg-[#fbfbfa] lg:grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_170px_180px_140px] lg:items-center"
+      className="grid gap-4 border-b border-[#f2f2f2] px-6 py-5 transition-colors last:border-b-0 hover:bg-[#fbfbfa] lg:grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_210px_140px_140px] lg:items-center"
       href={`/listings/${listing.id}`}
     >
       <div className="min-w-0">
-        <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-3">
-          <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#f5f4ef] font-mono text-[11px] font-semibold text-[#75758a]">
+        <div className="grid grid-cols-[48px_minmax(0,1fr)] gap-4 items-center">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[#e5e7eb] bg-[#f5f4ef] font-mono text-[11px] font-semibold text-[#75758a]">
             {String(index + 1).padStart(2, "0")}
           </span>
           <div className="min-w-0">
@@ -435,12 +436,16 @@ function ListingListRow({
 
       <div className="min-w-0">
         <p className="truncate text-[13px] font-semibold text-[#3f3f46]">{listing.location}</p>
-        <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[#75758a]">{getListingSpecSummary(listing)}</p>
+        <p className="mt-1 truncate text-[13px] leading-5 text-[#75758a]">{getListingSpecSummary(listing)}</p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        <Badge tone={statusTone(listing.status)}>{listing.status}</Badge>
-        <Badge tone={vatTone(listing.vatStatus)}>{listing.vatStatus}</Badge>
+      <div className="flex flex-nowrap gap-1.5 w-full overflow-hidden">
+        <Badge tone={statusTone(listing.status)} className="shrink-0 max-w-[50%]">
+          <span className="truncate">{listing.status}</span>
+        </Badge>
+        <Badge tone={vatTone(listing.vatStatus)} className="shrink-0 max-w-[50%]">
+          <span className="truncate">{listing.vatStatus}</span>
+        </Badge>
       </div>
 
       <div className="min-w-0">
@@ -461,6 +466,83 @@ function ListingListRow({
         {formatCurrency(listing.priceEur)}
       </p>
     </Link>
+  );
+}
+
+function ListingDetailHero({
+  documentPercent,
+  listing,
+  sellerHref,
+  topFitPercent,
+}: {
+  documentPercent: number;
+  listing: YachtListing;
+  sellerHref?: string;
+  topFitPercent: number;
+}) {
+  const assetType = getListingAssetType(listing);
+  const specSummary = getListingSpecSummary(listing);
+
+  return (
+    <section className="mt-8 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_18px_55px_rgba(23,23,28,0.04)]">
+      <div className="relative min-w-0 p-6 pb-0 sm:p-8 sm:pb-0">
+        <Link
+          className="absolute right-5 top-5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-[#17171c] px-3.5 text-[13px] font-medium text-white shadow-[0_10px_24px_rgba(23,23,28,0.14)] hover:bg-[#2a2a32] sm:right-6 sm:top-6"
+          href={`/listings/${listing.id}/edit`}
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+          Edit
+        </Link>
+
+        <div className="max-w-[calc(100%-5.5rem)] sm:max-w-[calc(100%-6.5rem)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex min-h-7 items-center rounded-full border border-[#e5e7eb] bg-[#fbfbfa] px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6f7080]">
+              {assetType}
+            </span>
+            <span className="text-[12px] font-medium text-[#75758a]">
+              {listing.builder} / {listing.model}
+            </span>
+          </div>
+
+          <h1 className="bb-display mt-5 max-w-4xl text-[2.2rem] font-medium leading-[1.04] tracking-[-0.03em] text-[#17171c] sm:text-[2.75rem]">
+            {listing.name}
+          </h1>
+          <p className="mt-4 max-w-3xl text-[15px] leading-7 text-[#52525b]">
+            {specSummary}
+          </p>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-2 pb-6">
+          <Badge tone={statusTone(listing.status)}>{listing.status}</Badge>
+          <Badge tone={vatTone(listing.vatStatus)}>{listing.vatStatus}</Badge>
+          <span className="text-[13px] leading-6 text-[#616161]">{listing.idealBuyer}</span>
+          {sellerHref ? (
+            <Link
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[#d9d9dd] bg-white px-3 text-[12px] font-medium text-[#17171c] hover:border-[#17171c]"
+              href={sellerHref}
+            >
+              Owner context
+              <ArrowRight className="h-3 w-3" aria-hidden="true" />
+            </Link>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid border-t border-[#f2f2f2] bg-[#fbfbfa] sm:grid-cols-3">
+        <HeroMetric label="Ask" value={formatCurrency(listing.priceEur)} />
+        <HeroMetric label="Documents" value={percentage(documentPercent)} />
+        <HeroMetric label="Top fit" value={percentage(topFitPercent)} />
+      </div>
+    </section>
+  );
+}
+
+function HeroMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b border-[#e8e8ec] px-5 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a8a96]">{label}</p>
+      <p className="mt-1 font-mono text-[17px] font-semibold text-[#17171c]">{value}</p>
+    </div>
   );
 }
 
@@ -693,47 +775,12 @@ export function ListingBrain({
         Back to listings
       </Link>
 
-      <div className="mt-6">
-        <PageHeader
-          eyebrow={`${listing.builder} ${listing.model}`}
-          eyebrowActions={
-            <>
-              <Badge
-                className="min-h-7 !border-[#003c33] !bg-[#003c33] px-3 text-[11px] font-medium !text-white"
-                tone="success"
-              >
-                {listing.status}
-              </Badge>
-              <Badge
-                className="min-h-7 !border-[#003c33] !bg-[#003c33] px-3 text-[11px] font-medium !text-white"
-                tone="success"
-              >
-                {listing.vatStatus}
-              </Badge>
-            </>
-          }
-          title={listing.name}
-          description={`${getListingSpecSummary(listing)}. ${listing.idealBuyer}.`}
-          metrics={[
-            { label: "Ask", value: formatCurrency(listing.priceEur) },
-            { label: "Docs", value: percentage(documentCompleteness.percent) },
-            { label: "Top fit", value: percentage(fitSignals.highestScore) },
-          ]}
-          actions={
-            <>
-              {seller && !seller.id.startsWith("seller-listing-") ? (
-                <Link
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#17171c] bg-[#17171c] px-4 text-sm font-medium text-white shadow-[0_10px_30px_rgba(23,23,28,0.12)] hover:bg-[#2a2a32]"
-                  href={`/sellers/${seller.id}`}
-                >
-                  Open owner context
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Link>
-              ) : null}
-            </>
-          }
-        />
-      </div>
+      <ListingDetailHero
+        documentPercent={documentCompleteness.percent}
+        listing={listing}
+        sellerHref={seller && !seller.id.startsWith("seller-listing-") ? `/sellers/${seller.id}` : undefined}
+        topFitPercent={fitSignals.highestScore}
+      />
 
       <div className="mt-12 grid gap-8">
         <Card>

@@ -22,6 +22,13 @@ import { getBrokerSegmentMeta } from "@/lib/broker-segments";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
+import { Fraunces } from "next/font/google";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  variable: "--font-fraunces",
+});
 
 const navItems: Array<{
   label: string;
@@ -68,16 +75,11 @@ export async function AppShell({
         <div className="flex h-full flex-col">
           <div className="px-6 pb-6 pt-7">
             <Link aria-label="BroBroker dashboard" className="inline-flex" href="/dashboard">
-              <Image
-                alt="BroBroker"
-                className="h-auto w-[172px]"
-                height={44}
-                priority
-                src={logoSrc}
-                width={172}
-              />
+              <span className={cn(fraunces.className, "text-[2rem] font-bold tracking-tight text-[#17171c]")}>
+                Brobroker.
+              </span>
             </Link>
-            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#75758a]">
+            <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#003c33]">
               {segmentMeta.label} workspace
             </p>
           </div>
@@ -113,14 +115,27 @@ export async function AppShell({
           </nav>
 
           <div className="shrink-0 px-4 pb-6 pt-4">
-            <div className="rounded-2xl bg-[#003c33] p-5 text-white shadow-[0_18px_45px_rgba(0,60,51,0.16)]">
-              <div className="flex items-center gap-2 text-[13px] font-medium">
-                <ListChecks aria-hidden="true" className="h-4 w-4" />
-                {segmentMeta.label} mode
+            <div className="relative overflow-hidden rounded-2xl bg-[#17171c] p-5 text-white shadow-[0_18px_45px_rgba(23,23,28,0.16)]">
+              {/* Decorative background shapes */}
+              <div className="absolute -right-4 -top-4 h-16 w-12 rotate-12 bg-[#003c33] opacity-80" />
+              <div className="absolute -right-8 top-6 h-16 w-12 rotate-12 bg-[#003c33] opacity-80" />
+              
+              <div className="relative z-10">
+                <h3 className="text-xl font-bold leading-tight tracking-tight">
+                  Loving<br />
+                  Brobroker<br />
+                  Free?
+                </h3>
+                <p className="mt-3 text-[13px] leading-relaxed text-[rgba(255,255,255,0.85)]">
+                  Go Pro to access priority support, real-time tracking, and full analytics.
+                </p>
+                <Link
+                  href="/pricing"
+                  className="mt-5 flex min-h-10 w-full items-center justify-center rounded-xl bg-white px-4 text-[14px] font-semibold text-[#17171c] transition-transform hover:scale-[1.02]"
+                >
+                  Go Pro Today
+                </Link>
               </div>
-              <p className="mt-2 text-[13px] leading-6 text-[rgba(255,255,255,0.72)]">
-                Filtered assets, clients, tasks, and rooms for this broker segment.
-              </p>
             </div>
 
             {/* Profile tile stays visible even while Supabase is still being
@@ -178,14 +193,9 @@ export async function AppShell({
       <header className="sticky top-0 z-10 border-b border-[#e5e7eb] bg-[#f7f7f9]/95 px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link aria-label="BroBroker dashboard" className="inline-flex" href="/dashboard">
-            <Image
-              alt="BroBroker"
-              className="h-auto w-[142px]"
-              height={36}
-              priority
-              src={logoSrc}
-              width={142}
-            />
+            <span className={cn(fraunces.className, "text-2xl font-bold tracking-tight text-[#17171c]")}>
+              Brobroker.
+            </span>
           </Link>
           {userEmail ? (
             <Link

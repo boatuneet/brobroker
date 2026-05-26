@@ -1089,6 +1089,8 @@ function buildCoreFacts(
   add("Length", readText(values, "lengthFt") ? `${readText(values, "lengthFt")} ft` : "");
   add("Cabins", readText(values, "cabins"));
   add("Engines", readText(values, "engines"));
+  add("Propulsion", readText(values, "propulsion"));
+  add("Condition", readText(values, "condition"));
   add("Engine hours", readText(values, "engineHours"));
   add("Location", location);
   return facts;
