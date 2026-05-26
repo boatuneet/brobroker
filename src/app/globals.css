@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Cohere-inspired light theme tokens for BroBroker.
+   - White editorial canvas with hairline borders.
+   - Near-black primary, deep-green dark feature bands.
+   - Coral editorial chips, action-blue links.
+   - Restrained type, generous whitespace.
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --background: #f7f7f9;
+  --foreground: #17171c;
+
+  --bb-canvas: #f7f7f9;          /* light cool grey workspace background, just off-white so cards pop */
+  --bb-surface: #ffffff;          /* primary card / panel surface */
+  --bb-surface-soft: #f7f7f9;     /* soft cool neutral, used sparingly inside white cards */
+  --bb-surface-stone: #eeece7;    /* warm card surface for product/quote blocks */
+  --bb-surface-pale-green: #edfce9;
+  --bb-surface-pale-blue: #f1f5ff;
+
+  /* Sidebar — Cohere deep-green editorial wall */
+  --bb-sidebar: #003c33;
+  --bb-sidebar-ink: #f6f2ea;
+  --bb-sidebar-mute: rgba(246, 242, 234, 0.62);
+  --bb-sidebar-hairline: rgba(246, 242, 234, 0.12);
+
+  /* Borders & rules */
+  --bb-hairline: #e5e7eb;
+  --bb-hairline-strong: #d9d9dd;
+  --bb-card-border: #f2f2f2;
+  --bb-divider-soft: #f2f2f2;
+
+  /* Ink */
+  --bb-ink: #17171c;
+  --bb-body: #212121;
+  --bb-charcoal: #3f3f46;
+  --bb-mute: #75758a;
+  --bb-ash: #93939f;
+  --bb-stone: #b4b4be;
+
+  /* Brand & accent */
+  --bb-deep-green: #003c33;
+  --bb-dark-navy: #071829;
+  --bb-action-blue: #1863dc;
+  --bb-focus-blue: #4c6ee6;
+  --bb-coral: #ff7759;
+  --bb-coral-soft: #ffad9b;
+
+  /* Semantic */
+  --bb-success: #047857;
+  --bb-success-soft: #ecfdf5;
+  --bb-warning: #b45309;
+  --bb-warning-soft: #fffbeb;
+  --bb-error: #b30000;
+  --bb-error-soft: #fef2f2;
+
+  /* Primary CTA */
+  --bb-primary: #17171c;
+  --bb-primary-on: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--bb-canvas);
+}
+
+body {
+  background: var(--bb-canvas);
+  color: var(--bb-ink);
+  font-family: var(--font-geist-sans), "Inter", Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+button,
+a {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--bb-ink);
+  color: #ffffff;
+}
+
+* {
+  scrollbar-color: var(--bb-stone) var(--bb-canvas);
+}
+
+input,
+select,
+textarea {
+  color-scheme: light;
+}
+
+textarea {
+  resize: vertical;
+}
+
+img,
+svg {
+  flex-shrink: 0;
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th,
+td {
+  vertical-align: top;
+}
+
+/* ---- Cohere editorial helpers ---- */
+@layer utilities {
+  @keyframes bb-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes bb-tab-panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .bb-toast-enter {
+    animation: bb-toast-in 220ms ease-out both;
+  }
+
+  .bb-tab-panel-enter {
+    animation: bb-tab-panel-in 220ms ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bb-tab-panel-enter {
+      animation: none;
+    }
+  }
+
+  .bb-mono-label {
+    font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--bb-mute);
+  }
+
+  .bb-display {
+    font-feature-settings: "ss01", "ss02";
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+
+  /* Editorial dark feature band — Cohere deep-green */
+  .bb-band-green {
+    background: var(--bb-deep-green);
+    color: #ffffff;
+  }
+
+  /* Editorial dark feature band — Cohere navy */
+  .bb-band-navy {
+    background: var(--bb-dark-navy);
+    color: #ffffff;
+  }
+}
