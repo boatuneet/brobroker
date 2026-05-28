@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Clock3, Pencil, PlusCircle, Save, Trash2, X } from "lucide-react";
 import {
   deleteSessionBuyer,
@@ -13,6 +13,47 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { Badge, Button, Card, CardHeader, CardHeaderIcon, TextInput } from "./ui";
 import { SelectMenu } from "./select-menu";
+
+// Session buyer store — SSR + first client render must agree, so we emit a
+// stable empty snapshot on the server and switch to the persisted list once
+// useSyncExternalStore subscribes on the client. Mutations dispatch a custom
+// event so every mounted subscriber re-reads localStorage.
+const BUYERS_KEY = "brobroker:buyers:session";
+const BUYERS_CHANGED = "brobroker:buyers:session:changed";
+const EMPTY_BUYERS: SessionBuyer[] = [];
+
+let cachedBuyersRaw: string | null = null;
+let cachedBuyersSnapshot: SessionBuyer[] = EMPTY_BUYERS;
+
+function subscribeBuyers(notify: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+  window.addEventListener("storage", notify);
+  window.addEventListener(BUYERS_CHANGED, notify);
+  return () => {
+    window.removeEventListener("storage", notify);
+    window.removeEventListener(BUYERS_CHANGED, notify);
+  };
+}
+
+function getBuyersClientSnapshot(): SessionBuyer[] {
+  if (typeof window === "undefined") return EMPTY_BUYERS;
+  const raw = window.localStorage.getItem(BUYERS_KEY);
+  if (raw === cachedBuyersRaw) return cachedBuyersSnapshot;
+  cachedBuyersRaw = raw;
+  cachedBuyersSnapshot = readPersisted<SessionBuyer[]>(BUYERS_KEY, EMPTY_BUYERS);
+  return cachedBuyersSnapshot;
+}
+
+function getBuyersServerSnapshot(): SessionBuyer[] {
+  return EMPTY_BUYERS;
+}
+
+function notifyBuyersChanged() {
+  if (typeof window === "undefined") return;
+  // Reset cache so the next snapshot read parses fresh localStorage.
+  cachedBuyersRaw = null;
+  window.dispatchEvent(new Event(BUYERS_CHANGED));
+}
 
 export function AssetIntakePanel() {
   const [isOpen, setIsOpen] = useState(false);
@@ -111,8 +152,12 @@ export function AssetIntakePanel() {
 }
 
 export function SessionBuyerQueue() {
-  const [buyers, setBuyers] = useState<SessionBuyer[]>(() =>
-    readPersisted<SessionBuyer[]>("brobroker:buyers:session", []),
+  // SSR + first client render → EMPTY_BUYERS so the rendered tree matches.
+  // Once mounted, useSyncExternalStore swaps in the persisted list.
+  const buyers = useSyncExternalStore(
+    subscribeBuyers,
+    getBuyersClientSnapshot,
+    getBuyersServerSnapshot,
   );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SessionBuyer | null>(null);
@@ -137,17 +182,19 @@ export function SessionBuyerQueue() {
 
   function saveDraft() {
     if (!draft) return;
-    setBuyers(saveSessionBuyer({
+    saveSessionBuyer({
       ...draft,
       name: draft.name.trim() || "New buyer",
       summary: draft.summary.trim() || "Buyer memory captured locally.",
       budgetLabel: draft.budgetLabel?.trim() || "Budget to confirm",
-    }));
+    });
+    notifyBuyersChanged();
     cancelEdit();
   }
 
   function removeBuyer(id: string) {
-    setBuyers(deleteSessionBuyer(id));
+    deleteSessionBuyer(id);
+    notifyBuyersChanged();
     if (editingId === id) cancelEdit();
   }
 

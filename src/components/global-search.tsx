@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import {
   type BrokerSegment,
   getBuyersForSegment,
@@ -11,16 +15,55 @@ import { getListingSpecSummary } from "@/lib/services";
 import { formatCurrency } from "@/lib/utils";
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from "./ui";
 
+const SUGGESTIONS = [
+  "Monaco",
+  "Ferrari",
+  "VAT",
+  "owner update",
+  "verification",
+  "family",
+];
+
 function includesQuery(parts: Array<string | number | undefined>, query: string) {
   return parts.filter(Boolean).join(" ").toLowerCase().includes(query);
 }
 
-export function GlobalSearch({ query, segment }: { query?: string; segment?: BrokerSegment }) {
-  const normalized = query?.trim().toLowerCase() ?? "";
-  const listings = getListingsForSegment(segment);
-  const buyers = getBuyersForSegment(segment);
-  const sellers = getSellersForSegment(segment);
-  const tasks = getTasksForSegment(segment);
+export function GlobalSearch({
+  query,
+  segment,
+}: {
+  query?: string;
+  segment?: BrokerSegment;
+}) {
+  const router = useRouter();
+  const [value, setValue] = useState(query ?? "");
+  const lastSyncedRef = useRef(query ?? "");
+
+  // Keep local input in sync if the URL query changes from outside (back/forward).
+  useEffect(() => {
+    const next = query ?? "";
+    if (next !== lastSyncedRef.current) {
+      setValue(next);
+      lastSyncedRef.current = next;
+    }
+  }, [query]);
+
+  // When the input is cleared, drop ?q= from the URL so the user sees the
+  // quick-start state instead of being stranded on an empty results screen.
+  useEffect(() => {
+    if (value.trim() === "" && (query ?? "") !== "") {
+      lastSyncedRef.current = "";
+      router.replace("/search");
+    }
+  }, [value, query, router]);
+
+  const normalized = value.trim().toLowerCase();
+
+  const listings = useMemo(() => getListingsForSegment(segment), [segment]);
+  const buyers = useMemo(() => getBuyersForSegment(segment), [segment]);
+  const sellers = useMemo(() => getSellersForSegment(segment), [segment]);
+  const tasks = useMemo(() => getTasksForSegment(segment), [segment]);
+
   const listingResults = normalized
     ? listings.filter((listing) =>
         includesQuery(
@@ -75,11 +118,23 @@ export function GlobalSearch({ query, segment }: { query?: string; segment?: Bro
     : [];
   const taskResults = normalized
     ? tasks.filter((task) =>
-        includesQuery([task.title, task.kind, task.priority, task.status, task.reason], normalized),
+        includesQuery(
+          [task.title, task.kind, task.priority, task.status, task.reason],
+          normalized,
+        ),
       )
     : [];
   const total =
-    listingResults.length + buyerResults.length + sellerResults.length + taskResults.length;
+    listingResults.length +
+    buyerResults.length +
+    sellerResults.length +
+    taskResults.length;
+
+  function applySuggestion(term: string) {
+    setValue(term);
+    lastSyncedRef.current = term;
+    router.push(`/search?q=${encodeURIComponent(term)}`);
+  }
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
@@ -95,7 +150,19 @@ export function GlobalSearch({ query, segment }: { query?: string; segment?: Bro
         ]}
       />
 
-      <form action="/search" className="mt-10 flex max-w-2xl items-stretch gap-2">
+      <form
+        action="/search"
+        className="mt-10 flex max-w-2xl items-stretch gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const next = value.trim();
+          if (next === "") {
+            router.replace("/search");
+          } else {
+            router.push(`/search?q=${encodeURIComponent(next)}`);
+          }
+        }}
+      >
         <label className="relative flex-1">
           <span className="sr-only">Search everything</span>
           <Search
@@ -103,28 +170,90 @@ export function GlobalSearch({ query, segment }: { query?: string; segment?: Bro
             aria-hidden="true"
           />
           <input
-            className="h-11 w-full rounded-full border border-[#d9d9dd] bg-white pl-11 pr-4 text-sm text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
-            defaultValue={query}
+            className="h-11 w-full rounded-full border border-[#d9d9dd] bg-white pl-11 pr-4 text-sm text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
             name="q"
+            onChange={(event) => setValue(event.target.value)}
             placeholder="Search buyer memory, listing facts, owner notes..."
             type="search"
+            value={value}
           />
         </label>
-        <button className="min-h-11 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white" type="submit">
+        <button
+          className="min-h-11 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+          type="submit"
+        >
           Search
         </button>
       </form>
 
       {!normalized ? (
         <Card className="mt-12">
-          <EmptyState
-            title="Enter a search term"
-            description="Try family, Monaco, Ferrari, VAT, owner update, or verification."
-          />
+          <div className="p-6 sm:p-8">
+            <p className="bb-mono-label">Quick starts</p>
+            <h2 className="bb-display mt-2 text-[22px] font-medium text-[#17171c]">
+              Pick a starting point or return to the dashboard
+            </h2>
+            <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-[#3f3f46]">
+              Type any keyword above — buyer names, locations, tags, owner
+              notes, document gaps — or jump in with one of these.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {SUGGESTIONS.map((term) => (
+                <button
+                  className="inline-flex h-8 items-center rounded-full border border-[#d9d9dd] bg-white px-3 text-[12.5px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] hover:bg-[#17171c] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  key={term}
+                  onClick={() => applySuggestion(term)}
+                  type="button"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <Link
+                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                href="/dashboard"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                Back to dashboard
+              </Link>
+              <Link
+                className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#1863dc] hover:underline"
+                href="/buyers"
+              >
+                Browse buyers
+                <ArrowRight className="h-3 w-3" aria-hidden="true" />
+              </Link>
+              <Link
+                className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#1863dc] hover:underline"
+                href="/listings"
+              >
+                Browse listings
+                <ArrowRight className="h-3 w-3" aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
         </Card>
       ) : total === 0 ? (
         <Card className="mt-12">
-          <EmptyState title={`No results for "${query}"`} description="Try a broader term or search by buyer, location, asset type, tag, or task reason." />
+          <EmptyState
+            title={`No results for "${value}"`}
+            description="Try a broader term or search by buyer, location, asset type, tag, or task reason."
+          />
+          <div className="px-6 pb-6 sm:px-8">
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTIONS.map((term) => (
+                <button
+                  className="inline-flex h-8 items-center rounded-full border border-[#d9d9dd] bg-white px-3 text-[12.5px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] hover:bg-[#17171c] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  key={term}
+                  onClick={() => applySuggestion(term)}
+                  type="button"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          </div>
         </Card>
       ) : (
         <div className="mt-12 grid gap-8 xl:grid-cols-2">
@@ -133,15 +262,21 @@ export function GlobalSearch({ query, segment }: { query?: string; segment?: Bro
             <ul className="divide-y divide-[#f2f2f2]">
               {listingResults.map((listing) => (
                 <li key={listing.id} className="px-6 py-5">
-                  <Link className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]" href={`/listings/${listing.id}`}>
+                  <Link
+                    className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]"
+                    href={`/listings/${listing.id}`}
+                  >
                     {listing.name}
                   </Link>
                   <p className="mt-1 text-[13px] leading-6 text-[#616161]">
-                    {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
+                    {listing.builder} {listing.model} ·{" "}
+                    {getListingSpecSummary(listing)}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Badge tone="neutral">{listing.assetType ?? "Yacht"}</Badge>
-                    <Badge tone="neutral">{formatCurrency(listing.priceEur)}</Badge>
+                    <Badge tone="neutral">
+                      {formatCurrency(listing.priceEur)}
+                    </Badge>
                   </div>
                 </li>
               ))}
@@ -153,15 +288,22 @@ export function GlobalSearch({ query, segment }: { query?: string; segment?: Bro
             <ul className="divide-y divide-[#f2f2f2]">
               {buyerResults.map((buyer) => (
                 <li key={buyer.id} className="px-6 py-5">
-                  <Link className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]" href={`/buyers/${buyer.id}`}>
+                  <Link
+                    className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]"
+                    href={`/buyers/${buyer.id}`}
+                  >
                     {buyer.name}
                   </Link>
                   <p className="mt-1 text-[13px] leading-6 text-[#616161]">
-                    {[buyer.company, buyer.country, buyer.currentStage].filter(Boolean).join(" · ")}
+                    {[buyer.company, buyer.country, buyer.currentStage]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {buyer.tags.slice(0, 4).map((tag) => (
-                      <Badge key={tag} tone="neutral">{tag}</Badge>
+                      <Badge key={tag} tone="neutral">
+                        {tag}
+                      </Badge>
                     ))}
                   </div>
                 </li>
@@ -175,10 +317,14 @@ export function GlobalSearch({ query, segment }: { query?: string; segment?: Bro
               {taskResults.map((task) => (
                 <li key={task.id} className="px-6 py-5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[15px] font-medium text-[#17171c]">{task.title}</p>
+                    <p className="text-[15px] font-medium text-[#17171c]">
+                      {task.title}
+                    </p>
                     <Badge tone="neutral">{task.priority}</Badge>
                   </div>
-                  <p className="mt-1 text-[13px] leading-6 text-[#616161]">{task.reason}</p>
+                  <p className="mt-1 text-[13px] leading-6 text-[#616161]">
+                    {task.reason}
+                  </p>
                 </li>
               ))}
             </ul>
@@ -189,7 +335,10 @@ export function GlobalSearch({ query, segment }: { query?: string; segment?: Bro
             <ul className="divide-y divide-[#f2f2f2]">
               {sellerResults.map((seller) => (
                 <li key={seller.id} className="px-6 py-5">
-                  <Link className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]" href={`/sellers/${seller.id}`}>
+                  <Link
+                    className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]"
+                    href={`/sellers/${seller.id}`}
+                  >
                     {seller.name}
                   </Link>
                   <p className="mt-1 text-[13px] leading-6 text-[#616161]">

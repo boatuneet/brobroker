@@ -419,6 +419,49 @@ export function getInitialBuyerDraftValues(segment: BrokerSegment): BuyerDraftVa
   };
 }
 
+// Map a saved buyer back into the draft-values shape used by the intake form
+// so the same component can power both "new" and "edit" flows.
+export function getBuyerDraftValuesFromProfile(
+  segment: BrokerSegment,
+  buyer: BuyerProfile,
+): BuyerDraftValues {
+  const base = getInitialBuyerDraftValues(segment);
+  return {
+    ...base,
+    name: buyer.name,
+    company: buyer.company ?? "",
+    country: buyer.country,
+    stage: buyer.currentStage,
+    urgency: buyer.urgency,
+    nextActionDueAt: buyer.nextActionDueAt,
+    budgetRange: {
+      from: buyer.budgetMinEur ? String(buyer.budgetMinEur) : "",
+      to: buyer.budgetMaxEur ? String(buyer.budgetMaxEur) : "",
+    },
+    metricRange: {
+      from: buyer.sizeRangeFt?.[0] ? String(buyer.sizeRangeFt[0]) : "",
+      to: buyer.sizeRangeFt?.[1] ? String(buyer.sizeRangeFt[1]) : "",
+    },
+    preferredBrands: buyer.preferredBrands.join(", "),
+    preferredLocations: buyer.preferredLocations.join(", "),
+    lifestylePreferences: buyer.lifestylePreferences.join("\n"),
+    mustHaves: buyer.mustHaves.join("\n"),
+    dealBreakers: buyer.dealBreakers.join("\n"),
+    objections: buyer.objections.join("\n"),
+    // Strip the default placeholders so editing an un-filled buyer starts
+    // with empty fields instead of treating placeholders as real data.
+    decisionTimeline:
+      buyer.decisionTimeline === "Timeline to confirm with buyer."
+        ? ""
+        : buyer.decisionTimeline,
+    communicationStyle:
+      buyer.communicationStyle === "Broker to confirm preferred cadence."
+        ? ""
+        : buyer.communicationStyle,
+    relationshipNotes: buyer.relationshipNotes.join("\n"),
+  };
+}
+
 export function getSegmentLabel(segment: BrokerSegment) {
   return brokerSegments.find((item) => item.id === segment)?.label ?? segment;
 }

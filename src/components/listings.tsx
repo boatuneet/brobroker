@@ -1,11 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   Bot,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   FileText,
   Gauge,
@@ -17,8 +23,8 @@ import {
   Radio,
   Search,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
+  X,
 } from "lucide-react";
 import { yachtListings } from "@/lib/demo-data";
 import {
@@ -39,12 +45,11 @@ import {
   getListingSpecSummary,
   getSellerById,
 } from "@/lib/services";
-import type { YachtListing } from "@/lib/types";
+import type { ListingStatus, YachtListing } from "@/lib/types";
 import { getListingMapLocation } from "@/lib/location-options";
-import { formatCurrency, percentage } from "@/lib/utils";
+import { cn, formatCurrency, percentage } from "@/lib/utils";
 import {
   Badge,
-  Button,
   Card,
   CardHeader,
   CardHeaderIcon,
@@ -107,10 +112,23 @@ function filterListings(listings: YachtListing[], query: string) {
   );
 }
 
+const PAGE_SIZE = 12;
+const STATUS_OPTIONS: ListingStatus[] = [
+  "Draft",
+  "Active",
+  "Pre-Market",
+  "Under Offer",
+  "Coming Soon",
+];
+
+function isListingStatus(value: string): value is ListingStatus {
+  return (STATUS_OPTIONS as string[]).includes(value);
+}
+
 export function ListingIndex({
-  query,
+  query: initialQuery,
   segment,
-  status,
+  status: initialStatus,
   storedListings = [],
 }: {
   query?: string;
@@ -118,24 +136,100 @@ export function ListingIndex({
   status?: string;
   storedListings?: YachtListing[];
 }) {
-  const segmentListings = mergeListings(storedListings, getListingsForSegment(segment));
-  const searchedListings = query ? filterListings(segmentListings, query) : segmentListings;
-  const statusFilter = status === "All" ? undefined : status;
-  const listings = statusFilter
-    ? searchedListings.filter((listing) => listing.status === statusFilter)
-    : searchedListings;
-  const statusOptions = ["All", "Draft", "Active", "Pre-Market", "Under Offer", "Coming Soon"];
+  const segmentListings = useMemo(
+    () => mergeListings(storedListings, getListingsForSegment(segment)),
+    [storedListings, segment],
+  );
 
-  if (segmentListings.length === 0 && !query) {
+  // Tasks resolved once for the whole list — keeps row work O(1).
+  const openTaskCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const task of getTasksForSegment(segment)) {
+      if (task.status === "Done" || !task.listingId) continue;
+      map.set(task.listingId, (map.get(task.listingId) ?? 0) + 1);
+    }
+    return map;
+  }, [segment]);
+
+  const [query, setQuery] = useState(initialQuery ?? "");
+  const [statusFilter, setStatusFilter] = useState<ListingStatus | "All">(() => {
+    if (initialStatus && initialStatus !== "All" && isListingStatus(initialStatus)) {
+      return initialStatus;
+    }
+    return "All";
+  });
+  const [page, setPage] = useState(1);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const searching = normalizedQuery !== "";
+
+  // Query-only filter drives chip counts (Knowledge Vault pattern).
+  const queryFilteredListings = useMemo(
+    () => (searching ? filterListings(segmentListings, query) : segmentListings),
+    [segmentListings, query, searching],
+  );
+
+  const dynamicStatusCounts = useMemo(() => {
+    const map = new Map<ListingStatus, number>();
+    for (const listing of queryFilteredListings) {
+      map.set(listing.status, (map.get(listing.status) ?? 0) + 1);
+    }
+    return map;
+  }, [queryFilteredListings]);
+
+  // Only show chips for statuses that actually exist in the dataset.
+  const availableStatuses = useMemo(() => {
+    const present = new Set<ListingStatus>();
+    for (const listing of segmentListings) present.add(listing.status);
+    return STATUS_OPTIONS.filter((status) => present.has(status));
+  }, [segmentListings]);
+
+  const filteredListings = useMemo(
+    () =>
+      statusFilter === "All"
+        ? queryFilteredListings
+        : queryFilteredListings.filter((listing) => listing.status === statusFilter),
+    [queryFilteredListings, statusFilter],
+  );
+
+  if (segmentListings.length === 0 && !initialQuery) {
     return <FirstRunListings />;
   }
 
-  const averageCompleteness = Math.round(
-    listings.reduce((total, listing) => total + getDocumentCompleteness(listing).percent, 0) /
-      Math.max(listings.length, 1),
+  // Reset to page 1 when filters change — but only when the page is now out of range.
+  const pageCount = Math.max(1, Math.ceil(filteredListings.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  if (safePage !== page) {
+    // Inline correction — cheaper than useEffect for derived state.
+    setPage(safePage);
+  }
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pageListings = filteredListings.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // KPI band — only fields we genuinely have on YachtListing.
+  const activeCount = filteredListings.filter((listing) => listing.status === "Active").length;
+  const reviewCount = filteredListings.filter((listing) => listing.missingInfo.length > 0).length;
+  const completenessAvg = Math.round(
+    filteredListings.reduce(
+      (total, listing) => total + getDocumentCompleteness(listing).percent,
+      0,
+    ) / Math.max(filteredListings.length, 1),
   );
-  const reviewCount = listings.filter((listing) => listing.missingInfo.length > 0).length;
-  const inventoryValue = listings.reduce((total, listing) => total + listing.priceEur, 0);
+
+  const onQueryChange = (next: string) => {
+    setQuery(next);
+    setPage(1);
+  };
+  const onStatusChange = (next: ListingStatus | "All") => {
+    setStatusFilter(next);
+    setPage(1);
+  };
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("All");
+    setPage(1);
+  };
+  const hasFilters = searching || statusFilter !== "All";
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
@@ -143,105 +237,258 @@ export function ListingIndex({
         eyebrow="Asset intelligence"
         title="Listing intelligence"
         description="Search inventory by fit, owner, location, documents, and missing facts."
-        metrics={[
-          { label: "Visible", value: `${listings.length}` },
-          { label: "Inventory value", value: formatCurrency(inventoryValue) },
-          { label: "Doc completeness", value: percentage(averageCompleteness) },
-          { label: "Needs follow-up", value: `${reviewCount}` },
-        ]}
         actions={
           <Link
             className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white hover:bg-[#2a2a32]"
             href="/listings/new"
           >
             <PlusCircle className="h-4 w-4" aria-hidden="true" />
-            Add listing
+            New listing
           </Link>
         }
       />
 
-      <Card className="mt-10 p-4">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-          <form action="/listings" className="flex min-w-0 items-stretch gap-2">
-            <label className="relative flex-1">
-              <span className="sr-only">Search listings</span>
-              <Search
-                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#75758a]"
-                aria-hidden="true"
-              />
-              <input
-                className="h-11 w-full rounded-full border border-[#d9d9dd] bg-white pl-11 pr-4 text-sm text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
-                defaultValue={query}
-                name="q"
-                placeholder="Search make, model, owner, location, docs..."
-                type="search"
-              />
-            </label>
-            {statusFilter ? <input name="status" type="hidden" value={statusFilter} /> : null}
-            <Button size="sm" type="submit" variant="secondary">
-              Search
-            </Button>
-          </form>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#e5e7eb] bg-[#f7f7f9] px-3 text-[12px] font-medium text-[#616161]">
-              <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-              Quick filters
-            </span>
-            {statusOptions.map((option) => {
-              const active = (statusFilter ?? "All") === option;
-              const href = `/listings?${new URLSearchParams({
-                ...(query ? { q: query } : {}),
-                ...(option === "All" ? {} : { status: option }),
-              }).toString()}`;
+      {/* KPI band — editorial cockpit. One cream tile, three paper tiles. */}
+      <section
+        aria-label="Inventory summary"
+        className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <KpiTile
+          tone="cream"
+          label="Inventory"
+          value={`${segmentListings.length}`}
+          detail={
+            filteredListings.length === segmentListings.length
+              ? "All listings in scope"
+              : `${filteredListings.length} in current view`
+          }
+        />
+        <KpiTile
+          tone="paper"
+          label="Active"
+          value={`${activeCount}`}
+          detail="Live in market"
+        />
+        <KpiTile
+          tone="paper"
+          label="Doc completeness"
+          value={percentage(completenessAvg)}
+          detail={`${reviewCount} need follow-up`}
+        />
+        <KpiTile
+          tone="paper"
+          label="Needs review"
+          value={`${reviewCount}`}
+          detail="Open gaps to close"
+        />
+      </section>
 
+      {/* Search + status chips — same dynamic-count pattern as Knowledge Vault. */}
+      <section
+        aria-label="Filter listings"
+        className="mt-8 rounded-[22px] border border-[#ececef] bg-white p-4 sm:p-5"
+      >
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+          <label className="relative block">
+            <span className="sr-only">Search listings</span>
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#75758a]"
+            />
+            <input
+              className="h-10 w-full rounded-full border border-[#e5e7eb] bg-white pl-10 pr-9 text-[13px] text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Search make, model, location, missing info…"
+              type="search"
+              value={query}
+            />
+            {searching ? (
+              <button
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#75758a] hover:bg-[#f4fbf5] hover:text-[#17171c]"
+                onClick={() => onQueryChange("")}
+                type="button"
+              >
+                <X aria-hidden="true" className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            <StatusChip
+              active={statusFilter === "All"}
+              count={searching ? queryFilteredListings.length : segmentListings.length}
+              label="All"
+              onClick={() => onStatusChange("All")}
+            />
+            {availableStatuses.map((status) => {
+              const count = searching
+                ? (dynamicStatusCounts.get(status) ?? 0)
+                : segmentListings.filter((l) => l.status === status).length;
               return (
-                <Link
-                  className={`inline-flex min-h-9 items-center rounded-full border px-3 text-[12px] font-medium transition-colors ${
-                    active
-                      ? "border-[#17171c] bg-[#17171c] text-white"
-                      : "border-[#d9d9dd] bg-white text-[#3f3f46] hover:border-[#17171c]"
-                  }`}
-                  href={href}
-                  key={option}
-                >
-                  {option}
-                </Link>
+                <StatusChip
+                  active={statusFilter === status}
+                  count={count}
+                  key={status}
+                  label={status}
+                  onClick={() => onStatusChange(status)}
+                />
               );
             })}
           </div>
         </div>
-      </Card>
+      </section>
 
-      {listings.length === 0 ? (
-        <Card className="mt-12">
+      {filteredListings.length === 0 ? (
+        <Card className="mt-10">
           <EmptyState
-            title={`No listings match “${query}”`}
-            description="Try a different keyword or clear the search to see every listing in the brain."
+            title={searching ? `No listings match “${query}”` : "No listings in this status"}
+            description="Try a different keyword, clear the status filter, or open a new listing brain."
             action={
-              <Link
-                className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] hover:border-[#17171c]"
-                href="/listings"
-              >
-                Clear search
-              </Link>
+              hasFilters ? (
+                <button
+                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] hover:border-[#17171c]"
+                  onClick={clearFilters}
+                  type="button"
+                >
+                  Clear filters
+                </button>
+              ) : undefined
             }
           />
         </Card>
       ) : (
-        <section className="mt-8 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_18px_55px_rgba(23,23,28,0.04)]">
-          <div className="hidden grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_210px_140px_140px] border-b border-[#f2f2f2] bg-[#fbfbfa] px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a8a96] lg:grid">
-            <span>Asset</span>
-            <span>Location and specs</span>
-            <span>Status</span>
-            <span>Documents</span>
-            <span className="text-right">Price</span>
-          </div>
-          {listings.map((listing, index) => (
-            <ListingListRow key={listing.id} index={index} listing={listing} segment={segment} />
-          ))}
-        </section>
+        <>
+          <section
+            aria-label="Listings"
+            className="mt-8 overflow-hidden rounded-[22px] border border-[#ececef] bg-white"
+          >
+            <div className="hidden grid-cols-[minmax(280px,1.4fr)_minmax(180px,1fr)_180px_140px] border-b border-[#f2f2f2] bg-[#fbfbfa] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a8a96] lg:grid">
+              <span>Asset</span>
+              <span>Location · specs</span>
+              <span>Status · readiness</span>
+              <span className="text-right">Price</span>
+            </div>
+            {pageListings.map((listing) => (
+              <ListingListRow
+                key={listing.id}
+                listing={listing}
+                openTasks={openTaskCounts.get(listing.id) ?? 0}
+              />
+            ))}
+          </section>
+
+          {pageCount > 1 ? (
+            <nav
+              aria-label="Listings pagination"
+              className="mt-6 flex items-center justify-between gap-3"
+            >
+              <p className="text-[12px] text-[#75758a]">
+                Showing{" "}
+                <span className="font-mono font-semibold tabular-nums text-[#17171c]">
+                  {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredListings.length)}
+                </span>{" "}
+                of{" "}
+                <span className="font-mono font-semibold tabular-nums text-[#17171c]">
+                  {filteredListings.length}
+                </span>
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  aria-label="Previous page"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 text-[12.5px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#e5e7eb]"
+                  disabled={safePage === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  type="button"
+                >
+                  <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
+                  Prev
+                </button>
+                <span className="inline-flex h-9 items-center rounded-full border border-[#e5e7eb] bg-[#fbfbfa] px-3 font-mono text-[12.5px] font-semibold tabular-nums text-[#17171c]">
+                  {safePage} / {pageCount}
+                </span>
+                <button
+                  aria-label="Next page"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 text-[12.5px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#e5e7eb]"
+                  disabled={safePage === pageCount}
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  type="button"
+                >
+                  Next
+                  <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </nav>
+          ) : null}
+        </>
       )}
     </div>
+  );
+}
+
+function KpiTile({
+  tone,
+  label,
+  value,
+  detail,
+}: {
+  tone: "cream" | "paper";
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-[22px] border p-5",
+        tone === "cream"
+          ? "border-transparent bg-[#f4ead5] text-[#17171c]"
+          : "border-[#ececef] bg-white text-[#17171c]",
+      )}
+    >
+      <p className="bb-mono-label">{label}</p>
+      <p className="bb-display mt-3 text-[28px] font-medium leading-none tabular-nums">{value}</p>
+      <p className="mt-2 text-[12.5px] leading-[1.5] text-[#54545f]">{detail}</p>
+    </div>
+  );
+}
+
+function StatusChip({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  const isEmpty = count === 0 && !active;
+  return (
+    <button
+      aria-pressed={active}
+      className={cn(
+        "inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
+        active
+          ? "border-[#17171c] bg-[#17171c] text-white"
+          : isEmpty
+            ? "cursor-not-allowed border-[#ececef] bg-white text-[#9b9ba6] opacity-50"
+            : "border-[#e5e7eb] bg-white text-[#54545f] hover:border-[#17171c]",
+      )}
+      disabled={isEmpty}
+      onClick={onClick}
+      type="button"
+    >
+      <span>{label}</span>
+      <span
+        className={cn(
+          "font-mono tabular-nums",
+          active ? "text-white/80" : "text-[#75758a]",
+        )}
+      >
+        · {count}
+      </span>
+    </button>
   );
 }
 
@@ -399,72 +646,117 @@ function ExplainerRow({
   );
 }
 
+function getListingInitials(listing: YachtListing) {
+  const source = listing.name?.trim() || `${listing.builder} ${listing.model}`.trim();
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 function ListingListRow({
-  index,
   listing,
-  segment,
+  openTasks,
 }: {
-  index: number;
   listing: YachtListing;
-  segment?: BrokerSegment;
+  openTasks: number;
 }) {
   const completeness = getDocumentCompleteness(listing);
-  const openTasks = getTasksForSegment(segment).filter(
-    (task) => task.listingId === listing.id && task.status !== "Done",
-  ).length;
+  const primaryPhoto = listing.photos?.[0];
+  const missingCount = listing.missingInfo.length;
+  const locationLabel = listing.locationLabel ?? listing.location;
 
   return (
     <Link
-      className="grid gap-4 border-b border-[#f2f2f2] px-6 py-5 transition-colors last:border-b-0 hover:bg-[#fbfbfa] lg:grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_210px_140px_140px] lg:items-center"
+      className="group grid gap-4 border-b border-[#f2f2f2] px-5 py-4 transition-colors last:border-b-0 hover:bg-[#f4fbf5] focus-visible:bg-[#f4fbf5] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1863dc] lg:grid-cols-[minmax(280px,1.4fr)_minmax(180px,1fr)_180px_140px] lg:items-center"
       href={`/listings/${listing.id}`}
     >
+      {/* Asset cell: thumbnail or initials chip + name/builder. */}
       <div className="min-w-0">
-        <div className="grid grid-cols-[48px_minmax(0,1fr)] gap-4 items-center">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[#e5e7eb] bg-[#f5f4ef] font-mono text-[11px] font-semibold text-[#75758a]">
-            {String(index + 1).padStart(2, "0")}
-          </span>
+        <div className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-3.5">
+          {primaryPhoto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt={primaryPhoto.alt}
+              className="h-14 w-14 shrink-0 rounded-[14px] object-cover"
+              loading="lazy"
+              src={primaryPhoto.src}
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#003c33] font-mono text-[13px] font-semibold tracking-[0.04em] text-[#f4ead5]"
+            >
+              {getListingInitials(listing)}
+            </span>
+          )}
           <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <h2 className="min-w-0 truncate text-[15px] font-semibold text-[#17171c]">{listing.name}</h2>
-            </div>
-            <p className="mt-1 truncate text-[13px] leading-5 text-[#75758a]">
+            <h2
+              className="truncate text-[14.5px] font-semibold leading-[1.3] text-[#17171c] group-hover:text-[#003c33]"
+              title={listing.name}
+            >
+              {listing.name}
+            </h2>
+            <p
+              className="mt-1 truncate text-[12.5px] leading-[1.4] text-[#75758a]"
+              title={`${listing.builder} ${listing.model}`}
+            >
               {listing.builder} {listing.model}
             </p>
           </div>
         </div>
       </div>
 
+      {/* Location · specs */}
       <div className="min-w-0">
-        <p className="truncate text-[13px] font-semibold text-[#3f3f46]">{listing.location}</p>
-        <p className="mt-1 truncate text-[13px] leading-5 text-[#75758a]">{getListingSpecSummary(listing)}</p>
+        <p
+          className="truncate text-[12.5px] font-medium leading-[1.4] text-[#3f3f46]"
+          title={locationLabel}
+        >
+          {locationLabel}
+        </p>
+        <p
+          className="mt-1 truncate text-[12px] leading-[1.4] text-[#75758a]"
+          title={getListingSpecSummary(listing)}
+        >
+          {getListingSpecSummary(listing)}
+        </p>
       </div>
 
-      <div className="flex flex-nowrap gap-1.5 w-full overflow-hidden">
-        <Badge tone={statusTone(listing.status)} className="shrink-0 max-w-[50%]">
-          <span className="truncate">{listing.status}</span>
-        </Badge>
-        <Badge tone={vatTone(listing.vatStatus)} className="shrink-0 max-w-[50%]">
-          <span className="truncate">{listing.vatStatus}</span>
-        </Badge>
-      </div>
-
+      {/* Status + readiness */}
       <div className="min-w-0">
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-mono text-[12px] font-semibold text-[#17171c]">
-            {completeness.percent}% ready
-          </span>
-          {openTasks ? (
-            <span className="rounded-full bg-[#fff7ed] px-2 py-0.5 text-[11px] font-medium text-[#b45309]">
-              {openTasks} tasks
-            </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={statusTone(listing.status)}>
+            <span className="truncate">{listing.status}</span>
+          </Badge>
+          {missingCount > 0 ? (
+            <Badge tone="coral">
+              <AlertTriangle aria-hidden="true" className="h-3 w-3" />
+              {missingCount} gap{missingCount === 1 ? "" : "s"}
+            </Badge>
+          ) : null}
+          {openTasks > 0 ? (
+            <Badge tone="warning">{openTasks} task{openTasks === 1 ? "" : "s"}</Badge>
           ) : null}
         </div>
-        <ProgressBar className="mt-2 h-1.5" value={completeness.percent} />
+        <div className="mt-2 flex items-center gap-2.5">
+          <ProgressBar className="h-1 w-full" value={completeness.percent} />
+          <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-[#54545f]">
+            {completeness.percent}%
+          </span>
+        </div>
       </div>
 
-      <p className="font-mono text-[14px] font-semibold text-[#17171c] lg:text-right">
-        {formatCurrency(listing.priceEur)}
-      </p>
+      {/* Price + arrow */}
+      <div className="flex items-center justify-between gap-3 lg:justify-end">
+        <p className="font-mono text-[14px] font-semibold tabular-nums text-[#17171c]">
+          {formatCurrency(listing.priceEur)}
+        </p>
+        <ArrowUpRight
+          aria-hidden="true"
+          className="h-3.5 w-3.5 shrink-0 text-[#9b9ba6] transition-all group-hover:translate-x-0.5 group-hover:text-[#003c33]"
+        />
+      </div>
     </Link>
   );
 }

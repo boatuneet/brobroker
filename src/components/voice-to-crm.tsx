@@ -4,16 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Bot,
+  Building2,
+  CarFront,
   CheckCircle2,
   Clock3,
   ExternalLink,
   Mic,
   FilePenLine,
   Send,
+  Ship,
   Sparkles,
   Trash2,
+  UserPlus,
+  Users,
 } from "lucide-react";
-import type { BrokerSegment } from "@/lib/broker-segments";
+import type { LucideIcon } from "lucide-react";
+import { getBrokerSegmentMeta, type BrokerSegment } from "@/lib/broker-segments";
 import { getVoiceToCrmWorkflow, nowIso } from "@/lib/services";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -23,7 +29,13 @@ import {
   saveSessionBuyer,
   writePersisted,
 } from "@/lib/browser-persistence";
-import type { AuditEvent, BrokerTask, DraftStatus, FollowUpDraft } from "@/lib/types";
+import type {
+  AuditEvent,
+  BrokerTask,
+  BuyerProfile,
+  DraftStatus,
+  FollowUpDraft,
+} from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   Badge,
@@ -32,10 +44,18 @@ import {
   CardHeader,
   CardHeaderIcon,
   EmptyState,
-  PageHeader,
   StatusDot,
 } from "./ui";
 import { ConfirmDialog, ToastViewport } from "./app-feedback";
+import { Tile } from "./dashboard/visuals";
+
+const segmentIcons = {
+  Yacht: Ship,
+  Car: CarFront,
+  "Real Estate": Building2,
+} satisfies Record<BrokerSegment, LucideIcon>;
+
+type CaptureMode = "existing" | "new";
 
 const exampleCallSummary =
   "Spoke with Daniel Brenner this morning. He wants a 60 to 75 foot yacht, modern light interior, EU VAT paid, ready before summer, budget around 3 million. He asked for a Ferretti and Azimut comparison, and needs viewing windows by tomorrow. Spouse cares about natural light. Prefers concise WhatsApp first, detailed email after the shortlist.";
@@ -90,7 +110,13 @@ function taskPriorityTone(priority: string): "error" | "warning" | "info" | "neu
   return "neutral";
 }
 
-export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
+export function VoiceToCrmWorkspace({
+  segment,
+  storedBuyers = [],
+}: {
+  segment?: BrokerSegment;
+  storedBuyers?: BuyerProfile[];
+}) {
   const persistedWorkspace = readPersisted<PersistedVoiceWorkspace | null>(activeVoiceKey, null);
   const [callSummary, setCallSummary] = useState(persistedWorkspace?.callSummary ?? "");
   const [parsedSummary, setParsedSummary] = useState(persistedWorkspace?.parsedSummary ?? "");
@@ -105,6 +131,22 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingDeleteRunId, setPendingDeleteRunId] = useState<string | null>(null);
+  // Default to "existing" only if we actually have saved buyers; otherwise "new"
+  // so the workspace isn't stuck with an empty combobox.
+  const [captureMode, setCaptureMode] = useState<CaptureMode>(
+    storedBuyers.length ? "existing" : "new",
+  );
+  const [selectedBuyerId, setSelectedBuyerId] = useState<string>(
+    storedBuyers[0]?.id ?? "",
+  );
+
+  const selectedBuyer = useMemo(
+    () => storedBuyers.find((buyer) => buyer.id === selectedBuyerId),
+    [storedBuyers, selectedBuyerId],
+  );
+
+  const segmentMeta = getBrokerSegmentMeta(segment);
+  const SegmentIcon = segmentIcons[segmentMeta.id];
 
   const hasParsed = parsedSummary.trim().length > 0;
 
@@ -121,20 +163,44 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
       ...task,
       id: `${runId}-${task.id}`,
     }));
-    const buyerId = nextWorkflow.buyer?.id ?? buildVoiceBuyerId(runId, nextWorkflow.extracted.buyerName);
+
+    // Buyer-attach branching:
+    // - "existing" mode → reuse selected buyer's id + name so the upsert lands
+    //   on the same buyers row (Supabase upsert is keyed on id).
+    // - "new" mode → fall back to extracted buyer or a synthetic voice-run id.
+    const useExistingBuyer = captureMode === "existing" && selectedBuyer;
+    const effectiveBuyerName = useExistingBuyer
+      ? selectedBuyer.name
+      : nextWorkflow.extracted.buyerName;
+    const buyerId = useExistingBuyer
+      ? selectedBuyer.id
+      : (nextWorkflow.buyer?.id ?? buildVoiceBuyerId(runId, nextWorkflow.extracted.buyerName));
+
+    // Carry the buyer-attach decision into downstream workflow snapshots so the
+    // parsed CRM card and persistence both reference the same buyer name.
+    const effectiveWorkflow = useExistingBuyer
+      ? {
+          ...nextWorkflow,
+          extracted: {
+            ...nextWorkflow.extracted,
+            buyerName: effectiveBuyerName,
+          },
+        }
+      : nextWorkflow;
+
     setParsedSummary(callSummary);
     setDrafts(runDrafts);
-    setAuditLog(nextWorkflow.auditTrail);
+    setAuditLog(effectiveWorkflow.auditTrail);
     setActiveRunId(runId);
     setSyncMessage(null);
     setSyncError(null);
     const run = {
       id: runId,
       buyerId,
-      buyerName: nextWorkflow.extracted.buyerName,
-      summary: nextWorkflow.extracted.pipelineUpdate,
-      taskCount: nextWorkflow.tasks.length,
-      draftCount: nextWorkflow.drafts.length,
+      buyerName: effectiveBuyerName,
+      summary: effectiveWorkflow.extracted.pipelineUpdate,
+      taskCount: effectiveWorkflow.tasks.length,
+      draftCount: effectiveWorkflow.drafts.length,
       createdAt: nowIso,
     };
     setSavedRuns((currentRuns) => {
@@ -144,19 +210,20 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
       ].slice(0, 8);
       writePersisted(voiceRunsKey, nextRuns);
       mirrorWorkflowEvent("voice_crm_parse", run.id, {
-        extracted: nextWorkflow.extracted,
-        tasks: nextWorkflow.tasks,
-        drafts: nextWorkflow.drafts,
+        extracted: effectiveWorkflow.extracted,
+        tasks: effectiveWorkflow.tasks,
+        drafts: effectiveWorkflow.drafts,
+        buyerAttachMode: captureMode,
       });
       return nextRuns;
     });
     saveSessionBuyer({
       id: buyerId,
-      name: nextWorkflow.extracted.buyerName,
+      name: effectiveBuyerName,
       source: "Voice CRM",
-      summary: nextWorkflow.extracted.pipelineUpdate,
-      budgetLabel: nextWorkflow.profileUpdates.budget,
-      urgency: nextWorkflow.extracted.urgency,
+      summary: effectiveWorkflow.extracted.pipelineUpdate,
+      budgetLabel: effectiveWorkflow.profileUpdates.budget,
+      urgency: effectiveWorkflow.extracted.urgency,
       createdAt: nowIso,
     });
 
@@ -167,7 +234,7 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
         run,
         segment,
         tasks: runTasks,
-        workflow: nextWorkflow,
+        workflow: effectiveWorkflow,
       });
       setSyncMessage(
         persisted
@@ -326,9 +393,14 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
   }
 
   const approvedCount = drafts.filter((draft) => draft.status === "Approved").length;
-  const buyerLabel = hasParsed
-    ? (workflow.buyer?.name ?? workflow.extracted.buyerName)
-    : "—";
+  // When the user attached this parse to an existing saved buyer, prefer that
+  // buyer's real name over the placeholder ("New buyer") the parser extracts
+  // from the call text. Falls back to the parser's match for new-buyer mode.
+  const attachedBuyerName =
+    captureMode === "existing" && selectedBuyer ? selectedBuyer.name : null;
+  const displayBuyerName =
+    attachedBuyerName ?? workflow.buyer?.name ?? workflow.extracted.buyerName;
+  const buyerLabel = hasParsed ? displayBuyerName : "—";
   const urgencyLabel = hasParsed ? workflow.extracted.urgency : "—";
   const approvalsLabel = drafts.length > 0 ? `${approvedCount}/${drafts.length}` : "—";
   const pendingDeleteRun = savedRuns.find((run) => run.id === pendingDeleteRunId);
@@ -338,8 +410,10 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
     writePersisted(activeVoiceKey, { activeRunId, callSummary, parsedSummary, drafts, auditLog });
   }, [activeRunId, auditLog, callSummary, drafts, parsedSummary]);
 
+  const todayLabel = formatDate(nowIso);
+
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <ToastViewport
         message={syncError ?? syncMessage}
         onDismiss={() => {
@@ -364,25 +438,164 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
         open={Boolean(pendingDeleteRunId)}
         title="Delete saved CRM capture?"
       />
-      <PageHeader
-        eyebrow="Voice-to-CRM"
-        title="Capture a call"
-        description="Parse a call summary into saved buyer memory, tasks, and editable follow-up drafts."
-        metrics={[
-          { label: "Buyer detected", value: buyerLabel },
-          { label: "Urgency", value: urgencyLabel },
-          { label: "Approvals", value: approvalsLabel },
-        ]}
-        actions={
-          hasParsed ? (
-            <Button onClick={resetWorkspace} type="button" variant="secondary">
-              Start over
-            </Button>
-          ) : null
-        }
-      />
 
-      <div className="mt-12 grid gap-8">
+      {/* Editorial cockpit header — segment chip + mono date + display h1 + ghost reset. */}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#dedee3] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#3f3f46]">
+              <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              {segmentMeta.label} · Voice-to-CRM
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#75758a]">
+              {todayLabel}
+            </span>
+          </div>
+          <h1 className="bb-display mt-3 text-[2rem] font-medium leading-[1.04] text-[#17171c] sm:text-[2.35rem]">
+            Capture a call
+          </h1>
+          <p className="mt-3 max-w-xl text-[13.5px] leading-7 text-[#3f3f46]">
+            Parse a call summary into saved buyer memory, tasks, and editable follow-up drafts.
+          </p>
+        </div>
+        {hasParsed ? (
+          <button
+            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#dedee3] bg-white px-4 text-[13px] font-medium text-[#3f3f46] transition-colors hover:border-[#17171c] hover:text-[#17171c]"
+            onClick={resetWorkspace}
+            type="button"
+          >
+            Start over
+          </button>
+        ) : null}
+      </header>
+
+      {/* 3-tile metric fold band — Buyer detected / Urgency / Approvals. */}
+      <section
+        aria-label="Voice CRM at a glance"
+        className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-3"
+      >
+        <Tile tone="paper">
+          <p className="bb-mono-label">Buyer detected</p>
+          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#17171c]">
+            {buyerLabel}
+          </p>
+          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#54545f]">
+            {hasParsed
+              ? captureMode === "existing"
+                ? "Attached to saved buyer"
+                : "New buyer from voice"
+              : "Awaiting parse"}
+          </p>
+        </Tile>
+        <Tile tone="paper">
+          <p className="bb-mono-label">Urgency</p>
+          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#17171c]">
+            {urgencyLabel}
+          </p>
+          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#54545f]">
+            {hasParsed ? workflow.extracted.pipelineUpdate : "Pipeline update appears after parse"}
+          </p>
+        </Tile>
+        <Tile tone="paper">
+          <p className="bb-mono-label">Approvals</p>
+          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#17171c] tabular-nums">
+            {approvalsLabel}
+          </p>
+          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#54545f]">
+            {drafts.length
+              ? `${drafts.length - approvedCount} drafts pending review`
+              : "No drafts generated yet"}
+          </p>
+        </Tile>
+      </section>
+
+      <div className="mt-8 grid gap-8">
+          {/* Capture mode + buyer-attach card — segmented control + combobox. */}
+          <Card>
+            <CardHeader
+              eyebrow="Capture mode"
+              title="Who is this call about?"
+              description="Attach the parse to an existing saved buyer, or start a new buyer from this voice note."
+              action={
+                <CardHeaderIcon>
+                  <Users className="h-4 w-4" aria-hidden="true" />
+                </CardHeaderIcon>
+              }
+            />
+            <div className="grid gap-4 px-6 py-5">
+              <div
+                aria-label="Capture mode"
+                className="inline-flex rounded-full border border-[#dedee3] bg-[#fafaf7] p-1 text-[13px] font-medium"
+                role="tablist"
+              >
+                <button
+                  aria-selected={captureMode === "existing"}
+                  className={`inline-flex min-h-9 items-center gap-2 rounded-full px-4 transition-colors ${
+                    captureMode === "existing"
+                      ? "bg-white text-[#17171c] shadow-sm"
+                      : "text-[#75758a] hover:text-[#3f3f46]"
+                  }`}
+                  disabled={!storedBuyers.length}
+                  onClick={() => setCaptureMode("existing")}
+                  role="tab"
+                  type="button"
+                >
+                  <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                  Existing buyer
+                </button>
+                <button
+                  aria-selected={captureMode === "new"}
+                  className={`inline-flex min-h-9 items-center gap-2 rounded-full px-4 transition-colors ${
+                    captureMode === "new"
+                      ? "bg-white text-[#17171c] shadow-sm"
+                      : "text-[#75758a] hover:text-[#3f3f46]"
+                  }`}
+                  onClick={() => setCaptureMode("new")}
+                  role="tab"
+                  type="button"
+                >
+                  <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                  New buyer from voice
+                </button>
+              </div>
+
+              {captureMode === "existing" ? (
+                storedBuyers.length ? (
+                  <label className="grid gap-1.5 text-[13px] font-medium text-[#212121]">
+                    <span className="bb-mono-label">Saved buyer</span>
+                    <select
+                      aria-label="Attach to saved buyer"
+                      className="min-h-10 rounded-lg border border-[#d9d9dd] bg-white px-3 text-[14px] text-[#17171c] outline-none focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+                      onChange={(event) => setSelectedBuyerId(event.target.value)}
+                      value={selectedBuyerId}
+                    >
+                      {storedBuyers.map((buyer) => (
+                        <option key={buyer.id} value={buyer.id}>
+                          {buyer.name}
+                          {buyer.company ? ` · ${buyer.company}` : ""}
+                          {buyer.country ? ` · ${buyer.country}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedBuyer ? (
+                      <span className="text-[12px] leading-6 text-[#75758a]">
+                        Parsed memory will upsert into {selectedBuyer.name}&apos;s buyer row — preferences, tasks, and drafts stay attached to this saved profile.
+                      </span>
+                    ) : null}
+                  </label>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
+                    No saved buyers in this segment yet. Switch to “New buyer from voice” to capture this call as a fresh profile.
+                  </p>
+                )
+              ) : (
+                <p className="rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
+                  A new buyer record will be created from the parsed call. Move them to an existing buyer next time by selecting from the saved list above.
+                </p>
+              )}
+            </div>
+          </Card>
+
           <Card>
             <CardHeader
               eyebrow="Call note"
@@ -440,28 +653,57 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
             />
             {hasParsed ? (
               <>
-                <div className="grid gap-6 px-6 py-5 sm:grid-cols-2">
-                  <InfoColumn
-                    title="Profile updates"
-                    items={[
-                      ["Buyer", workflow.extracted.buyerName],
-                      ["Budget memory", workflow.profileUpdates.budget],
-                      ["Pipeline", workflow.profileUpdates.pipelineStage],
-                      ["Urgency", workflow.profileUpdates.urgency],
-                    ]}
-                  />
-                  <div>
+                {/* Attachment confirmation strip — only in existing mode with a real buyer selected. */}
+                {captureMode === "existing" && selectedBuyer ? (
+                  <div className="mx-6 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-[#dedee3] bg-[#fafaf7] px-4 py-2.5 text-[12.5px] leading-6 text-[#3f3f46]">
+                    <Users className="h-3.5 w-3.5 text-[#75758a]" aria-hidden="true" />
+                    <span>
+                      Attached to{" "}
+                      <span className="font-medium text-[#17171c]">{selectedBuyer.name}</span>
+                      {selectedBuyer.company ? <> · {selectedBuyer.company}</> : null}
+                    </span>
+                  </div>
+                ) : null}
+
+                {/* Profile updates as mini-tiles + extracted preferences. */}
+                <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <p className="bb-mono-label">Profile updates</p>
+                    <div className="mt-3 grid gap-3">
+                      {[
+                        ["Buyer", displayBuyerName],
+                        ["Budget memory", workflow.profileUpdates.budget],
+                        ["Pipeline", workflow.profileUpdates.pipelineStage],
+                        ["Urgency", workflow.profileUpdates.urgency],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label}
+                          className="rounded-xl border border-[#ececef] bg-[#fafaf7] p-4"
+                        >
+                          <p className="bb-mono-label">{label}</p>
+                          <p className="mt-1.5 text-[14px] font-medium leading-6 text-[#17171c]">
+                            {value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="min-w-0">
                     <p className="bb-mono-label">Extracted preferences</p>
                     {workflow.profileUpdates.preferences.length ? (
-                      <ul className="mt-3 grid gap-1.5">
+                      <ul className="mt-3 grid gap-2">
                         {workflow.profileUpdates.preferences.map((item) => (
-                          <li key={item} className="text-sm leading-6 text-[#3f3f46]">
-                            · {item}
+                          <li
+                            key={item}
+                            className="rounded-xl border border-[#ececef] bg-[#fafaf7] px-4 py-2.5 text-[13px] leading-6 text-[#3f3f46]"
+                          >
+                            {item}
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 text-sm leading-6 text-[#75758a]">
+                      <p className="mt-3 rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
                         Add size, budget, interior, VAT, or timing language to extract preferences.
                       </p>
                     )}
@@ -472,21 +714,21 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
                   <div className="min-w-0">
                     <p className="bb-mono-label">Linked listings</p>
                     {workflow.linkedListings.length ? (
-                      <ul className="mt-3 divide-y divide-[#f2f2f2]">
+                      <ul className="mt-3 grid gap-2">
                         {workflow.linkedListings.map((listing) => (
                           <li key={listing.id}>
                             <Link
-                              className="grid gap-1 py-3 hover:bg-[#f7f7f9] sm:grid-cols-[1fr_auto] sm:items-start sm:gap-3"
+                              className="grid gap-1 rounded-xl border border-[#ececef] bg-[#fafaf7] px-4 py-3 transition-colors hover:border-[#dedee3] hover:bg-white sm:grid-cols-[1fr_auto] sm:items-center sm:gap-3"
                               href={`/listings/${listing.id}`}
                             >
                               <div className="min-w-0">
                                 <p className="text-[14px] font-medium text-[#17171c]">{listing.name}</p>
-                                <p className="mt-0.5 text-[13px] text-[#75758a]">
+                                <p className="mt-0.5 text-[12.5px] text-[#75758a]">
                                   {listing.builder} {listing.model} · {listing.lengthFt}ft ·{" "}
                                   {listing.location}
                                 </p>
                               </div>
-                              <span className="font-mono text-[13px] font-medium text-[#17171c]">
+                              <span className="font-mono text-[13px] font-medium text-[#17171c] tabular-nums">
                                 {formatCurrency(listing.priceEur)}
                               </span>
                             </Link>
@@ -494,7 +736,7 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 text-sm leading-6 text-[#75758a]">
+                      <p className="mt-3 rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
                         Add inventory and mention a size range, area, brand, or model to auto-link matching listings here.
                       </p>
                     )}
@@ -503,23 +745,23 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
                   <div className="min-w-0">
                     <p className="bb-mono-label">Created tasks</p>
                     {workflow.tasks.length ? (
-                      <ul className="mt-3 grid gap-3">
+                      <ul className="mt-3 grid gap-2">
                         {workflow.tasks.map((task) => (
                           <li
                             key={task.id}
-                            className="rounded-xl border border-[#e5e7eb] bg-white p-4"
+                            className="rounded-xl border border-[#ececef] bg-[#fafaf7] p-4"
                           >
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge tone={taskPriorityTone(task.priority)}>{task.priority}</Badge>
                               <Badge tone="neutral">{task.kind}</Badge>
                             </div>
-                            <h3 className="mt-2 text-sm font-medium text-[#17171c]">{task.title}</h3>
-                            <p className="mt-1 text-[13px] leading-6 text-[#616161]">{task.reason}</p>
+                            <h3 className="mt-2 text-[14px] font-medium leading-6 text-[#17171c]">{task.title}</h3>
+                            <p className="mt-1 text-[12.5px] leading-6 text-[#616161]">{task.reason}</p>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 text-sm leading-6 text-[#75758a]">
+                      <p className="mt-3 rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
                         Tasks appear here once the note mentions actions, viewings, or comparisons.
                       </p>
                     )}
@@ -658,10 +900,15 @@ export function VoiceToCrmWorkspace({ segment }: { segment?: BrokerSegment }) {
             {drafts.length > 0 ? (
               <div className="grid gap-4 px-6 py-5">
                 {approvedCount === drafts.length ? (
-                  <div className="rounded-2xl bg-[#edfce9] px-4 py-3 text-[13px] leading-6 text-[#003c33]">
-                    All {drafts.length} drafts approved. The prototype does not send messages
-                    automatically — copy or hand off to your delivery channel.
-                  </div>
+                  <Tile tone="cream">
+                    <div className="flex flex-wrap items-start gap-2 text-[13px] leading-6 text-[#003c33]">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      <p>
+                        All {drafts.length} drafts approved. The prototype does not send messages
+                        automatically — copy or hand off to your delivery channel.
+                      </p>
+                    </div>
+                  </Tile>
                 ) : null}
 
                 {drafts.map((draft) => (
@@ -972,24 +1219,3 @@ function parseBudgetRange(label: string) {
   return { min: undefined, max: undefined };
 }
 
-function InfoColumn({
-  title,
-  items,
-}: {
-  title: string;
-  items: Array<[string, string]>;
-}) {
-  return (
-    <div className="min-w-0">
-      <p className="bb-mono-label">{title}</p>
-      <dl className="mt-3 grid gap-3">
-        {items.map(([label, value]) => (
-          <div key={label} className="grid grid-cols-[110px_1fr] gap-3 text-sm">
-            <dt className="text-[#75758a]">{label}</dt>
-            <dd className="text-[#3f3f46]">{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}

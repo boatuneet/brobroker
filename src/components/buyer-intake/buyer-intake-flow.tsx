@@ -8,6 +8,7 @@ import { ArrowLeft, Save, Sparkles, UserRound } from "lucide-react";
 import { type BrokerSegment, brokerSegments } from "@/lib/broker-segments";
 import {
   generateBuyerSummary,
+  getBuyerDraftValuesFromProfile,
   getBuyerIntakeConfig,
   getInitialBuyerDraftValues,
   getSegmentLabel,
@@ -37,11 +38,26 @@ type SaveResult = {
   savedAt: string;
 };
 
-export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegment }) {
+export function BuyerIntakeFlow({
+  initialSegment,
+  editingBuyer,
+}: {
+  initialSegment: BrokerSegment;
+  editingBuyer?: BuyerProfile;
+}) {
   const router = useRouter();
   const segment = initialSegment;
-  const [values, setValues] = useState<BuyerDraftValues>(() => getInitialBuyerDraftValues(segment));
-  const [saveAsDraft, setSaveAsDraft] = useState(true);
+  const isEditing = Boolean(editingBuyer);
+  const [values, setValues] = useState<BuyerDraftValues>(() =>
+    editingBuyer
+      ? getBuyerDraftValuesFromProfile(segment, editingBuyer)
+      : getInitialBuyerDraftValues(segment),
+  );
+  // When editing an active buyer, default to saving as an active update — not a
+  // draft. New buyers still start as drafts.
+  const [saveAsDraft, setSaveAsDraft] = useState(
+    editingBuyer ? editingBuyer.currentStage === "New Inquiry" && editingBuyer.tags.includes("draft") : true,
+  );
   const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -68,8 +84,12 @@ export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegm
     setSaveError(null);
     setSaveResult(null);
 
-    const buyerId = `buyer-${segment.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID()}`;
-    const createdAt = new Date().toISOString();
+    const buyerId =
+      editingBuyer?.id ??
+      `buyer-${segment.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID()}`;
+    const createdAt = editingBuyer?.lastContactedAt
+      ? new Date(editingBuyer.lastContactedAt).toISOString()
+      : new Date().toISOString();
     const relationshipNotes = readList(values, "relationshipNotes");
     const buyer = buildBuyerProfile({
       id: buyerId,
@@ -91,7 +111,8 @@ export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegm
           throw new Error("Sign in before saving this buyer to your workspace.");
         }
 
-        const { error } = await supabase.from("buyers").insert({
+        // upsert works for both create (new buyer) and edit (existing id).
+        const { error } = await supabase.from("buyers").upsert({
           id: buyerId,
           owner_user_id: user.id,
           name: buyer.name,
@@ -134,6 +155,9 @@ export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegm
 
         setSaveResult({ id: buyerId, storage: "database", isDraft: saveAsDraft, savedAt: createdAt });
         router.refresh();
+        if (isEditing) {
+          router.push(`/buyers/${buyerId}`);
+        }
         return;
       }
 
@@ -147,6 +171,9 @@ export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegm
         createdAt,
       });
       setSaveResult({ id: buyerId, storage: "local", isDraft: saveAsDraft, savedAt: createdAt });
+      if (isEditing) {
+        router.push(`/buyers/${buyerId}`);
+      }
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Could not save this buyer.");
     } finally {
@@ -171,10 +198,14 @@ export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegm
         message={
           saveResult
             ? saveResult.storage === "database"
-              ? saveResult.isDraft
-                ? "Buyer draft saved."
-                : "Buyer created."
-              : "Buyer saved on this device. Sign in to keep it with your workspace."
+              ? isEditing
+                ? "Buyer updated."
+                : saveResult.isDraft
+                  ? "Buyer draft saved."
+                  : "Buyer created."
+              : isEditing
+                ? "Buyer changes saved on this device. Sign in to sync with your workspace."
+                : "Buyer saved on this device. Sign in to keep it with your workspace."
             : null
         }
         onDismiss={() => setSaveResult(null)}
@@ -182,10 +213,10 @@ export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegm
 
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-[#3f3f46] hover:text-[#17171c]"
-        href="/buyers"
+        href={isEditing && editingBuyer ? `/buyers/${editingBuyer.id}` : "/buyers"}
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Back to buyers
+        {isEditing && editingBuyer ? `Back to ${editingBuyer.name}` : "Back to buyers"}
       </Link>
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
@@ -193,36 +224,43 @@ export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegm
           <Card className="p-6">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="min-w-0">
-                <p className="bb-mono-label">Buyer intake</p>
+                <p className="bb-mono-label">{isEditing ? "Edit buyer" : "Buyer intake"}</p>
                 <h1 className="bb-display mt-3 text-[2.2rem] font-medium leading-[1.05] text-[#17171c]">
-                  {config.title}
+                  {isEditing && editingBuyer
+                    ? `Edit ${editingBuyer.name}`
+                    : config.title}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-[#616161]">{config.description}</p>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-[#616161]">
+                  {isEditing
+                    ? "Update criteria, urgency, or relationship memory. Saved changes overwrite the existing profile."
+                    : config.description}
+                </p>
               </div>
               <Badge tone="info">{completion}% complete</Badge>
             </div>
 
-            <div className="mt-6 grid gap-4 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-3 sm:grid-cols-[220px_minmax(0,1fr)_auto] sm:items-center">
-              <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-[#edeae3]">
+            {/* Compact "active segment" hint — image kept as small thumbnail,
+                copy condensed to one row so the form gets the visual weight. */}
+            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-2.5">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#edeae3]">
                 <Image
                   alt=""
                   className="object-cover"
                   fill
-                  sizes="220px"
+                  sizes="48px"
                   src={segmentMeta.imageSrc}
                 />
               </div>
-              <div className="min-w-0 px-1">
-                <p className="bb-mono-label">{segmentMeta.label} workspace</p>
-                <h2 className="bb-display mt-2 text-xl font-medium text-[#17171c]">
-                  Creating a {segmentMeta.title.toLowerCase()} buyer
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-[#616161]">
-                  This follows the active segment from Profile, so buyer criteria match the inventory model.
+              <div className="min-w-0 flex-1">
+                <p className="bb-mono-label text-[#75758a]">
+                  Active segment · {segmentMeta.label}
+                </p>
+                <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#616161]">
+                  Follows your broker segment from Profile.
                 </p>
               </div>
               <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-4 text-sm font-medium text-[#17171c] hover:border-[#17171c]"
+                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-3.5 text-[12.5px] font-medium text-[#17171c] hover:border-[#17171c]"
                 href="/profile"
               >
                 Change segment
@@ -301,7 +339,13 @@ export function BuyerIntakeFlow({ initialSegment }: { initialSegment: BrokerSegm
             </label>
             <Button className="mt-4 w-full" disabled={isSaving} onClick={saveBuyer} type="button">
               <Save className="h-4 w-4" aria-hidden="true" />
-              {isSaving ? "Saving..." : saveAsDraft ? "Save buyer draft" : "Create buyer"}
+              {isSaving
+                ? "Saving..."
+                : isEditing
+                  ? "Save changes"
+                  : saveAsDraft
+                    ? "Save buyer draft"
+                    : "Create buyer"}
             </Button>
             {saveError ? (
               <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-[13px] leading-6 text-red-700">

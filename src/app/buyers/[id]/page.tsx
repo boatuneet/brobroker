@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { BuyerMemoryProfile, getBuyerIds } from "@/components/client-memory";
+import { BuyerMemoryProfile } from "@/components/client-memory";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { getBuyerMemoryProfile } from "@/lib/services";
 import { getStoredBuyerById } from "@/lib/supabase/buyers";
+import { getStoredConversationsForBuyer } from "@/lib/supabase/conversations";
+import { getStoredFollowUpDraftsForBuyer } from "@/lib/supabase/follow-up-drafts";
 import { getStoredListingsForSegment } from "@/lib/supabase/listings";
 
+// Render dynamically — buyers come from Supabase at request time. Returning an
+// empty array signals "no build-time prerender" so we don't have to keep a
+// static ID list in sync, and it sidesteps a Turbopack module-graph quirk that
+// flags getBuyerIds() as a client function during dev.
 export function generateStaticParams() {
-  return getBuyerIds().map((id) => ({ id }));
+  return [];
 }
 
 export async function generateMetadata({
@@ -40,9 +46,11 @@ export default async function BuyerMemoryPage({
   const { id } = await params;
   const segment = await getActiveBrokerSegment();
   const profile = getBuyerMemoryProfile(id, segment);
-  const [storedBuyer, storedListings] = await Promise.all([
+  const [storedBuyer, storedListings, storedConversations, storedDrafts] = await Promise.all([
     profile ? Promise.resolve(undefined) : getStoredBuyerById(id),
     getStoredListingsForSegment(segment),
+    getStoredConversationsForBuyer(id),
+    getStoredFollowUpDraftsForBuyer(id),
   ]);
 
   if (!profile && !storedBuyer) {
@@ -51,7 +59,14 @@ export default async function BuyerMemoryPage({
 
   return (
     <AppShell active="Buyers">
-      <BuyerMemoryProfile buyerId={id} buyerOverride={storedBuyer} segment={segment} storedListings={storedListings} />
+      <BuyerMemoryProfile
+        buyerId={id}
+        buyerOverride={storedBuyer}
+        segment={segment}
+        storedListings={storedListings}
+        storedConversations={storedConversations}
+        storedDrafts={storedDrafts}
+      />
     </AppShell>
   );
 }

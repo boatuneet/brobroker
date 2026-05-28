@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowUpRight,
   BookOpenText,
   BriefcaseBusiness,
   CheckCircle2,
@@ -11,27 +12,41 @@ import {
   Database,
   FileSearch,
   FileText,
-  Layers3,
-  Link2,
   Network,
   Search,
   ShieldCheck,
-  Tags,
   Users,
+  X,
 } from "lucide-react";
 import { getBrokerSegmentMeta } from "@/lib/broker-segments";
 import type {
   KnowledgeHealthCheck,
   KnowledgePage,
   KnowledgePageCategory,
-  KnowledgeSection,
   KnowledgeSource,
   KnowledgeVaultModel,
 } from "@/lib/knowledge-vault";
 import { formatDate, cn } from "@/lib/utils";
-import { Badge, Card, CardHeader, CardHeaderIcon, PageHeader, ProgressBar } from "./ui";
+import { Badge, Button } from "./ui";
+import {
+  BubbleCluster,
+  FitRing,
+  Sparkbars,
+  StatBadge,
+  Tile,
+} from "./dashboard/visuals";
 
-const categoryIcons = {
+/* ============================================================
+   Knowledge Vault — editorial cockpit redesign.
+   Layout reads top-to-bottom:
+     1. Anchor tile: most actionable single thing (top open gap
+        or lowest-confidence page) on ink-green ground.
+     2. KPI band: confidence distribution + category composition
+        + freshness + health signal strip.
+     3. Workspace: sticky page browser + knowledge-brief detail.
+   ============================================================ */
+
+const CATEGORY_ICONS = {
   Overview: BookOpenText,
   Listing: BriefcaseBusiness,
   Buyer: Users,
@@ -42,7 +57,7 @@ const categoryIcons = {
   "Source Log": Database,
 } satisfies Record<KnowledgePageCategory, typeof BookOpenText>;
 
-const categoryTone = {
+const CATEGORY_TONE = {
   Overview: "ink",
   Listing: "info",
   Buyer: "success",
@@ -53,19 +68,38 @@ const categoryTone = {
   "Source Log": "neutral",
 } satisfies Record<KnowledgePageCategory, "neutral" | "success" | "warning" | "error" | "info" | "coral" | "ink">;
 
-const healthIcon = {
+const HEALTH_ICON = {
   success: CheckCircle2,
   warning: AlertTriangle,
   error: CircleAlert,
   info: FileSearch,
 } satisfies Record<KnowledgeHealthCheck["tone"], typeof CheckCircle2>;
 
-const healthTone = {
-  success: "success",
-  warning: "warning",
-  error: "error",
-  info: "info",
-} satisfies Record<KnowledgeHealthCheck["tone"], "success" | "warning" | "error" | "info">;
+const HEALTH_TEXT_TONE = {
+  success: "text-emerald-700",
+  warning: "text-amber-700",
+  error: "text-rose-700",
+  info: "text-[#1448a8]",
+} satisfies Record<KnowledgeHealthCheck["tone"], string>;
+
+const HEALTH_DOT_TONE = {
+  success: "bg-emerald-500",
+  warning: "bg-amber-500",
+  error: "bg-rose-500",
+  info: "bg-[#1863dc]",
+} satisfies Record<KnowledgeHealthCheck["tone"], string>;
+
+function confidenceTone(value: number): "green" | "ink" | "coral" {
+  if (value >= 86) return "green";
+  if (value >= 72) return "ink";
+  return "coral";
+}
+
+function confidenceLabel(value: number) {
+  if (value >= 86) return "High";
+  if (value >= 72) return "Medium";
+  return "Low";
+}
 
 function includesQuery(page: KnowledgePage, query: string) {
   const haystack = [
@@ -74,31 +108,270 @@ function includesQuery(page: KnowledgePage, query: string) {
     page.summary,
     page.tags.join(" "),
     page.openGaps.join(" "),
-    page.sections.map((section) => [section.title, section.body, section.bullets?.join(" ")].join(" ")).join(" "),
-    page.sources.map((source) => [source.label, source.excerpt].join(" ")).join(" "),
-    page.related.map((relation) => [relation.label, relation.note].join(" ")).join(" "),
+    page.sections
+      .map((section) => [section.title, section.body, section.bullets?.join(" ")].join(" "))
+      .join(" "),
+    page.sources.map((src) => [src.label, src.excerpt].join(" ")).join(" "),
+    page.related.map((rel) => [rel.label, rel.note].join(" ")).join(" "),
   ]
     .join(" ")
     .toLowerCase();
-
-  // Split query into terms and ensure all terms are found (AND search)
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return true;
-  
+  if (!terms.length) return true;
   return terms.every((term) => haystack.includes(term));
 }
 
-function confidenceTone(confidence: number) {
-  if (confidence >= 86) return "success";
-  if (confidence >= 72) return "info";
-  return "warning";
+function sourceKey(src: KnowledgeSource) {
+  return `${src.type}:${src.id}`;
 }
 
-function sourceLabel(source: KnowledgeSource) {
-  return `${source.type.replace("-", " ")} · ${source.id}`;
+/* ------------------------------------------------------------
+   Anchor tile — surfaces the single most-actionable thing in
+   the vault. Picks the lowest-confidence page; if everything is
+   strong, surfaces the page with the most open gaps.
+   ------------------------------------------------------------ */
+function pickAnchorPage(pages: KnowledgePage[]) {
+  const candidates = pages.filter((p) => p.category !== "Overview");
+  if (!candidates.length) return pages[0];
+  // Score: low confidence + many gaps wins.
+  const scored = candidates
+    .map((p) => ({
+      page: p,
+      score: (100 - p.confidence) * 1.5 + p.openGaps.length * 8,
+    }))
+    .sort((a, b) => b.score - a.score);
+  return scored[0].page;
 }
 
-function PageListItem({
+function AnchorTile({
+  segmentTitle,
+  anchorPage,
+  totalGaps,
+  generatedAt,
+  onJumpTo,
+}: {
+  segmentTitle: string;
+  anchorPage: KnowledgePage;
+  totalGaps: number;
+  generatedAt: string;
+  onJumpTo: () => void;
+}) {
+  return (
+    <article className="relative overflow-hidden rounded-[28px] bg-[#003c33] px-7 py-8 text-[#f4ead5] shadow-[0_30px_80px_-30px_rgba(0,60,51,0.5)] sm:px-10 sm:py-10">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.18]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 20% 20%, rgba(244,234,213,0.45), transparent 50%), radial-gradient(circle at 85% 70%, rgba(159,79,46,0.4), transparent 55%)",
+        }}
+      />
+      <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="min-w-0">
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#f4ead5]/85">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#ff7759]" aria-hidden="true" />
+            {segmentTitle} knowledge vault
+          </p>
+          <h1 className="bb-display mt-5 max-w-[680px] text-[2rem] font-medium leading-[1.06] text-[#f4ead5] sm:text-[2.4rem]">
+            What this vault knows — and where it&apos;s thin.
+          </h1>
+          <p className="mt-4 max-w-[640px] text-[14.5px] leading-[1.65] text-[#f4ead5]/80">
+            Generated workspace pages compile operational records into
+            source-linked broker memory. The weakest page right now is{" "}
+            <span className="font-medium text-[#f4ead5]">{anchorPage.title}</span>{" "}
+            — {confidenceLabel(anchorPage.confidence).toLowerCase()} confidence
+            ({anchorPage.confidence}%) with {anchorPage.openGaps.length} open{" "}
+            {anchorPage.openGaps.length === 1 ? "gap" : "gaps"}. Fix that first.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <StatBadge label="Pages" value={`${anchorPage.category}`} tone="outline" />
+            <StatBadge
+              label="Confidence"
+              value={`${anchorPage.confidence}%`}
+              tone="outline"
+            />
+            <StatBadge label="Total gaps" value={`${totalGaps}`} tone="outline" />
+            <StatBadge
+              label="Generated"
+              value={formatDate(generatedAt)}
+              tone="outline"
+            />
+          </div>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <button
+              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#f4ead5] px-5 text-[13.5px] font-medium text-[#003c33] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff7759]"
+              onClick={onJumpTo}
+              type="button"
+            >
+              Jump to {anchorPage.title}
+              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <Link
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 px-5 text-[13.5px] font-medium text-[#f4ead5]/90 transition-colors hover:border-white/50 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff7759]"
+              href="/dashboard"
+            >
+              Back to dashboard
+            </Link>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center justify-center lg:justify-end">
+          <div className="rounded-[24px] border border-white/15 bg-white/[0.04] px-7 py-6 text-center backdrop-blur-sm">
+            <p className="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[#f4ead5]/70">
+              Anchor page
+            </p>
+            <div className="mt-4 flex items-center justify-center">
+              <FitRing
+                value={anchorPage.confidence}
+                size={104}
+                stroke={8}
+                tone="ivory"
+                label={`${anchorPage.confidence}%`}
+              />
+            </div>
+            <p className="mt-4 text-[13px] font-medium text-[#f4ead5]">
+              {anchorPage.title}
+            </p>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#f4ead5]/65">
+              {confidenceLabel(anchorPage.confidence)} confidence
+            </p>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/* ------------------------------------------------------------
+   KPI band — three Tiles + a thin signal strip.
+   ------------------------------------------------------------ */
+function KpiBand({
+  pages,
+  categories,
+  healthChecks,
+}: {
+  pages: KnowledgePage[];
+  categories: Array<{ label: KnowledgePageCategory; count: number }>;
+  healthChecks: KnowledgeHealthCheck[];
+}) {
+  const low = pages.filter((p) => p.confidence < 72).length;
+  const med = pages.filter((p) => p.confidence >= 72 && p.confidence < 86).length;
+  const high = pages.filter((p) => p.confidence >= 86).length;
+  const avg = Math.round(
+    pages.reduce((acc, p) => acc + p.confidence, 0) / Math.max(pages.length, 1),
+  );
+
+  // Choose top-3 categories by count for the BubbleCluster (it expects ~3 slots).
+  const topCategories = [...categories]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-3">
+      {/* Tile 1 — confidence distribution */}
+      <Tile className="flex flex-col gap-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="bb-mono-label">Confidence spread</p>
+            <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#17171c]">
+              {high} strong · {med} mid · {low} thin
+            </p>
+          </div>
+          <FitRing
+            value={avg}
+            size={64}
+            stroke={6}
+            tone={low > 0 ? "coral" : "green"}
+            label={`${avg}%`}
+          />
+        </div>
+        <Sparkbars
+          data={[
+            { label: "Low", value: low },
+            { label: "Med", value: med },
+            { label: "High", value: high },
+          ]}
+          highlightIndex={low > 0 ? 0 : 2}
+          height={64}
+        />
+        <p className="text-[12px] leading-[1.6] text-[#54545f]">
+          Avg confidence {avg}% across {pages.length} compiled pages. Low-band
+          pages need stronger source coverage before external use.
+        </p>
+      </Tile>
+
+      {/* Tile 2 — category composition */}
+      <Tile className="flex flex-col gap-5">
+        <div>
+          <p className="bb-mono-label">Composition</p>
+          <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#17171c]">
+            What the vault is mostly about
+          </p>
+        </div>
+        {topCategories.length ? (
+          <BubbleCluster
+            items={topCategories.map((cat, i) => ({
+              label: cat.label,
+              value: cat.count,
+              tone: i === 0 ? "green" : i === 1 ? "ink" : "coral",
+            }))}
+          />
+        ) : null}
+        <p className="text-[12px] leading-[1.6] text-[#54545f]">
+          {categories.length} record type{categories.length === 1 ? "" : "s"}{" "}
+          represented across the vault. Bigger circle = more compiled pages.
+        </p>
+      </Tile>
+
+      {/* Tile 3 — vault freshness + signal strip */}
+      <Tile tone="cream" className="flex flex-col gap-5">
+        <div>
+          <p className="bb-mono-label">Vault signals</p>
+          <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#17171c]">
+            Health at a glance
+          </p>
+        </div>
+        <ul className="divide-y divide-[#17171c]/10">
+          {healthChecks.map((check) => {
+            const Icon = HEALTH_ICON[check.tone];
+            return (
+              <li
+                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                key={check.id}
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+                      HEALTH_DOT_TONE[check.tone],
+                    )}
+                  />
+                  <span className="truncate text-[12.5px] font-medium text-[#17171c]">
+                    {check.label}
+                  </span>
+                </div>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 font-mono text-[13px] font-semibold tabular-nums",
+                    HEALTH_TEXT_TONE[check.tone],
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {check.count}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Tile>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------
+   Page browser — sticky rail with real search + chip filters.
+   ------------------------------------------------------------ */
+function PageBrowserRow({
   active,
   page,
   onSelect,
@@ -107,368 +380,588 @@ function PageListItem({
   page: KnowledgePage;
   onSelect: () => void;
 }) {
-  const Icon = categoryIcons[page.category];
-
+  const Icon = CATEGORY_ICONS[page.category];
   return (
     <button
-      className={[
-        "relative grid w-full gap-3 border-b border-[#f2f2f2] px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-[#fafafa]",
-        active ? "bg-[#f4fbf5] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-1 before:bg-[#003c33]" : "bg-white",
-      ].join(" ")}
+      aria-current={active ? "true" : undefined}
+      className={cn(
+        "relative grid w-full gap-2 border-b border-[#f2f2f2] px-4 py-3.5 text-left transition-colors last:border-b-0",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#1863dc]",
+        active
+          ? "bg-[#003c33]/[0.04] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-[3px] before:bg-[#003c33]"
+          : "bg-white hover:bg-[#fafaf7]",
+      )}
       onClick={onSelect}
       type="button"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#003c33] shadow-sm ring-1 ring-black/5">
-            <Icon className="h-4 w-4" aria-hidden="true" />
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003c33]">
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[14px] font-medium text-[#17171c]">{page.title}</p>
-            <p className="bb-mono-label mt-1">{page.category}</p>
+            <p className="truncate text-[13.5px] font-medium text-[#17171c]">{page.title}</p>
+            <p className="bb-mono-label mt-0.5">{page.category}</p>
           </div>
         </div>
-        <Badge tone={confidenceTone(page.confidence)}>{page.confidence}%</Badge>
+        <span
+          className={cn(
+            "shrink-0 font-mono text-[11.5px] font-semibold tabular-nums",
+            page.confidence >= 86
+              ? "text-emerald-700"
+              : page.confidence >= 72
+                ? "text-[#17171c]"
+                : "text-[#c64a31]",
+          )}
+        >
+          {page.confidence}%
+        </span>
       </div>
-      <p className="line-clamp-2 text-[13px] leading-6 text-[#616161]">{page.summary}</p>
-      <div className="flex flex-wrap gap-2">
-        {page.tags.slice(0, 3).map((tag) => (
-          <Badge key={tag} tone="neutral">{tag}</Badge>
-        ))}
-      </div>
+      {page.openGaps.length ? (
+        <p className="ml-[42px] inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
+          <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+          {page.openGaps.length} open {page.openGaps.length === 1 ? "gap" : "gaps"}
+        </p>
+      ) : null}
     </button>
   );
 }
 
-function SourceChip({ source }: { source: KnowledgeSource }) {
-  const content = (
-    <>
-      <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
-      <span>{source.label}</span>
-    </>
-  );
-
-  if (source.href) {
-    return (
-      <Link
-        className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#e5e7eb] bg-white px-3 text-[12px] font-medium text-[#3f3f46] transition-colors hover:border-[#003c33] hover:text-[#003c33]"
-        href={source.href}
-      >
-        {content}
-      </Link>
-    );
-  }
-
+function PageBrowser({
+  pages,
+  filteredPages,
+  selectedPageId,
+  query,
+  category,
+  categories,
+  dynamicCategoryCounts,
+  dynamicTotalCount,
+  onQueryChange,
+  onCategoryChange,
+  onSelect,
+  onClearFilters,
+}: {
+  pages: KnowledgePage[];
+  filteredPages: KnowledgePage[];
+  selectedPageId: string;
+  query: string;
+  category: KnowledgePageCategory | "All";
+  categories: Array<{ label: KnowledgePageCategory; count: number }>;
+  dynamicCategoryCounts: Map<KnowledgePageCategory, number>;
+  dynamicTotalCount: number;
+  onQueryChange: (next: string) => void;
+  onCategoryChange: (next: KnowledgePageCategory | "All") => void;
+  onSelect: (id: string) => void;
+  onClearFilters: () => void;
+}) {
+  const hasFilters = query.trim() !== "" || category !== "All";
+  const searching = query.trim() !== "";
   return (
-    <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#e5e7eb] bg-white px-3 text-[12px] font-medium text-[#3f3f46]">
-      {content}
-    </span>
+    <aside className="2xl:sticky 2xl:top-8">
+      <Tile className="flex h-[720px] max-h-[calc(100dvh-7rem)] min-h-[480px] flex-col gap-0 p-0">
+        <div className="border-b border-[#ececef] px-4 pb-4 pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="bb-mono-label">Pages</p>
+            <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#54545f]">
+              {filteredPages.length}/{pages.length}
+            </span>
+          </div>
+          <label className="relative mt-3 block">
+            <span className="sr-only">Search knowledge vault</span>
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777888]"
+            />
+            <input
+              autoComplete="off"
+              className="h-11 w-full rounded-full border border-[#d9d9dd] bg-white pl-10 pr-9 text-[13.5px] text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Search title, gap, source, tag…"
+              type="search"
+              value={query}
+            />
+            {query ? (
+              <button
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#777888] transition-colors hover:bg-[#f4ead5]/40 hover:text-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]"
+                onClick={() => onQueryChange("")}
+                type="button"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            ) : null}
+          </label>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {(() => {
+              const allCount = searching ? dynamicTotalCount : pages.length;
+              return (
+                <button
+                  aria-pressed={category === "All"}
+                  className={cn(
+                    "min-h-7 rounded-full border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
+                    category === "All"
+                      ? "border-[#17171c] bg-[#17171c] text-white"
+                      : "border-[#e5e7eb] bg-white text-[#54545f] hover:border-[#17171c]",
+                  )}
+                  onClick={() => onCategoryChange("All")}
+                  type="button"
+                >
+                  All · {allCount}
+                </button>
+              );
+            })()}
+            {categories.map((cat) => {
+              const count = searching
+                ? (dynamicCategoryCounts.get(cat.label) ?? 0)
+                : cat.count;
+              const isActive = category === cat.label;
+              const isEmpty = count === 0 && !isActive;
+              return (
+                <button
+                  aria-pressed={isActive}
+                  className={cn(
+                    "min-h-7 rounded-full border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
+                    isActive
+                      ? "border-[#17171c] bg-[#17171c] text-white"
+                      : isEmpty
+                        ? "cursor-not-allowed border-[#ececef] bg-white text-[#9b9ba6] opacity-50"
+                        : "border-[#e5e7eb] bg-white text-[#54545f] hover:border-[#17171c]",
+                  )}
+                  disabled={isEmpty}
+                  key={cat.label}
+                  onClick={() => onCategoryChange(cat.label)}
+                  type="button"
+                >
+                  {cat.label} · {count}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {filteredPages.length ? (
+            filteredPages.map((page) => (
+              <PageBrowserRow
+                active={page.id === selectedPageId}
+                key={page.id}
+                onSelect={() => onSelect(page.id)}
+                page={page}
+              />
+            ))
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center px-6 py-10 text-center">
+              <p className="bb-display text-[15px] font-medium text-[#17171c]">
+                Nothing matches that filter.
+              </p>
+              <p className="mt-2 max-w-[18rem] text-[12.5px] leading-6 text-[#75758a]">
+                Try a different keyword or category. Clearing the filter brings
+                back all {pages.length} pages.
+              </p>
+              {hasFilters ? (
+                <Button
+                  className="mt-4"
+                  onClick={onClearFilters}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Clear filter
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </Tile>
+    </aside>
   );
 }
 
-function PageDetail({ page }: { page: KnowledgePage }) {
-  const Icon = categoryIcons[page.category];
-
+/* ------------------------------------------------------------
+   Page brief detail — reads top-to-bottom like a knowledge brief.
+     Hero (title + category + visibility + FitRing)
+     Open gaps strip (only when present)
+     2-col body: sections (wide) + meta (sources/related)
+   ------------------------------------------------------------ */
+function PageBrief({ page }: { page: KnowledgePage }) {
+  const Icon = CATEGORY_ICONS[page.category];
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3 auto-rows-max">
-      {/* Main Header Card */}
-      <Card className="col-span-1 flex flex-col justify-center p-6 lg:col-span-2 2xl:col-span-2">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <Badge tone={categoryTone[page.category]}>{page.category}</Badge>
-              <Badge tone="neutral">{page.visibility}</Badge>
+    <div className="grid gap-5">
+      {/* Hero */}
+      <Tile className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003c33]">
+              <Icon className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <Badge tone={CATEGORY_TONE[page.category]}>{page.category}</Badge>
+            <Badge tone="neutral">{page.visibility}</Badge>
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#777888]">
+              Updated {formatDate(page.updatedAt)}
+            </span>
+          </div>
+          <h2 className="bb-display mt-4 text-[1.75rem] font-medium leading-[1.1] text-[#17171c] sm:text-[2rem]">
+            {page.title}
+          </h2>
+          <p className="mt-3 max-w-2xl text-[14px] leading-[1.7] text-[#3f3f46]">
+            {page.summary}
+          </p>
+          {page.tags.length ? (
+            <div className="mt-5 flex flex-wrap gap-1.5">
+              {page.tags.slice(0, 8).map((tag) => (
+                <Badge key={tag} tone="neutral">
+                  {tag}
+                </Badge>
+              ))}
             </div>
-            <h2 className="bb-display text-2xl font-medium text-[#17171c] sm:text-3xl">{page.title}</h2>
-            <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#616161]">{page.summary}</p>
-          </div>
-          <CardHeaderIcon className="h-12 w-12 shrink-0 bg-[#f4fbf5] text-[#003c33] sm:h-14 sm:w-14">
-            <Icon className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
-          </CardHeaderIcon>
+          ) : null}
         </div>
-      </Card>
+        <div className="flex shrink-0 flex-col items-center gap-2 rounded-[20px] border border-[#ececef] bg-[#fafaf7] px-6 py-5 sm:min-w-[180px]">
+          <p className="bb-mono-label">Confidence</p>
+          <FitRing
+            value={page.confidence}
+            size={88}
+            stroke={7}
+            tone={confidenceTone(page.confidence)}
+            label={`${page.confidence}%`}
+          />
+          <p
+            className={cn(
+              "text-[11px] font-medium uppercase tracking-[0.14em]",
+              page.confidence >= 86
+                ? "text-emerald-700"
+                : page.confidence >= 72
+                  ? "text-[#17171c]"
+                  : "text-[#c64a31]",
+            )}
+          >
+            {confidenceLabel(page.confidence)}
+          </p>
+        </div>
+      </Tile>
 
-      {/* Confidence Score Card */}
-      <Card className="col-span-1 flex flex-col justify-between bg-gradient-to-br from-[#f8faf9] to-white p-6">
-        <div>
-          <p className="bb-mono-label text-[#616161]">Confidence Score</p>
-          <div className="mt-3 flex items-baseline gap-3">
-            <span className="bb-display text-4xl font-medium text-[#17171c]">{page.confidence}%</span>
-            <Badge tone={confidenceTone(page.confidence)}>
-              {page.confidence >= 86 ? "High" : page.confidence >= 72 ? "Medium" : "Low"}
-            </Badge>
-          </div>
-        </div>
-        <div className="mt-8">
-          <ProgressBar value={page.confidence} tone={page.confidence >= 86 ? "green" : "ink"} />
-          <p className="mt-3 text-[12px] font-medium text-[#777888]">Updated {formatDate(page.updatedAt)}</p>
-        </div>
-      </Card>
-
-      {/* Open Gaps Card */}
+      {/* Open gaps signal strip */}
       {page.openGaps.length ? (
-        <Card className="col-span-1 border-amber-200 bg-amber-50/50 p-6 lg:col-span-2 2xl:col-span-3">
-          <div className="mb-4 flex items-center gap-2 text-[14px] font-semibold text-amber-950">
-            <AlertTriangle className="h-5 w-5 text-amber-600" aria-hidden="true" />
-            Open Intelligence Gaps
+        <Tile className="border-amber-200/70 bg-amber-50/60">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 text-amber-950">
+              <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden="true" />
+              <p className="text-[13px] font-semibold">
+                {page.openGaps.length} open{" "}
+                {page.openGaps.length === 1 ? "gap" : "gaps"} to close
+              </p>
+            </div>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-amber-900/70">
+              Resolve before confident external use
+            </p>
           </div>
-          <ul className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+          <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
             {page.openGaps.map((gap, index) => (
-              <li key={`${gap}-${index}`} className="flex gap-3 text-[13px] leading-6 text-amber-900/80">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-hidden="true" />
+              <li
+                className="flex gap-2.5 text-[12.5px] leading-[1.6] text-amber-950/85"
+                key={`${gap}-${index}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
+                />
                 <span>{gap}</span>
               </li>
             ))}
           </ul>
-        </Card>
+        </Tile>
       ) : null}
 
-      {/* Sections */}
-      {page.sections.map((section) => {
-        // Sections with lots of text or stats span wider
-        const isLarge = (section.body && section.body.length > 180) || (section.stats && section.stats.length > 2);
-        const spanClass = isLarge ? "col-span-1 lg:col-span-2 2xl:col-span-2" : "col-span-1";
-
-        return (
-          <Card key={section.title} className={cn("p-6", spanClass)}>
-            <h3 className="bb-mono-label text-[#17171c]">{section.title}</h3>
-            {section.body ? (
-              <p className="mt-4 text-[14px] leading-7 text-[#3f3f46]">{section.body}</p>
-            ) : null}
-
-            {section.stats?.length ? (
-              <dl className={cn("mt-5 grid gap-3", section.stats.length > 1 ? "sm:grid-cols-2" : "grid-cols-1")}>
-                {section.stats.map((stat) => (
-                  <div key={`${section.title}-${stat.label}`} className="rounded-xl bg-[#f7f7f8] p-4">
-                    <dt className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#777888]">
-                      {stat.label}
-                    </dt>
-                    <dd className="mt-2 text-xl font-semibold text-[#17171c]">{stat.value}</dd>
-                    {stat.detail ? <p className="mt-1 text-[12px] leading-5 text-[#616161]">{stat.detail}</p> : null}
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-
-            {section.bullets?.length ? (
-              <ul className="mt-5 grid gap-3">
-                {section.bullets.map((bullet) => (
-                  <li key={bullet} className="flex gap-3 text-[13px] leading-6 text-[#4b4b55]">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#003c33]" aria-hidden="true" />
-                    <span>{bullet}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </Card>
-        );
-      })}
-
-      {/* Sources & Lineage */}
-      <Card className="col-span-1 p-6 lg:col-span-2 2xl:col-span-2">
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Database className="h-4 w-4 text-[#003c33]" aria-hidden="true" />
-            <h3 className="bb-mono-label text-[#17171c]">Source References</h3>
-          </div>
-          <Badge tone="neutral">{page.sources.length} sources</Badge>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {page.sources.slice(0, 18).map((item) => (
-            <SourceChip key={sourceLabel(item)} source={item} />
+      {/* Body: sections + meta column */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-5">
+          {page.sections.map((section) => (
+            <Tile className="flex flex-col gap-4" key={section.title}>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="bb-mono-label">{section.title}</p>
+              </div>
+              {section.body ? (
+                <p className="text-[14px] leading-[1.75] text-[#3f3f46]">
+                  {section.body}
+                </p>
+              ) : null}
+              {section.stats?.length ? (
+                <dl
+                  className={cn(
+                    "grid gap-3",
+                    section.stats.length === 1
+                      ? "grid-cols-1"
+                      : section.stats.length === 2
+                        ? "grid-cols-2"
+                        : "grid-cols-2 sm:grid-cols-4",
+                  )}
+                >
+                  {section.stats.map((stat) => (
+                    <div
+                      className="rounded-[14px] border border-[#ececef] bg-[#fafaf7] px-3.5 py-3"
+                      key={`${section.title}-${stat.label}`}
+                    >
+                      <dt className="bb-mono-label">{stat.label}</dt>
+                      <dd className="mt-1.5 text-[18px] font-semibold leading-tight text-[#17171c]">
+                        {stat.value}
+                      </dd>
+                      {stat.detail ? (
+                        <p className="mt-1 text-[11.5px] leading-[1.5] text-[#75758a]">
+                          {stat.detail}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+              {section.bullets?.length ? (
+                <ul className="grid gap-2.5">
+                  {section.bullets.map((bullet, i) => (
+                    <li
+                      className="flex gap-2.5 text-[13px] leading-[1.65] text-[#3f3f46]"
+                      key={`${section.title}-${i}-${bullet.slice(0, 24)}`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#003c33]"
+                      />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </Tile>
           ))}
         </div>
-      </Card>
 
-      {/* Related Pages */}
-      <Card className="col-span-1 p-6 lg:col-span-2 2xl:col-span-1">
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Network className="h-4 w-4 text-[#003c33]" aria-hidden="true" />
-            <h3 className="bb-mono-label text-[#17171c]">Related</h3>
-          </div>
-          <Badge tone="neutral">{page.related.length} links</Badge>
-        </div>
-        <div className="grid gap-2">
-          {page.related.length ? (
-            page.related.slice(0, 5).map((item) => {
-              const row = (
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium text-[#17171c]">{item.label}</p>
-                  {item.note ? <p className="truncate text-[12px] text-[#777888]">{item.note}</p> : null}
-                </div>
-              );
+        {/* Meta column — compact, divided lists. No nested borders.
+            Single-line truncation with native title for overflow. */}
+        <div className="grid gap-5">
+          <Tile className="flex flex-col gap-0 !p-0">
+            <div className="flex items-baseline justify-between gap-3 px-4 pb-3 pt-4">
+              <p className="bb-mono-label">Sources</p>
+              <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#54545f]">
+                {page.sources.length}
+              </span>
+            </div>
+            {page.sources.length ? (
+              <ul className="divide-y divide-[#f2f2f2]">
+                {page.sources.slice(0, 14).map((src) => {
+                  const titleAttr = `${src.label} · ${src.type.replace("-", " ")}`;
+                  const row = (
+                    <span className="flex items-center gap-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className="block truncate text-[12.5px] font-medium leading-[1.35] text-[#17171c]"
+                          title={src.label}
+                        >
+                          {src.label}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10.5px] font-medium uppercase tracking-[0.12em] text-[#777888]">
+                          {src.type.replace("-", " ")}
+                        </span>
+                      </span>
+                      {src.href ? (
+                        <ArrowUpRight
+                          aria-hidden="true"
+                          className="h-3.5 w-3.5 shrink-0 text-[#9b9ba6] transition-colors group-hover:text-[#003c33]"
+                        />
+                      ) : null}
+                    </span>
+                  );
+                  return (
+                    <li key={sourceKey(src)}>
+                      {src.href ? (
+                        <Link
+                          className="group block px-4 py-2.5 transition-colors hover:bg-[#f4fbf5] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1863dc]"
+                          href={src.href}
+                          title={titleAttr}
+                        >
+                          {row}
+                        </Link>
+                      ) : (
+                        <span className="block px-4 py-2.5" title={titleAttr}>
+                          {row}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="px-4 pb-4 text-[12.5px] leading-[1.6] text-[#75758a]">
+                No source records linked yet.
+              </p>
+            )}
+            {page.sources.length > 14 ? (
+              <p className="border-t border-[#f2f2f2] px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.12em] text-[#777888]">
+                + {page.sources.length - 14} more references
+              </p>
+            ) : null}
+          </Tile>
 
-              return item.href ? (
-                <Link
-                  className="flex items-center gap-3 rounded-xl border border-[#e5e7eb] bg-white p-3 transition-colors hover:border-[#003c33] hover:bg-[#f4fbf5]"
-                  href={item.href}
-                  key={`${item.type}-${item.id}`}
-                >
-                  {row}
-                </Link>
-              ) : (
-                <div
-                  className="flex items-center gap-3 rounded-xl border border-[#e5e7eb] bg-white p-3"
-                  key={`${item.type}-${item.id}`}
-                >
-                  {row}
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-[13px] leading-6 text-[#616161]">No related pages linked yet.</p>
-          )}
+          <Tile className="flex flex-col gap-0 !p-0">
+            <div className="flex items-baseline justify-between gap-3 px-4 pb-3 pt-4">
+              <p className="bb-mono-label">Related</p>
+              <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#54545f]">
+                {page.related.length}
+              </span>
+            </div>
+            {page.related.length ? (
+              <ul className="divide-y divide-[#f2f2f2]">
+                {page.related.slice(0, 8).map((rel) => {
+                  const titleAttr = rel.note ? `${rel.label} · ${rel.note}` : rel.label;
+                  const row = (
+                    <span className="flex items-center gap-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className="block truncate text-[12.5px] font-medium leading-[1.35] text-[#17171c]"
+                          title={rel.label}
+                        >
+                          {rel.label}
+                        </span>
+                        {rel.note ? (
+                          <span
+                            className="mt-0.5 block truncate text-[11px] leading-[1.4] text-[#75758a]"
+                            title={rel.note}
+                          >
+                            {rel.note}
+                          </span>
+                        ) : null}
+                      </span>
+                      {rel.href ? (
+                        <ArrowUpRight
+                          aria-hidden="true"
+                          className="h-3.5 w-3.5 shrink-0 text-[#9b9ba6] transition-colors group-hover:text-[#003c33]"
+                        />
+                      ) : null}
+                    </span>
+                  );
+                  return (
+                    <li key={`${rel.type}-${rel.id}`}>
+                      {rel.href ? (
+                        <Link
+                          className="group block px-4 py-2.5 transition-colors hover:bg-[#f4fbf5] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1863dc]"
+                          href={rel.href}
+                          title={titleAttr}
+                        >
+                          {row}
+                        </Link>
+                      ) : (
+                        <span className="block px-4 py-2.5" title={titleAttr}>
+                          {row}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="px-4 pb-4 text-[12.5px] leading-[1.6] text-[#75758a]">
+                No related pages linked yet.
+              </p>
+            )}
+          </Tile>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
 
-function HealthCheckCard({ check }: { check: KnowledgeHealthCheck }) {
-  const Icon = healthIcon[check.tone];
-
-  return (
-    <Card className="flex flex-col justify-between p-6">
-      <div>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="bb-mono-label">{check.label}</p>
-            <p className="bb-display mt-3 text-4xl font-medium text-[#17171c]">{check.count}</p>
-          </div>
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003c33]">
-            <Icon className="h-5 w-5" aria-hidden="true" />
-          </span>
-        </div>
-        <p className="mt-4 text-[13px] leading-6 text-[#616161]">{check.detail}</p>
-      </div>
-      {check.items.length ? (
-        <div className="mt-5 flex flex-wrap gap-2">
-          {check.items.slice(0, 4).map((item, index) => (
-            <Badge key={`${item}-${index}`} tone={healthTone[check.tone]} className="max-w-full">
-              <span className="truncate">{item}</span>
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-    </Card>
-  );
-}
-
+/* ------------------------------------------------------------
+   Workspace shell — derives selection from URL-free state.
+   Selected page persists if it's still in the filtered set;
+   otherwise we transparently fall back to the first match so
+   the brief panel is never empty when the rail still has rows.
+   ------------------------------------------------------------ */
 export function KnowledgeVaultWorkspace({ model }: { model: KnowledgeVaultModel }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<KnowledgePageCategory | "All">("All");
   const [selectedPageId, setSelectedPageId] = useState(model.selectedPage.id);
   const segmentMeta = getBrokerSegmentMeta(model.segment);
   const normalizedQuery = query.trim().toLowerCase();
+
+  // Search-only filter — ignores active category. Drives chip counts so
+  // each chip reflects "if I switched to this category right now, how many
+  // pages would match my current search?".
+  const queryFilteredPages = useMemo(
+    () =>
+      normalizedQuery
+        ? model.pages.filter((page) => includesQuery(page, normalizedQuery))
+        : model.pages,
+    [model.pages, normalizedQuery],
+  );
+
+  const dynamicCategoryCounts = useMemo(() => {
+    const map = new Map<KnowledgePageCategory, number>();
+    for (const page of queryFilteredPages) {
+      map.set(page.category, (map.get(page.category) ?? 0) + 1);
+    }
+    return map;
+  }, [queryFilteredPages]);
+
   const filteredPages = useMemo(
     () =>
-      model.pages.filter((page) => {
-        const matchesCategory = category === "All" || page.category === category;
-        const matchesQuery = !normalizedQuery || includesQuery(page, normalizedQuery);
-        return matchesCategory && matchesQuery;
-      }),
-    [category, model.pages, normalizedQuery],
+      queryFilteredPages.filter(
+        (page) => category === "All" || page.category === category,
+      ),
+    [category, queryFilteredPages],
   );
-  const selectedPage =
-    model.pages.find((page) => page.id === selectedPageId) ?? filteredPages[0] ?? model.selectedPage;
+
+  // Selection persistence — keep current selection if it's still visible,
+  // otherwise pick the first filtered row. Falls back to model default
+  // when the filter empties out.
+  const selectedPage = useMemo(() => {
+    const inFiltered = filteredPages.find((p) => p.id === selectedPageId);
+    if (inFiltered) return inFiltered;
+    if (filteredPages.length) return filteredPages[0];
+    return (
+      model.pages.find((p) => p.id === selectedPageId) ?? model.selectedPage
+    );
+  }, [filteredPages, model.pages, model.selectedPage, selectedPageId]);
+
+  const anchorPage = useMemo(() => pickAnchorPage(model.pages), [model.pages]);
+  const totalGaps = useMemo(
+    () => model.pages.reduce((acc, p) => acc + p.openGaps.length, 0),
+    [model.pages],
+  );
 
   return (
     <div className="mx-auto w-full max-w-[1440px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <PageHeader
-        eyebrow="Knowledge vault"
-        title={`${segmentMeta.title} knowledge vault`}
-        description="Generated workspace pages compile operational records into source-linked broker memory. Use it to inspect what the app knows, where that knowledge came from, and what is still missing."
-        metrics={model.metrics}
+      <AnchorTile
+        anchorPage={anchorPage}
+        generatedAt={model.generatedAt}
+        onJumpTo={() => setSelectedPageId(anchorPage.id)}
+        segmentTitle={segmentMeta.title}
+        totalGaps={totalGaps}
       />
 
-      <section className="mt-10 grid items-start gap-6 2xl:grid-cols-[360px_minmax(0,1fr)]">
-        <Card className="flex h-[680px] max-h-[calc(100dvh-8rem)] min-h-[420px] flex-col overflow-hidden 2xl:sticky 2xl:top-8">
-          <div className="border-b border-[#f2f2f2] bg-[#fcfcfc] px-5 py-5">
-            <div className="mb-4 flex items-center gap-2">
-              <BookOpenText className="h-5 w-5 text-[#17171c]" aria-hidden="true" />
-              <h2 className="bb-display text-lg font-medium text-[#17171c]">Workspace Pages</h2>
-            </div>
-            <label className="relative block">
-              <span className="sr-only">Search knowledge vault pages</span>
-              <Search
-                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777888]"
-                aria-hidden="true"
-              />
-              <input
-                className="h-11 w-full rounded-full border border-[#d9d9dd] bg-white pl-11 pr-4 text-sm text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search source, buyer, listing, gap..."
-                type="search"
-                value={query}
-              />
-            </label>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                className={[
-                  "min-h-8 rounded-full border px-3 text-[12px] font-medium transition-colors",
-                  category === "All"
-                    ? "border-[#17171c] bg-[#17171c] text-white"
-                    : "border-[#e5e7eb] bg-white text-[#4b4b55] hover:border-[#17171c]",
-                ].join(" ")}
-                onClick={() => setCategory("All")}
-                type="button"
-              >
-                All
-              </button>
-              {model.categories.map((item) => (
-                <button
-                  className={[
-                    "min-h-8 rounded-full border px-3 text-[12px] font-medium transition-colors",
-                    category === item.label
-                      ? "border-[#17171c] bg-[#17171c] text-white"
-                      : "border-[#e5e7eb] bg-white text-[#4b4b55] hover:border-[#17171c]",
-                  ].join(" ")}
-                  key={item.label}
-                  onClick={() => setCategory(item.label)}
-                  type="button"
-                >
-                  {item.label} · {item.count}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {filteredPages.length ? (
-              filteredPages.map((page) => (
-                <PageListItem
-                  active={page.id === selectedPage.id}
-                  key={page.id}
-                  onSelect={() => setSelectedPageId(page.id)}
-                  page={page}
-                />
-              ))
-            ) : (
-              <div className="px-6 py-10 text-center">
-                <Tags className="mx-auto h-6 w-6 text-[#777888]" aria-hidden="true" />
-                <p className="mt-3 text-[14px] font-medium text-[#17171c]">No generated pages match this filter.</p>
-                <p className="mt-2 text-[13px] leading-6 text-[#616161]">Try a broader source, buyer, listing, or gap term.</p>
-              </div>
-            )}
-          </div>
-        </Card>
+      <div className="mt-8">
+        <KpiBand
+          categories={model.categories}
+          healthChecks={model.healthChecks}
+          pages={model.pages}
+        />
+      </div>
 
-        <PageDetail page={selectedPage} />
-      </section>
-
-      <section className="mt-12 border-t border-[#e5e7eb] pt-10">
-        <div className="mb-6">
-          <p className="bb-mono-label">Vault health</p>
-          <h2 className="bb-display mt-2 text-2xl font-medium text-[#17171c]">Source coverage & signals</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#616161]">
-            These checks help prevent generated memory from drifting away from real source records.
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-          {model.healthChecks.map((check) => (
-            <HealthCheckCard key={check.id} check={check} />
-          ))}
-        </div>
+      <section className="mt-10 grid gap-6 2xl:grid-cols-[340px_minmax(0,1fr)]">
+        <PageBrowser
+          categories={model.categories}
+          category={category}
+          dynamicCategoryCounts={dynamicCategoryCounts}
+          dynamicTotalCount={queryFilteredPages.length}
+          filteredPages={filteredPages}
+          onCategoryChange={setCategory}
+          onClearFilters={() => {
+            setQuery("");
+            setCategory("All");
+          }}
+          onQueryChange={setQuery}
+          onSelect={setSelectedPageId}
+          pages={model.pages}
+          query={query}
+          selectedPageId={selectedPage.id}
+        />
+        <PageBrief page={selectedPage} />
       </section>
     </div>
   );

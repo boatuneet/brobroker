@@ -64,7 +64,9 @@ export function ToastViewport({
 
 export function ConfirmDialog({
   cancelLabel = "Cancel",
+  confirmDisabled = false,
   confirmLabel,
+  confirmTone = "neutral",
   description,
   onCancel,
   onConfirm,
@@ -72,7 +74,9 @@ export function ConfirmDialog({
   title,
 }: {
   cancelLabel?: string;
+  confirmDisabled?: boolean;
   confirmLabel: string;
+  confirmTone?: "neutral" | "destructive";
   description: string;
   onCancel: () => void;
   onConfirm: () => void;
@@ -80,6 +84,8 @@ export function ConfirmDialog({
   title: string;
 }) {
   if (!open) return null;
+
+  const isDestructive = confirmTone === "destructive";
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#17171c]/32 px-5 backdrop-blur-sm">
@@ -89,7 +95,12 @@ export function ConfirmDialog({
         role="dialog"
       >
         <div className="flex items-start gap-4">
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff7ed] text-[#b45309]">
+          <span
+            className={cn(
+              "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+              isDestructive ? "bg-rose-50 text-rose-700" : "bg-[#fff7ed] text-[#b45309]",
+            )}
+          >
             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
           </span>
           <div className="min-w-0">
@@ -99,14 +110,21 @@ export function ConfirmDialog({
         </div>
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <button
-            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-5 text-sm font-medium text-[#17171c] hover:border-[#17171c]"
+            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-5 text-sm font-medium text-[#17171c] hover:border-[#17171c] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={confirmDisabled}
             onClick={onCancel}
             type="button"
           >
             {cancelLabel}
           </button>
           <button
-            className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#17171c] px-5 text-sm font-medium text-white hover:bg-[#2a2a32]"
+            className={cn(
+              "inline-flex min-h-10 items-center justify-center rounded-full px-5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60",
+              isDestructive
+                ? "bg-rose-600 hover:bg-rose-700"
+                : "bg-[#17171c] hover:bg-[#2a2a32]",
+            )}
+            disabled={confirmDisabled}
             onClick={onConfirm}
             type="button"
           >

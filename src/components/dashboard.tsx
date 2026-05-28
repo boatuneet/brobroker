@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ArrowRight,
+  ArrowUpRight,
   Building2,
   Bot,
   Calendar,
@@ -15,7 +16,6 @@ import {
   ShieldCheck,
   Ship,
   Sparkles,
-  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
@@ -29,19 +29,23 @@ import {
   getTaskTone,
   getVerificationTone,
 } from "@/lib/services";
-import { daysUntil, formatCurrency, percentage } from "@/lib/utils";
+import { daysUntil, formatCurrency } from "@/lib/utils";
 import {
   Badge,
-  Button,
   Card,
   CardHeader,
-  CardHeaderIcon,
   EmptyState,
   PageHeader,
-  ProgressBar,
   StatusDot,
 } from "./ui";
 import { TaskActionButton } from "./task-action-button";
+import {
+  BubbleCluster,
+  FitRing,
+  Sparkbars,
+  StatBadge,
+  Tile,
+} from "./dashboard/visuals";
 
 const segmentIcons = {
   Yacht: Ship,
@@ -61,327 +65,476 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
   const model = getDashboardModel(segment);
   const segmentMeta = getBrokerSegmentMeta(segment);
   const SegmentIcon = segmentIcons[segmentMeta.id];
-  const approvedDrafts = model.followUpDrafts.filter((draft) => draft.status === "Approved").length;
-  const conversationsNeedingSummary = model.conversations.filter((item) => item.needsSummary).length;
+  const approvedDrafts = model.followUpDrafts.filter(
+    (draft) => draft.status === "Approved",
+  ).length;
+  const conversationsNeedingSummary = model.conversations.filter(
+    (item) => item.needsSummary,
+  ).length;
 
   if (!model.hasAnyData) {
     return <FirstRunDashboard />;
   }
 
-  return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <section
-        aria-labelledby="segment-dashboard-heading"
-        className="group relative overflow-hidden rounded-[28px] border border-white/70 bg-[#edeae3] shadow-[0_24px_70px_rgba(23,23,28,0.08)]"
-      >
-        <div className="relative aspect-video min-h-[760px] sm:min-h-[720px] lg:min-h-0">
-          <Image
-            alt=""
-            className="object-cover object-center transition-transform duration-[2000ms] ease-out group-hover:scale-105"
-            fill
-            priority
-            sizes="(min-width: 1280px) 1170px, calc(100vw - 48px)"
-            src={segmentMeta.imageSrc}
-          />
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.18)_46%,rgba(0,0,0,0.34)_100%)]" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.42),transparent_38%)]" />
-        </div>
+  // Derived numbers powering the visualisations.
+  const pipelineCount = model.buyers.length;
+  const listingCount = model.listings.length;
+  const verificationCount = model.verificationCases.length;
+  const openTaskCount = model.metrics[2]?.value
+    ? Number(model.metrics[2].value)
+    : 0;
+  const overdueCount = model.overdueTasks.length;
+  const overduePct =
+    openTaskCount > 0
+      ? Math.min(100, Math.round((overdueCount / openTaskCount) * 100))
+      : 0;
 
-        <div className="absolute inset-0 grid content-between gap-6 p-5 sm:p-7 lg:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/40 bg-white/60 px-3.5 text-[13px] font-medium text-[#003c33] shadow-[0_12px_34px_rgba(23,23,28,0.14)] backdrop-blur-xl transition-transform hover:scale-105">
-              <SegmentIcon className="h-[18px] w-[18px]" aria-hidden="true" />
-              {segmentMeta.label} workspace
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/40 bg-white/60 px-4 text-sm font-medium text-[#17171c] shadow-[0_12px_34px_rgba(23,23,28,0.12)] backdrop-blur-xl transition-all hover:scale-105 hover:bg-white/80"
-                href="/voice-crm"
-              >
-                <Bot className="h-4 w-4" aria-hidden="true" />
-                Voice note
-              </Link>
-              <Link
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-transparent bg-[#17171c] px-5 text-sm font-medium text-white shadow-[0_12px_34px_rgba(23,23,28,0.18)] transition-all hover:scale-105 hover:bg-[#2a2a32]"
-                href="/deal-rooms"
-              >
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Create deal room
-              </Link>
-            </div>
+  // Top urgency drives the anchor tile.
+  const topTask = model.overdueTasks[0];
+  const topTaskBuyer = topTask?.buyerId
+    ? getBuyerById(topTask.buyerId, segment)
+    : undefined;
+  const topTaskListing = topTask?.listingId
+    ? getListingById(topTask.listingId, segment)
+    : undefined;
+
+  // Verification sparkbars — count by status across the segment.
+  const verifBuckets: Array<{ label: string; value: number }> = [
+    {
+      label: "OK",
+      value: model.verificationCases.filter((v) => v.status === "Verified")
+        .length,
+    },
+    {
+      label: "Rev",
+      value: model.verificationCases.filter((v) => v.status === "Needs Review")
+        .length,
+    },
+    {
+      label: "Risk",
+      value: model.verificationCases.filter((v) => v.status === "High Risk")
+        .length,
+    },
+  ];
+  const highestRiskIdx = verifBuckets[2].value > 0 ? 2 : 1;
+  const topRiskCase = [...model.verificationCases].sort(
+    (a, b) => b.score - a.score,
+  )[0];
+  const topRiskBuyer = topRiskCase
+    ? getBuyerById(topRiskCase.buyerId, segment)
+    : undefined;
+
+  // Average fit score across hot buyers — drives a big-number tile.
+  const avgFit = model.hotBuyers.length
+    ? Math.round(
+        (model.hotBuyers.reduce(
+          (sum, hb) => sum + (hb.topMatch?.fitScore ?? 0),
+          0,
+        ) /
+          model.hotBuyers.length) *
+          1,
+      )
+    : 0;
+
+  return (
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+      {/* Compact header strip — replaces the giant hero. */}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#dedee3] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#3f3f46]">
+              <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              {segmentMeta.label} cockpit
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#75758a]">
+              {new Date().toLocaleDateString("en-GB", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
+            </span>
+          </div>
+          <h1 className="bb-display mt-3 text-[2rem] font-medium leading-[1.04] text-[#17171c] sm:text-[2.35rem]">
+            Today, before everything else.
+          </h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-sm font-medium text-[#17171c] transition-colors hover:border-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            href="/voice-crm"
+          >
+            <Bot className="h-4 w-4" aria-hidden="true" />
+            Voice note
+          </Link>
+          <Link
+            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            href="/deal-rooms"
+          >
+            <FileText className="h-4 w-4" aria-hidden="true" />
+            New deal room
+          </Link>
+        </div>
+      </header>
+
+      {/* Fold grid: anchor (left, 2-col) + ring/big-number rail (right, 1-col). */}
+      <section
+        aria-label="Today’s priorities"
+        className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-3"
+      >
+        {/* === ANCHOR TILE — dark, ink-green, single biggest urgency === */}
+        <article className="relative col-span-1 overflow-hidden rounded-[28px] bg-[#003c33] text-[#f4ead5] shadow-[0_30px_80px_-30px_rgba(0,60,51,0.5)] lg:col-span-2">
+          {/* segment image reduced to a side chip */}
+          <div className="pointer-events-none absolute right-0 top-0 hidden h-full w-[34%] overflow-hidden sm:block">
+            <Image
+              alt=""
+              className="scale-x-[-1] object-cover object-center opacity-[0.32] mix-blend-luminosity"
+              fill
+              priority
+              sizes="380px"
+              src={segmentMeta.imageSrc}
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(270deg,rgba(0,60,51,0)_0%,rgba(0,60,51,0.35)_28%,rgba(0,60,51,0.78)_62%,#003c33_92%)]" />
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_560px] lg:items-end">
-            <div className="flex max-w-[460px] flex-col items-start">
-              <div className="group/card rounded-[24px] border border-white/30 bg-white/40 p-4 text-[#17171c] shadow-[0_18px_55px_rgba(23,23,28,0.14)] backdrop-blur-xl transition-all duration-300 hover:border-white/50 hover:bg-white/50 sm:p-5">
-                <p className="bb-mono-label !text-[#003c33] transition-colors group-hover/card:text-[#002822]">{segmentMeta.label} command view</p>
-                <h2
-                  className="bb-display mt-2 text-[1.65rem] font-medium leading-[1.08] sm:text-[2rem]"
-                  id="segment-dashboard-heading"
-                >
-                  Deal command center
-                </h2>
-                <p className="mt-2 max-w-md text-[13px] leading-6 text-[#3f3f46]">
-                  Track urgent tasks, buyer momentum, verification, and owner updates. {segmentMeta.description}
+          <div className="relative grid gap-7 p-6 sm:p-8 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#ff7759]" />
+                <p className="bb-mono-label !text-[#f4ead5]/80">
+                  Critical · {overdueCount} overdue
                 </p>
               </div>
+
+              {topTask ? (
+                <>
+                  <h2 className="bb-display mt-4 text-[1.7rem] font-medium leading-[1.08] text-white sm:text-[2rem]">
+                    {topTask.title}
+                  </h2>
+                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#f4ead5]/85">
+                    {topTask.reason}
+                  </p>
+                  <div className="mt-5 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ff7759]/15 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-[#ffb5a1]">
+                      <Clock className="h-3 w-3" aria-hidden="true" />
+                      {dueLabel(topTask.dueAt)}
+                    </span>
+                    {(topTaskBuyer || topTaskListing) && (
+                      <span className="text-[12px] text-[#f4ead5]/65">
+                        {[topTaskBuyer?.name, topTaskListing?.name]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-7 flex flex-wrap items-center gap-2">
+                    <TaskActionButton
+                      label={topTask.actionLabel}
+                      taskId={topTask.id}
+                    />
+                    <Link
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-[#f4ead5]/80 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]"
+                      href="/voice-crm"
+                    >
+                      Defer via voice note
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="bb-display mt-4 text-[1.7rem] font-medium leading-[1.08] text-white sm:text-[2rem]">
+                    Inbox zero on urgency.
+                  </h2>
+                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#f4ead5]/85">
+                    No overdue items. Use the saved time to message a stale hot
+                    buyer or refresh a listing.
+                  </p>
+                </>
+              )}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {model.metrics.map((metric, index) => {
-                const MetricIcon = [Users, Compass, Clock, ShieldCheck][index] ?? Gauge;
+            {/* Inline stat chips — give the anchor numerical density */}
+            <div className="flex min-w-0 flex-col gap-3 lg:items-end lg:justify-end">
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                <StatBadge
+                  label="Pipeline"
+                  tone="ivory"
+                  value={`${pipelineCount}`}
+                />
+                <StatBadge
+                  label="Inventory"
+                  tone="ivory"
+                  value={`${listingCount}`}
+                />
+                <StatBadge label="Hot" tone="outline" value={`${model.hotBuyers.length}`} />
+              </div>
 
-                return (
-                  <div
-                    className="group/metric min-h-[118px] rounded-[24px] border border-white/30 bg-white/40 p-4 text-[#17171c] shadow-[0_18px_55px_rgba(23,23,28,0.16)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:border-white/50 hover:bg-white/50 hover:shadow-[0_24px_65px_rgba(23,23,28,0.2)] sm:p-5"
-                    key={metric.label}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium text-[#3f3f46] transition-colors group-hover/metric:text-[#17171c]">{metric.label}</p>
-                      <MetricIcon className="h-[18px] w-[18px] text-[#9f4f2e] transition-transform duration-300 group-hover/metric:scale-110" aria-hidden="true" />
-                    </div>
-                    <p className="bb-display mt-4 text-3xl font-medium text-[#17171c]">{metric.value}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-[#3f3f46]">
-                      <span className="rounded-full border border-white/40 bg-white/50 px-2 py-0.5 font-medium text-[#1f7a46] backdrop-blur transition-colors group-hover/metric:bg-white/70">
-                        {metric.trend}
+              {/* Ticker of remaining urgent tasks */}
+              {model.overdueTasks.length > 1 ? (
+                <ul className="mt-2 max-h-[140px] w-full divide-y divide-white/10 overflow-y-auto rounded-2xl bg-white/[0.04] backdrop-blur-sm lg:max-w-[320px]">
+                  {model.overdueTasks.slice(1, 5).map((task) => (
+                    <li
+                      className="flex items-center justify-between gap-3 px-3.5 py-2.5"
+                      key={task.id}
+                    >
+                      <span className="min-w-0 truncate text-[12.5px] text-[#f4ead5]/85">
+                        {task.title}
                       </span>
-                      <span>{metric.detail}</span>
-                    </div>
-                  </div>
-                );
-              })}
+                      <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.1em] text-[#ffb5a1]">
+                        {dueLabel(task.dueAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           </div>
+        </article>
+
+        {/* === RIGHT RAIL — Ring + Big-number === */}
+        <div className="col-span-1 grid gap-5">
+          {/* Task momentum ring */}
+          <Tile className="!p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="bb-mono-label">Open tasks</p>
+                <p className="bb-display mt-2 text-[2.25rem] font-medium leading-none text-[#17171c]">
+                  {openTaskCount}
+                </p>
+                <p className="mt-2 text-[12.5px] leading-5 text-[#616161]">
+                  {overdueCount > 0
+                    ? `${overdueCount} bleeding through (${overduePct}%)`
+                    : "All within deadline."}
+                </p>
+              </div>
+              <FitRing
+                size={84}
+                stroke={7}
+                tone="coral"
+                value={overduePct}
+                label={`${overduePct}%`}
+              />
+            </div>
+            <Link
+              className="mt-5 inline-flex items-center gap-1 text-[12.5px] font-medium text-[#17171c] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+              href="/matching"
+            >
+              Open matching workspace <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+            </Link>
+          </Tile>
+
+          {/* Big-number tile — average fit */}
+          <Tile tone="cream" className="!p-6">
+            <p className="bb-mono-label !text-[#3f3f46]">Avg buyer fit</p>
+            <div className="mt-2 flex items-end gap-3">
+              <p className="bb-display text-[3rem] font-medium leading-[0.95] text-[#17171c]">
+                {avgFit}
+                <span className="text-[1.5rem] text-[#3f3f46]">%</span>
+              </p>
+              <span className="mb-1.5 rounded-full bg-[#003c33] px-2.5 py-0.5 text-[11px] font-medium text-[#f4ead5]">
+                {model.hotBuyers.length} hot
+              </span>
+            </div>
+            <p className="mt-3 text-[12.5px] leading-5 text-[#3f3f46]/80">
+              Across top-of-funnel buyers vs their best inventory match.
+            </p>
+          </Tile>
         </div>
       </section>
 
-      <form action="/search" className="mt-10 flex max-w-2xl items-stretch gap-2">
-        <label className="relative flex-1">
-          <span className="sr-only">Search buyers, listings, or tasks</span>
-          <Search
-            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#75758a]"
-            aria-hidden="true"
-          />
-          <input
-            className="h-11 w-full rounded-full border border-[#d9d9dd] bg-white pl-11 pr-4 text-sm text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
-            name="q"
-            placeholder="Search buyer memory, listing facts, owner notes..."
-            type="search"
-          />
-        </label>
-        <Button size="sm" type="submit" variant="secondary">
-          Search
-        </Button>
-      </form>
-
-      <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 auto-rows-max">
-        {/* Next-best action */}
-        <Card className="col-span-1 md:col-span-2 xl:col-span-2 flex max-h-[560px] flex-col overflow-hidden">
-          <CardHeader
-            eyebrow="Next-best action"
-            title="Today needs broker judgment"
-            action={
-              model.overdueTasks.length ? (
-                <Badge tone="error">{model.overdueTasks.length} urgent</Badge>
-              ) : (
-                <Badge tone="neutral">All clear</Badge>
-              )
-            }
-          />
-          {model.overdueTasks.length === 0 ? (
-            <EmptyState
-              title="No urgent broker tasks"
-              description="Overdue follow-ups, verification holds, and owner updates will surface here."
-              action={
-                <Link
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#17171c] px-4 text-[13px] font-medium text-white hover:bg-[#2a2a32]"
-                  href="/voice-crm"
-                >
-                  Add a voice note
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Link>
-              }
-            />
-          ) : (
-            <div className="min-h-0 overflow-y-auto">
-            <ul className="divide-y divide-[#f2f2f2]">
-              {model.overdueTasks.map((task) => {
-                const buyer = task.buyerId ? getBuyerById(task.buyerId, segment) : undefined;
-                const listing = task.listingId ? getListingById(task.listingId, segment) : undefined;
-                return (
-                  <li
-                    key={task.id}
-                    className="grid gap-3 px-6 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={getTaskTone(task)}>{task.priority}</Badge>
-                        <span className="text-[12px] font-medium uppercase tracking-[0.12em] text-[#75758a]">
-                          {dueLabel(task.dueAt)}
-                        </span>
-                      </div>
-                      <h3 className="mt-2 text-[15px] font-medium text-[#17171c]">{task.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-[#616161]">{task.reason}</p>
-                      {(buyer || listing) && (
-                        <p className="mt-2 text-[13px] text-[#75758a]">
-                          {[buyer?.name, listing?.name].filter(Boolean).join(" / ")}
-                        </p>
-                      )}
-                    </div>
-                    <TaskActionButton taskId={task.id} label={task.actionLabel} />
-                  </li>
-                );
-              })}
-            </ul>
+      {/* === KPI BAND — bubble cluster + verification sparkbars === */}
+      <section
+        aria-label="Pipeline composition"
+        className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3"
+      >
+        <Tile className="md:col-span-2">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="bb-mono-label">Pipeline composition</p>
+              <p className="bb-display mt-1.5 text-lg font-medium text-[#17171c]">
+                Where the broker’s capacity sits
+              </p>
             </div>
-          )}
-        </Card>
-
-        {/* Trust gate */}
-        <Card className="col-span-1 flex max-h-[560px] flex-col overflow-hidden">
-          <CardHeader
-            eyebrow="Trust gate"
-            title="Verification queue"
-            action={
-              <CardHeaderIcon>
-                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              </CardHeaderIcon>
-            }
-          />
-          {model.verificationCases.length === 0 ? (
-            <EmptyState
-              title="Verification inbox is empty"
-              description="Buyer access requests will land here with risk scores and recommended actions."
+            <Link
+              className="text-[12.5px] font-medium text-[#17171c] hover:underline"
+              href="/buyers"
+            >
+              Open buyers →
+            </Link>
+          </div>
+          <div className="mt-6">
+            <BubbleCluster
+              items={[
+                {
+                  label: "Buyers",
+                  value: pipelineCount,
+                  detail: `${
+                    model.buyers.filter(
+                      (b) => b.currentStage !== "New Inquiry",
+                    ).length
+                  } past intake`,
+                  tone: "green",
+                },
+                {
+                  label: "Listings",
+                  value: listingCount,
+                  detail: `${
+                    model.listings.filter((l) => l.status === "Active").length
+                  } marketable`,
+                  tone: "ink",
+                },
+                {
+                  label: "Verifications",
+                  value: verificationCount,
+                  detail: `${
+                    model.verificationCases.filter(
+                      (v) => v.status === "High Risk",
+                    ).length
+                  } high risk`,
+                  tone: "coral",
+                },
+              ]}
             />
-          ) : (
-            <>
-              <div className="min-h-0 overflow-y-auto">
-              <ul className="divide-y divide-[#f2f2f2]">
-                {model.verificationCases.slice(0, 4).map((caseFile) => {
-                  const buyer = getBuyerById(caseFile.buyerId, segment);
-                  const listing = getListingById(caseFile.listingId, segment);
-                  const tone = getVerificationTone(caseFile.status);
-                  return (
-                    <li key={caseFile.id} className="px-5 py-5 sm:px-6">
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-                        <div className="min-w-0">
-                          <p className="text-[15px] font-medium text-[#17171c]">{buyer?.name}</p>
-                          <p className="mt-1 max-w-[230px] text-[13px] leading-5 text-[#75758a]">
-                            {listing?.name} · {caseFile.requestedAccess}
-                          </p>
-                        </div>
-                        <Badge className={tone.className}>
-                          <StatusDot className={tone.dotClassName} />
-                          {caseFile.status}
-                        </Badge>
-                      </div>
-                      <div className="mt-4 rounded-xl bg-[#f7f7f9] p-3.5">
-                        <div className="flex items-center justify-between gap-3 text-[13px]">
-                          <span className="text-[#75758a]">Risk score</span>
-                          <span className="font-mono font-semibold text-[#17171c]">
-                            {caseFile.score}
-                          </span>
-                        </div>
-                        <ProgressBar className="mt-2" value={caseFile.score} />
-                      </div>
-                      <p className="mt-3 text-[13px] leading-6 text-[#616161]">
-                        {caseFile.recommendedAction}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
-              </div>
-              <div className="border-t border-[#f2f2f2] px-6 py-4">
-                <Link className="text-sm font-medium text-[#1863dc] hover:underline" href="/verification">
-                  Open inbox →
-                </Link>
-              </div>
-            </>
-          )}
-        </Card>
+          </div>
+        </Tile>
 
-        {/* Broker memory */}
-        <Card className="col-span-1 md:col-span-2 xl:col-span-2 flex max-h-[640px] flex-col overflow-hidden">
-          <CardHeader
-            eyebrow="Broker memory"
-            title="Hot buyers and stale momentum"
-            action={
-              <CardHeaderIcon>
-                <Users className="h-4 w-4" aria-hidden="true" />
-              </CardHeaderIcon>
-            }
-          />
-          {model.hotBuyers.length === 0 ? (
+        <Tile>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="bb-mono-label">Trust gate</p>
+              <p className="bb-display mt-1.5 text-lg font-medium text-[#17171c]">
+                Verification mix
+              </p>
+            </div>
+            <ShieldCheck
+              className="h-4 w-4 text-[#003c33]"
+              aria-hidden="true"
+            />
+          </div>
+          <div className="mt-6">
+            <Sparkbars data={verifBuckets} highlightIndex={highestRiskIdx} />
+          </div>
+          {topRiskCase ? (
+            <div className="mt-5 rounded-xl border border-[#ececef] bg-[#fafaf7] p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12.5px] font-medium text-[#17171c]">
+                  {topRiskBuyer?.name ?? "Unknown buyer"}
+                </p>
+                <span className="font-mono text-[12px] font-semibold text-[#9f4f2e]">
+                  {topRiskCase.score}
+                </span>
+              </div>
+              <p className="mt-1 text-[11.5px] leading-5 text-[#616161]">
+                {topRiskCase.recommendedAction}
+              </p>
+              <Link
+                className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[#17171c] hover:underline"
+                href="/verification"
+              >
+                Open case <ArrowRight className="h-3 w-3" aria-hidden="true" />
+              </Link>
+            </div>
+          ) : (
+            <p className="mt-5 text-[12.5px] text-[#75758a]">
+              Verification inbox is clear.
+            </p>
+          )}
+        </Tile>
+      </section>
+
+      {/* === HOT BUYERS row — horizontal scrolling portrait cards === */}
+      <section aria-label="Hot buyers" className="mt-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="bb-mono-label">Broker memory</p>
+            <h2 className="bb-display mt-1.5 text-[1.4rem] font-medium text-[#17171c]">
+              Hot buyers
+            </h2>
+          </div>
+          <Link
+            className="text-[12.5px] font-medium text-[#17171c] hover:underline"
+            href="/buyers"
+          >
+            All buyers →
+          </Link>
+        </div>
+
+        {model.hotBuyers.length === 0 ? (
+          <Tile className="mt-5">
             <EmptyState
               title="No buyer memory yet"
               description="Buyers added by voice or matching appear here by urgency."
             />
-          ) : (
-            <div className="min-h-0 overflow-y-auto">
-            <ul className="divide-y divide-[#f2f2f2]">
-              {model.hotBuyers.map(({ buyer, verification, topMatch }) => {
-                const listing = topMatch ? getListingById(topMatch.listingId, segment) : undefined;
-                const tone = getVerificationTone(verification?.status ?? "Needs Review");
-                return (
-                  <li key={buyer.id} className="grid gap-5 px-6 py-5 lg:grid-cols-[1fr_280px]">
+          </Tile>
+        ) : (
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {model.hotBuyers.map(({ buyer, verification, topMatch }) => {
+              const listing = topMatch
+                ? getListingById(topMatch.listingId, segment)
+                : undefined;
+              const tone = getVerificationTone(
+                verification?.status ?? "Needs Review",
+              );
+              const fit = topMatch?.fitScore ?? 0;
+              return (
+                <Link
+                  className="group relative flex flex-col gap-4 rounded-[20px] border border-[#ececef] bg-white p-5 transition-all hover:-translate-y-[2px] hover:border-[#17171c] hover:shadow-[0_18px_45px_-22px_rgba(23,23,28,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  href={`/buyers/${buyer.id}`}
+                  key={buyer.id}
+                >
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]"
-                          href={`/buyers/${buyer.id}`}
-                        >
-                          {buyer.name}
-                        </Link>
-                        <Badge className={tone.className}>
-                          <StatusDot className={tone.dotClassName} />
-                          {verification?.status ?? "Needs Review"}
-                        </Badge>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-[#616161]">
-                        {buyer.sizeRangeFt[0]}–{buyer.sizeRangeFt[1]}ft, {buyer.urgency.toLowerCase()},{" "}
-                        {buyer.communicationStyle.toLowerCase()}.
+                      <p className="text-[14.5px] font-medium text-[#17171c] group-hover:text-[#003c33]">
+                        {buyer.name}
                       </p>
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {buyer.tags.slice(0, 4).map((tag) => (
-                          <Badge key={tag} tone="neutral">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
+                      <p className="mt-1 text-[12px] text-[#75758a]">
+                        {buyer.urgency} · {buyer.currentStage}
+                      </p>
                     </div>
-                    <div className="rounded-xl bg-[#f7f7f9] p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[13px] font-medium text-[#17171c]">
-                          {listing?.name ?? "No active match"}
-                        </p>
-                        <span className="font-mono text-[13px] font-semibold text-[#17171c]">
-                          {topMatch ? percentage(topMatch.fitScore) : "—"}
-                        </span>
-                      </div>
-                      <ProgressBar className="mt-3" value={topMatch?.fitScore ?? 0} />
-                      {topMatch?.rationale ? (
-                        <p className="mt-3 text-[13px] leading-6 text-[#616161]">{topMatch.rationale}</p>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            </div>
-          )}
-          <DashboardCardFooterLink href="/buyers" label="All buyers" />
-        </Card>
+                    <FitRing size={48} stroke={4} tone="green" value={fit} />
+                  </div>
 
-        {/* Matching */}
-        <Card className="col-span-1 flex max-h-[640px] flex-col overflow-hidden">
+                  <div className="rounded-xl bg-[#fafaf7] p-3">
+                    <p className="text-[11.5px] font-medium text-[#3f3f46]">
+                      {listing?.name ?? "No active match"}
+                    </p>
+                    {topMatch?.rationale ? (
+                      <p className="mt-1 line-clamp-2 text-[11.5px] leading-5 text-[#75758a]">
+                        {topMatch.rationale}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+                    <Badge className={tone.className}>
+                      <StatusDot className={tone.dotClassName} />
+                      {verification?.status ?? "Needs Review"}
+                    </Badge>
+                    <span className="text-[11px] text-[#75758a]">
+                      {buyer.sizeRangeFt[0]}–{buyer.sizeRangeFt[1]}ft
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* === Hidden opportunities + Owner reporting — secondary row === */}
+      <section className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
+        {/* Matching condensed to top 2 */}
+        <Card className="lg:col-span-2 flex flex-col overflow-hidden">
           <CardHeader
             eyebrow="Matching"
-            title="New hidden opportunities"
+            title="Hidden opportunities"
             action={
-              <CardHeaderIcon>
-                <Gauge className="h-4 w-4" aria-hidden="true" />
-              </CardHeaderIcon>
+              <Link
+                className="text-[12.5px] font-medium text-[#1863dc] hover:underline"
+                href="/matching"
+              >
+                Open matcher →
+              </Link>
             }
           />
           {model.matchResults.length === 0 ? (
@@ -399,180 +552,70 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
               }
             />
           ) : (
-            <div className="min-h-0 overflow-y-auto p-5">
-              <div className="grid gap-3">
-                {model.matchResults.slice(0, 5).map((match) => {
-                  const buyer = getBuyerById(match.buyerId, segment);
-                  const listing = getListingById(match.listingId, segment);
-
-                  return (
-                    <Link
-                      className="group block rounded-2xl border border-[#ececf0] bg-[#f7f7f9] p-4 transition-colors hover:border-[#17171c]"
-                      href="/matching"
-                      key={match.id}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-[15px] font-medium text-[#17171c]">{buyer?.name}</p>
-                            <Badge tone="info">{match.category}</Badge>
-                          </div>
-                          <p className="mt-1 text-[13px] text-[#75758a]">
-                            {listing?.builder} {listing?.model}
-                          </p>
-                        </div>
-                        <span className="font-mono text-[15px] font-semibold text-[#17171c]">
-                          {percentage(match.fitScore)}
-                        </span>
-                      </div>
-                      <ProgressBar className="mt-3" value={match.fitScore} />
-                      <p className="mt-3 text-[13px] leading-6 text-[#616161]">
-                        {match.talkingPoints[0]}
-                      </p>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          <DashboardCardFooterLink href="/matching" label="Open matcher" />
-        </Card>
-
-        {/* Asset intelligence */}
-        <Card className="col-span-1 flex max-h-[520px] flex-col overflow-hidden">
-          <CardHeader
-            eyebrow="Asset intelligence"
-            title="Listings needing attention"
-            action={
-              <CardHeaderIcon>
-                <Compass className="h-4 w-4" aria-hidden="true" />
-              </CardHeaderIcon>
-            }
-          />
-          {model.listings.length === 0 ? (
-            <EmptyState
-              title="No listings on file"
-              description="Add a listing to surface missing docs, comps, and outreach angles."
-              action={
-                <Link
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] hover:border-[#17171c]"
-                  href="/listings"
-                >
-                  Open listings
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Link>
-              }
-            />
-          ) : (
-            <div className="min-h-0 overflow-y-auto">
-              <ul className="divide-y divide-[#f2f2f2]">
-                {model.listings.slice(0, 5).map((listing) => (
-                  <li key={listing.id} className="px-6 py-5">
-                    <div className="flex flex-wrap items-baseline justify-between gap-3">
-                      <Link
-                        className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]"
-                        href={`/listings/${listing.id}`}
-                      >
-                        {listing.name}
-                      </Link>
-                      <p className="font-mono text-[13px] font-medium text-[#17171c]">
-                        {formatCurrency(listing.priceEur)}
-                      </p>
-                    </div>
-                    <p className="mt-1 text-[13px] leading-6 text-[#616161]">
-                      {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Badge tone="neutral">{listing.status}</Badge>
-                      <Badge tone="neutral">{listing.vatStatus}</Badge>
-                      {listing.missingInfo.length ? (
-                        <span className="text-[12px] text-[#b45309]">
-                          Missing: {listing.missingInfo.join(", ")}
-                        </span>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <DashboardCardFooterLink href="/listings" label="All listings" />
-        </Card>
-
-        {/* Deal rooms */}
-        <Card className="col-span-1 flex max-h-[520px] flex-col overflow-hidden">
-          <CardHeader
-            eyebrow="Deal rooms"
-            title="Buyer-safe rooms"
-            action={
-              <CardHeaderIcon>
-                <FileText className="h-4 w-4" aria-hidden="true" />
-              </CardHeaderIcon>
-            }
-          />
-          {model.dealRooms.length === 0 ? (
-            <EmptyState
-              title="No deal rooms yet"
-              description="Create a private room after buyer verification."
-              action={
-                <Link
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] hover:border-[#17171c]"
-                  href="/deal-rooms"
-                >
-                  Create a deal room
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Link>
-              }
-            />
-          ) : (
-            <div className="min-h-0 overflow-y-auto">
             <ul className="divide-y divide-[#f2f2f2]">
-              {model.dealRooms.map((room) => {
-                const buyer = getBuyerById(room.buyerId, segment);
-                const tone = getVerificationTone(room.verificationStatus);
+              {model.matchResults.slice(0, 3).map((match) => {
+                const buyer = getBuyerById(match.buyerId, segment);
+                const listing = getListingById(match.listingId, segment);
                 return (
-                  <li key={room.id} className="px-6 py-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[15px] font-medium text-[#17171c]">{room.title}</p>
-                        <p className="mt-1 text-[13px] text-[#75758a]">
-                          {buyer?.name} · {room.status}
+                  <li className="px-6 py-5" key={match.id}>
+                    <Link
+                      className="group flex flex-wrap items-center gap-4"
+                      href="/matching"
+                    >
+                      <FitRing size={52} stroke={5} tone="green" value={match.fitScore} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[14.5px] font-medium text-[#17171c] group-hover:text-[#003c33]">
+                            {buyer?.name}
+                          </span>
+                          <Badge tone="info">{match.category}</Badge>
+                        </div>
+                        <p className="mt-1 text-[12.5px] text-[#75758a]">
+                          {listing?.builder} {listing?.model} ·{" "}
+                          {listing ? getListingSpecSummary(listing) : ""}
+                        </p>
+                        <p className="mt-2 line-clamp-1 text-[12.5px] leading-5 text-[#3f3f46]">
+                          {match.talkingPoints[0]}
                         </p>
                       </div>
-                      <Badge className={tone.className}>{room.verificationStatus}</Badge>
-                    </div>
-                    <p className="mt-3 text-[13px] leading-6 text-[#616161]">
-                      {room.listingIds.length} listings · {room.approvedDocumentIds.length} approved docs ·{" "}
-                      {room.brokerApprovalStatus.toLowerCase()} approval
-                    </p>
+                      <ArrowRight
+                        className="h-3.5 w-3.5 shrink-0 text-[#75758a] transition-transform group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                      />
+                    </Link>
                   </li>
                 );
               })}
             </ul>
-            </div>
           )}
-          <DashboardCardFooterLink href="/deal-rooms" label="All rooms" />
         </Card>
 
-        {/* Owner reporting */}
-        <Card className="col-span-1 md:col-span-2 xl:col-span-1 flex max-h-[520px] flex-col overflow-hidden">
+        {/* Owner reporting — condensed */}
+        <Card className="flex flex-col overflow-hidden">
           <CardHeader
             eyebrow="Owner reporting"
             title={model.sellerReport?.title ?? "Owner reports"}
             action={
-              <CardHeaderIcon>
-                <Calendar className="h-4 w-4" aria-hidden="true" />
-              </CardHeaderIcon>
+              <Link
+                className="text-[12.5px] font-medium text-[#1863dc] hover:underline"
+                href="/reports"
+              >
+                Reports →
+              </Link>
             }
           />
           {model.sellerReport ? (
             <div className="min-h-0 overflow-y-auto px-6 py-5">
-              <p className="text-sm leading-6 text-[#3f3f46]">{model.sellerReport.summary}</p>
-              <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                {model.sellerReport.sections.map((section) => (
-                  <div key={section.label}>
+              <p className="text-[13px] leading-6 text-[#3f3f46]">
+                {model.sellerReport.summary}
+              </p>
+              <dl className="mt-4 grid gap-3">
+                {model.sellerReport.sections.slice(0, 3).map((section) => (
+                  <div className="border-l-2 border-[#003c33] pl-3" key={section.label}>
                     <dt className="bb-mono-label">{section.label}</dt>
-                    <dd className="mt-1.5 text-[13px] leading-6 text-[#3f3f46]">{section.value}</dd>
+                    <dd className="mt-1 text-[12.5px] leading-5 text-[#3f3f46]">
+                      {section.value}
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -580,94 +623,317 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
           ) : (
             <EmptyState
               title="No owner reports queued"
-              description="Add seller context and cadence to draft owner updates."
+              description="Add seller context to draft owner updates."
             />
           )}
-          <DashboardCardFooterLink href="/reports" label="Open reports" />
         </Card>
+      </section>
 
-        {/* Workflow health */}
-        <Card className="col-span-1 md:col-span-2 xl:col-span-3 flex flex-col overflow-hidden">
+      {/* === Search — full-width with inline submit === */}
+      <section aria-label="Search" className="mt-8">
+        <Tile tone="paper" className="!p-5 sm:!p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="bb-mono-label">Search everything</p>
+            <p className="text-[11.5px] text-[#75758a]">
+              Buyers · listings · owner notes · tasks · documents
+            </p>
+          </div>
+          <form action="/search" className="mt-4">
+            <label className="relative block">
+              <span className="sr-only">Search buyers, listings, or tasks</span>
+              <Search
+                className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#75758a]"
+                aria-hidden="true"
+              />
+              <input
+                className="h-14 w-full rounded-2xl border border-[#d9d9dd] bg-white pl-14 pr-36 text-[15px] text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+                name="q"
+                placeholder="Search buyer memory, listing facts, owner notes..."
+                type="search"
+              />
+              <button
+                className="absolute right-2 top-1/2 inline-flex h-10 -translate-y-1/2 items-center gap-1.5 rounded-xl bg-[#17171c] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#2a2a32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                type="submit"
+              >
+                Search
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </label>
+          </form>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {["Monaco", "VAT", "Ferrari", "owner update", "verification"].map(
+              (term) => (
+                <Link
+                  key={term}
+                  className="inline-flex h-7 items-center rounded-full border border-[#e5e7eb] bg-white px-3 text-[11.5px] font-medium text-[#3f3f46] transition-colors hover:border-[#17171c] hover:text-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  href={`/search?q=${encodeURIComponent(term)}`}
+                >
+                  {term}
+                </Link>
+              ),
+            )}
+          </div>
+        </Tile>
+      </section>
+
+      {/* === Listings + Deal rooms — quiet tertiary === */}
+      <section className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
+        <Card className="flex max-h-[420px] flex-col overflow-hidden">
           <CardHeader
-            eyebrow="Workflow health"
-            title="Signals the broker should not miss"
+            eyebrow="Asset intelligence"
+            title="Listings needing attention"
             action={
-              <CardHeaderIcon>
-                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-              </CardHeaderIcon>
+              <Link
+                className="text-[12.5px] font-medium text-[#1863dc] hover:underline"
+                href="/listings"
+              >
+                All →
+              </Link>
             }
           />
-          <div className="min-h-0 overflow-y-auto">
-            <ul className="grid divide-y divide-[#f2f2f2] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
-              <SignalRow
-                icon={AlertTriangle}
-                label="Missing documents"
-                value={`${model.missingDocuments.length} blockers`}
-                detail={
-                  model.missingDocuments.length
-                    ? model.missingDocuments
-                        .map((item) => `${item.listing.name}: ${item.missing}`)
-                        .join(" · ")
-                    : "No outstanding document gaps."
-                }
-              />
-              <SignalRow
-                icon={Clock}
-                label="Calls needing summaries"
-                value={`${conversationsNeedingSummary} conversations`}
-                detail={
-                  conversationsNeedingSummary
-                    ? model.conversations
-                        .filter((item) => item.needsSummary)
-                        .map((item) => item.summary)
-                        .join(" · ")
-                    : "All captured calls have a summary on file."
-                }
-              />
-              <SignalRow
-                icon={Calendar}
-                label="Owner updates due"
-                value={`${model.ownerUpdates.length} due soon`}
-                detail={
-                  model.ownerUpdates.length
-                    ? model.ownerUpdates
-                        .map((item) => `${item.seller.name}: ${dueLabel(item.seller.nextOwnerUpdateDueAt)}`)
-                        .join(" · ")
-                    : "No owner reports are due this week."
-                }
-              />
-              <SignalRow
-                icon={CheckCircle}
-                label="Approved drafts"
-                value={`${approvedDrafts} approved`}
-                detail={
-                  model.followUpDrafts.length
-                    ? `${model.followUpDrafts.length} drafts in the human approval loop.`
-                    : "No follow-up drafts yet. Voice notes and call summaries create them automatically."
-                }
-              />
+          {model.listings.length === 0 ? (
+            <EmptyState
+              title="No listings on file"
+              description="Add a listing to surface missing docs, comps, and outreach angles."
+            />
+          ) : (
+            <ul className="min-h-0 divide-y divide-[#f2f2f2] overflow-y-auto">
+              {model.listings.slice(0, 4).map((listing) => (
+                <li className="px-6 py-4" key={listing.id}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <Link
+                      className="text-[14px] font-medium text-[#17171c] hover:text-[#1863dc]"
+                      href={`/listings/${listing.id}`}
+                    >
+                      {listing.name}
+                    </Link>
+                    <p className="font-mono text-[12.5px] font-medium text-[#17171c]">
+                      {formatCurrency(listing.priceEur)}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-5 text-[#75758a]">
+                    {listing.builder} {listing.model} ·{" "}
+                    {getListingSpecSummary(listing)}
+                  </p>
+                  {listing.missingInfo.length ? (
+                    <p className="mt-2 text-[11.5px] font-medium text-[#9f4f2e]">
+                      Missing: {listing.missingInfo.join(", ")}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
             </ul>
-          </div>
+          )}
         </Card>
-      </div>
 
+        <Card className="flex max-h-[420px] flex-col overflow-hidden">
+          <CardHeader
+            eyebrow="Deal rooms"
+            title="Buyer-safe rooms"
+            action={
+              <Link
+                className="text-[12.5px] font-medium text-[#1863dc] hover:underline"
+                href="/deal-rooms"
+              >
+                All →
+              </Link>
+            }
+          />
+          {model.dealRooms.length === 0 ? (
+            <EmptyState
+              title="No deal rooms yet"
+              description="Create a private room after buyer verification."
+            />
+          ) : (
+            <ul className="min-h-0 divide-y divide-[#f2f2f2] overflow-y-auto">
+              {model.dealRooms.slice(0, 4).map((room) => {
+                const buyer = getBuyerById(room.buyerId, segment);
+                const tone = getVerificationTone(room.verificationStatus);
+                return (
+                  <li className="px-6 py-4" key={room.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-medium text-[#17171c]">
+                          {room.title}
+                        </p>
+                        <p className="mt-1 text-[12px] text-[#75758a]">
+                          {buyer?.name} · {room.status}
+                        </p>
+                      </div>
+                      <Badge className={tone.className}>
+                        {room.verificationStatus}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-[12px] leading-5 text-[#616161]">
+                      {room.listingIds.length} listings ·{" "}
+                      {room.approvedDocumentIds.length} approved docs ·{" "}
+                      {room.brokerApprovalStatus.toLowerCase()} approval
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      </section>
+
+      {/* === Workflow signals — single thin strip, not 4 boxes === */}
+      <section className="mt-8">
+        <Tile className="!p-0">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ececef] px-6 py-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-[#9f4f2e]" aria-hidden="true" />
+              <p className="bb-mono-label">Workflow signals</p>
+            </div>
+            <p className="text-[12px] text-[#75758a]">
+              Quiet check before you close the laptop.
+            </p>
+          </div>
+          <ul className="grid divide-y divide-[#ececef] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
+            <SignalPill
+              detail={
+                model.missingDocuments.length
+                  ? model.missingDocuments
+                      .map((item) => `${item.listing.name}: ${item.missing}`)
+                      .slice(0, 2)
+                      .join(" · ")
+                  : "No outstanding document gaps."
+              }
+              icon={AlertTriangle}
+              label="Missing docs"
+              value={`${model.missingDocuments.length}`}
+            />
+            <SignalPill
+              detail={
+                conversationsNeedingSummary
+                  ? `${conversationsNeedingSummary} calls without a written summary.`
+                  : "All captured calls have a summary on file."
+              }
+              icon={Clock}
+              label="Calls to summarise"
+              value={`${conversationsNeedingSummary}`}
+            />
+            <SignalPill
+              detail={
+                model.ownerUpdates.length
+                  ? model.ownerUpdates
+                      .slice(0, 2)
+                      .map(
+                        (item) =>
+                          `${item.seller.name}: ${dueLabel(item.seller.nextOwnerUpdateDueAt)}`,
+                      )
+                      .join(" · ")
+                  : "No owner reports are due this week."
+              }
+              icon={Calendar}
+              label="Owner updates"
+              value={`${model.ownerUpdates.length}`}
+            />
+            <SignalPill
+              detail={
+                model.followUpDrafts.length
+                  ? `${model.followUpDrafts.length} drafts in the approval loop.`
+                  : "No drafts. Voice notes & call summaries create them."
+              }
+              icon={CheckCircle}
+              label="Approved drafts"
+              value={`${approvedDrafts}`}
+            />
+          </ul>
+        </Tile>
+      </section>
+
+      {/* Below-the-fold loud-list fallback — keeps overdue list reachable
+          (kept short; anchor tile owns the primary surface). */}
+      {model.overdueTasks.length > 1 ? (
+        <section className="mt-8">
+          <Card>
+            <CardHeader
+              eyebrow="Full urgency queue"
+              title="Every overdue item"
+              action={
+                <Badge tone="coral">
+                  {model.overdueTasks.length} total
+                </Badge>
+              }
+            />
+            <ul className="divide-y divide-[#f2f2f2]">
+              {model.overdueTasks.map((task) => {
+                const buyer = task.buyerId
+                  ? getBuyerById(task.buyerId, segment)
+                  : undefined;
+                const listing = task.listingId
+                  ? getListingById(task.listingId, segment)
+                  : undefined;
+                return (
+                  <li
+                    className="grid gap-3 px-6 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                    key={task.id}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={getTaskTone(task)}>{task.priority}</Badge>
+                        <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#75758a]">
+                          {dueLabel(task.dueAt)}
+                        </span>
+                      </div>
+                      <h3 className="mt-1.5 text-[14.5px] font-medium text-[#17171c]">
+                        {task.title}
+                      </h3>
+                      <p className="mt-1 text-[12.5px] leading-5 text-[#616161]">
+                        {task.reason}
+                      </p>
+                      {(buyer || listing) && (
+                        <p className="mt-1.5 text-[12px] text-[#75758a]">
+                          {[buyer?.name, listing?.name]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        </p>
+                      )}
+                    </div>
+                    <TaskActionButton label={task.actionLabel} taskId={task.id} />
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        </section>
+      ) : null}
     </div>
   );
 }
 
-function DashboardCardFooterLink({ href, label }: { href: string; label: string }) {
+function SignalPill({
+  detail,
+  icon: Icon,
+  label,
+  value,
+}: {
+  detail: string;
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="mt-auto border-t border-[#f2f2f2] px-6 py-4">
-      <Link className="text-sm font-medium text-[#1863dc] hover:underline" href={href}>
-        {label} →
-      </Link>
-    </div>
+    <li className="px-6 py-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Icon className="h-3.5 w-3.5 text-[#17171c]" aria-hidden="true" />
+          <p className="bb-mono-label">{label}</p>
+        </div>
+        <p className="bb-display text-lg font-medium tabular-nums text-[#17171c]">
+          {value}
+        </p>
+      </div>
+      <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-[#616161]">
+        {detail}
+      </p>
+    </li>
   );
 }
 
-/* First-run dashboard — single editorial hero + 3 primary actions + a quiet
-   explainer card. Replaces the eight-card empty layout that read as chaotic
-   on a clean install. */
+/* First-run dashboard — kept lightly refreshed to match the new visual
+   language (cream accent, deep-green anchor chip). */
 function FirstRunDashboard() {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
@@ -728,10 +994,7 @@ function FirstRunDashboard() {
       </section>
 
       <Card className="mt-12">
-        <CardHeader
-          eyebrow="How the brain works"
-          title="Core workflow"
-        />
+        <CardHeader eyebrow="How the brain works" title="Core workflow" />
         <ul className="divide-y divide-[#f2f2f2]">
           <ExplainerRow
             icon={Radio}
@@ -779,7 +1042,7 @@ function ActionCard({
     >
       <div>
         <div className="flex items-center justify-between">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#003c33] text-white">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#003c33] text-[#f4ead5]">
             <Icon className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="bb-mono-label">{step}</span>
@@ -815,33 +1078,6 @@ function ExplainerRow({
       <div className="min-w-0">
         <p className="text-[14px] font-medium text-[#17171c]">{title}</p>
         <p className="mt-1 text-[13px] leading-6 text-[#616161]">{description}</p>
-      </div>
-    </li>
-  );
-}
-
-function SignalRow({
-  icon: Icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: typeof AlertTriangle;
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <li className="grid gap-4 px-6 py-5 sm:grid-cols-[36px_1fr]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#17171c]">
-        <Icon className="h-4 w-4" aria-hidden="true" />
-      </div>
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[14px] font-medium text-[#17171c]">{label}</p>
-          <span className="bb-mono-label">{value}</span>
-        </div>
-        <p className="mt-2 text-[13px] leading-6 text-[#616161]">{detail}</p>
       </div>
     </li>
   );

@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { getListingIds, ListingBrain } from "@/components/listings";
+import { ListingBrain } from "@/components/listings";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { getListingBrain } from "@/lib/services";
 import { getStoredListingById } from "@/lib/supabase/listings";
 
+// Render dynamically — listings come from Supabase at request time. The
+// previous implementation imported getListingIds() from a "use client"
+// component, which Next 16 correctly refuses to call from a server file.
 export function generateStaticParams() {
-  return getListingIds().map((id) => ({ id }));
+  return [];
 }
 
 export async function generateMetadata({

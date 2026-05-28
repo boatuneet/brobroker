@@ -289,28 +289,28 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
               <Badge tone="info">{completion}% complete</Badge>
             </div>
 
-            <div className="mt-6 grid gap-4 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-3 sm:grid-cols-[220px_minmax(0,1fr)_auto] sm:items-center">
-              <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-[#edeae3]">
+            {/* Compact "active segment" hint — image kept as small thumbnail,
+                copy condensed to one row so the form gets the visual weight. */}
+            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-2.5">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#edeae3]">
                 <Image
                   alt=""
                   className="object-cover"
                   fill
-                  sizes="220px"
+                  sizes="48px"
                   src={segmentMeta.imageSrc}
                 />
               </div>
-              <div className="min-w-0 px-1">
-                <p className="bb-mono-label">{segmentMeta.label} workspace</p>
-                <h2 className="bb-display mt-2 text-xl font-medium text-[#17171c]">
-                  Creating a {segmentMeta.title.toLowerCase()} listing
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-[#616161]">
-                  This intake follows your active broker segment from Profile, so you do not need to
-                  choose the category again.
+              <div className="min-w-0 flex-1">
+                <p className="bb-mono-label text-[#75758a]">
+                  Active segment · {segmentMeta.label}
+                </p>
+                <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#616161]">
+                  Follows your broker segment from Profile.
                 </p>
               </div>
               <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-4 text-sm font-medium text-[#17171c] hover:border-[#17171c]"
+                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-3.5 text-[12.5px] font-medium text-[#17171c] hover:border-[#17171c]"
                 href="/profile"
               >
                 Change segment

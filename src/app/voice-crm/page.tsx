@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { VoiceToCrmWorkspace } from "@/components/voice-to-crm";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 
 export const metadata = {
   title: "Voice CRM · BroBroker",
@@ -9,10 +10,11 @@ export const metadata = {
 
 export default async function VoiceCrmPage() {
   const segment = await getActiveBrokerSegment();
+  const storedBuyers = await getStoredBuyersForSegment(segment);
 
   return (
     <AppShell active="Voice CRM">
-      <VoiceToCrmWorkspace key={segment} segment={segment} />
+      <VoiceToCrmWorkspace key={segment} segment={segment} storedBuyers={storedBuyers} />
     </AppShell>
   );
 }
