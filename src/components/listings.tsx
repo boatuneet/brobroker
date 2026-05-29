@@ -234,12 +234,11 @@ export function ListingIndex({
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        eyebrow="Asset intelligence"
         title="Listing intelligence"
         description="Search inventory by fit, owner, location, documents, and missing facts."
         actions={
           <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white hover:bg-[#2a2a32]"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
             href="/listings/new"
           >
             <PlusCircle className="h-4 w-4" aria-hidden="true" />
@@ -286,17 +285,17 @@ export function ListingIndex({
       {/* Search + status chips — same dynamic-count pattern as Knowledge Vault. */}
       <section
         aria-label="Filter listings"
-        className="mt-8 rounded-[22px] border border-[#ececef] bg-white p-4 sm:p-5"
+        className="mt-8 rounded-[24px] border border-[#E7E7E2] bg-white p-4 sm:p-5"
       >
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
           <label className="relative block">
             <span className="sr-only">Search listings</span>
             <Search
               aria-hidden="true"
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#75758a]"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
             />
             <input
-              className="h-10 w-full rounded-full border border-[#e5e7eb] bg-white pl-10 pr-9 text-[13px] text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+              className="h-10 w-full rounded-full border border-[#E7E7E2] bg-white pl-10 pr-9 text-[13px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Search make, model, location, missing info…"
               type="search"
@@ -305,7 +304,7 @@ export function ListingIndex({
             {searching ? (
               <button
                 aria-label="Clear search"
-                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#75758a] hover:bg-[#f4fbf5] hover:text-[#17171c]"
+                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#8E918B] hover:bg-[#f4fbf5] hover:text-[#171719]"
                 onClick={() => onQueryChange("")}
                 type="button"
               >
@@ -346,7 +345,7 @@ export function ListingIndex({
             action={
               hasFilters ? (
                 <button
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] hover:border-[#17171c]"
+                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
                   onClick={clearFilters}
                   type="button"
                 >
@@ -360,9 +359,9 @@ export function ListingIndex({
         <>
           <section
             aria-label="Listings"
-            className="mt-8 overflow-hidden rounded-[22px] border border-[#ececef] bg-white"
+            className="mt-8 overflow-hidden rounded-[24px] border border-[#E7E7E2] bg-white"
           >
-            <div className="hidden grid-cols-[minmax(280px,1.4fr)_minmax(180px,1fr)_180px_140px] border-b border-[#f2f2f2] bg-[#fbfbfa] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a8a96] lg:grid">
+            <div className="hidden grid-cols-[minmax(280px,1.4fr)_minmax(180px,1fr)_180px_140px] border-b border-[#E7E7E2] bg-[#F1F2EE] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B] lg:grid">
               <span>Asset</span>
               <span>Location · specs</span>
               <span>Status · readiness</span>
@@ -382,20 +381,20 @@ export function ListingIndex({
               aria-label="Listings pagination"
               className="mt-6 flex items-center justify-between gap-3"
             >
-              <p className="text-[12px] text-[#75758a]">
+              <p className="text-[12px] text-[#8E918B]">
                 Showing{" "}
-                <span className="font-mono font-semibold tabular-nums text-[#17171c]">
+                <span className="font-mono font-semibold tabular-nums text-[#171719]">
                   {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredListings.length)}
                 </span>{" "}
                 of{" "}
-                <span className="font-mono font-semibold tabular-nums text-[#17171c]">
+                <span className="font-mono font-semibold tabular-nums text-[#171719]">
                   {filteredListings.length}
                 </span>
               </p>
               <div className="flex items-center gap-2">
                 <button
                   aria-label="Previous page"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 text-[12.5px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#e5e7eb]"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#E7E7E2] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#E7E7E2]"
                   disabled={safePage === 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   type="button"
@@ -403,12 +402,12 @@ export function ListingIndex({
                   <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
                   Prev
                 </button>
-                <span className="inline-flex h-9 items-center rounded-full border border-[#e5e7eb] bg-[#fbfbfa] px-3 font-mono text-[12.5px] font-semibold tabular-nums text-[#17171c]">
+                <span className="inline-flex h-9 items-center rounded-full border border-[#E7E7E2] bg-[#F1F2EE] px-3 font-mono text-[12.5px] font-semibold tabular-nums text-[#171719]">
                   {safePage} / {pageCount}
                 </span>
                 <button
                   aria-label="Next page"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 text-[12.5px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#e5e7eb]"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#E7E7E2] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#E7E7E2]"
                   disabled={safePage === pageCount}
                   onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
                   type="button"
@@ -439,15 +438,15 @@ function KpiTile({
   return (
     <div
       className={cn(
-        "rounded-[22px] border p-5",
+        "rounded-[24px] border p-5",
         tone === "cream"
-          ? "border-transparent bg-[#f4ead5] text-[#17171c]"
-          : "border-[#ececef] bg-white text-[#17171c]",
+          ? "border-transparent bg-[#F2EADC] text-[#171719]"
+          : "border-[#E7E7E2] bg-white text-[#171719]",
       )}
     >
       <p className="bb-mono-label">{label}</p>
       <p className="bb-display mt-3 text-[28px] font-medium leading-none tabular-nums">{value}</p>
-      <p className="mt-2 text-[12.5px] leading-[1.5] text-[#54545f]">{detail}</p>
+      <p className="mt-2 text-[12.5px] leading-[1.5] text-[#5F625E]">{detail}</p>
     </div>
   );
 }
@@ -470,10 +469,10 @@ function StatusChip({
       className={cn(
         "inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
         active
-          ? "border-[#17171c] bg-[#17171c] text-white"
+          ? "border-[#171719] bg-[#171719] text-white"
           : isEmpty
-            ? "cursor-not-allowed border-[#ececef] bg-white text-[#9b9ba6] opacity-50"
-            : "border-[#e5e7eb] bg-white text-[#54545f] hover:border-[#17171c]",
+            ? "cursor-not-allowed border-[#E7E7E2] bg-white text-[#A9ABA5] opacity-50"
+            : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
       )}
       disabled={isEmpty}
       onClick={onClick}
@@ -483,7 +482,7 @@ function StatusChip({
       <span
         className={cn(
           "font-mono tabular-nums",
-          active ? "text-white/80" : "text-[#75758a]",
+          active ? "text-white/80" : "text-[#8E918B]",
         )}
       >
         · {count}
@@ -498,12 +497,11 @@ function FirstRunListings() {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        eyebrow="Asset intelligence"
         title="Add your first asset"
         description="Capture specs, documents, comps, buyer fits, and pitch lines in one listing brain."
         actions={
           <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white hover:bg-[#2a2a32]"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
             href="/voice-crm"
           >
             <Sparkles className="h-4 w-4" aria-hidden="true" />
@@ -517,13 +515,13 @@ function FirstRunListings() {
           <div>
             <p className="bb-mono-label">Quick start</p>
             <h2
-              className="bb-display mt-2 text-xl font-medium text-[#17171c]"
+              className="bb-display mt-2 text-xl font-medium text-[#171719]"
               id="listings-quick-start"
             >
               Three ways to seed the inventory
             </h2>
           </div>
-          <p className="hidden text-[13px] text-[#75758a] sm:block">
+          <p className="hidden text-[13px] text-[#8E918B] sm:block">
             Pick whichever signal you have first.
           </p>
         </div>
@@ -555,10 +553,9 @@ function FirstRunListings() {
 
       <Card className="mt-12">
         <CardHeader
-          eyebrow="What each listing remembers"
           title="The brain you'll have on every asset"
         />
-        <ul className="divide-y divide-[#f2f2f2]">
+        <ul className="divide-y divide-[#E7E7E2]">
           <ExplainerRow
             icon={FileText}
             title="Approved documents and missing facts"
@@ -600,20 +597,20 @@ function ListingsActionCard({
 }) {
   return (
     <Link
-      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#e5e7eb] bg-white p-6 transition-colors hover:border-[#17171c]"
+      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#E7E7E2] bg-white p-6 transition-colors hover:border-[#003C33]"
       href={href}
     >
       <div>
         <div className="flex items-center justify-between">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#003c33] text-white">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#003C33] text-white">
             <Icon className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="bb-mono-label">{step}</span>
         </div>
-        <h3 className="bb-display mt-5 text-lg font-medium text-[#17171c]">{title}</h3>
-        <p className="mt-2 text-[13px] leading-6 text-[#616161]">{description}</p>
+        <h3 className="bb-display mt-5 text-lg font-medium text-[#171719]">{title}</h3>
+        <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{description}</p>
       </div>
-      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#17171c]">
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#171719]">
         Get started
         <ArrowRight
           className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
@@ -635,12 +632,12 @@ function ExplainerRow({
 }) {
   return (
     <li className="grid gap-4 px-6 py-5 sm:grid-cols-[36px_1fr]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#003c33]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0">
-        <p className="text-[14px] font-medium text-[#17171c]">{title}</p>
-        <p className="mt-1 text-[13px] leading-6 text-[#616161]">{description}</p>
+        <p className="text-[14px] font-medium text-[#171719]">{title}</p>
+        <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{description}</p>
       </div>
     </li>
   );
@@ -668,7 +665,7 @@ function ListingListRow({
 
   return (
     <Link
-      className="group grid gap-4 border-b border-[#f2f2f2] px-5 py-4 transition-colors last:border-b-0 hover:bg-[#f4fbf5] focus-visible:bg-[#f4fbf5] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1863dc] lg:grid-cols-[minmax(280px,1.4fr)_minmax(180px,1fr)_180px_140px] lg:items-center"
+      className="group grid gap-4 border-b border-[#E7E7E2] px-5 py-4 transition-colors last:border-b-0 hover:bg-[#f4fbf5] focus-visible:bg-[#f4fbf5] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1863dc] lg:grid-cols-[minmax(280px,1.4fr)_minmax(180px,1fr)_180px_140px] lg:items-center"
       href={`/listings/${listing.id}`}
     >
       {/* Asset cell: thumbnail or initials chip + name/builder. */}
@@ -685,20 +682,20 @@ function ListingListRow({
           ) : (
             <span
               aria-hidden="true"
-              className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#003c33] font-mono text-[13px] font-semibold tracking-[0.04em] text-[#f4ead5]"
+              className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#003C33] font-mono text-[13px] font-semibold tracking-[0.04em] text-[#F2EADC]"
             >
               {getListingInitials(listing)}
             </span>
           )}
           <div className="min-w-0">
             <h2
-              className="truncate text-[14.5px] font-semibold leading-[1.3] text-[#17171c] group-hover:text-[#003c33]"
+              className="truncate text-[14.5px] font-semibold leading-[1.3] text-[#171719] group-hover:text-[#003C33]"
               title={listing.name}
             >
               {listing.name}
             </h2>
             <p
-              className="mt-1 truncate text-[12.5px] leading-[1.4] text-[#75758a]"
+              className="mt-1 truncate text-[12.5px] leading-[1.4] text-[#8E918B]"
               title={`${listing.builder} ${listing.model}`}
             >
               {listing.builder} {listing.model}
@@ -710,13 +707,13 @@ function ListingListRow({
       {/* Location · specs */}
       <div className="min-w-0">
         <p
-          className="truncate text-[12.5px] font-medium leading-[1.4] text-[#3f3f46]"
+          className="truncate text-[12.5px] font-medium leading-[1.4] text-[#5F625E]"
           title={locationLabel}
         >
           {locationLabel}
         </p>
         <p
-          className="mt-1 truncate text-[12px] leading-[1.4] text-[#75758a]"
+          className="mt-1 truncate text-[12px] leading-[1.4] text-[#8E918B]"
           title={getListingSpecSummary(listing)}
         >
           {getListingSpecSummary(listing)}
@@ -741,7 +738,7 @@ function ListingListRow({
         </div>
         <div className="mt-2 flex items-center gap-2.5">
           <ProgressBar className="h-1 w-full" value={completeness.percent} />
-          <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-[#54545f]">
+          <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-[#5F625E]">
             {completeness.percent}%
           </span>
         </div>
@@ -749,12 +746,12 @@ function ListingListRow({
 
       {/* Price + arrow */}
       <div className="flex items-center justify-between gap-3 lg:justify-end">
-        <p className="font-mono text-[14px] font-semibold tabular-nums text-[#17171c]">
+        <p className="font-mono text-[14px] font-semibold tabular-nums text-[#171719]">
           {formatCurrency(listing.priceEur)}
         </p>
         <ArrowUpRight
           aria-hidden="true"
-          className="h-3.5 w-3.5 shrink-0 text-[#9b9ba6] transition-all group-hover:translate-x-0.5 group-hover:text-[#003c33]"
+          className="h-3.5 w-3.5 shrink-0 text-[#A9ABA5] transition-all group-hover:translate-x-0.5 group-hover:text-[#003C33]"
         />
       </div>
     </Link>
@@ -776,10 +773,10 @@ function ListingDetailHero({
   const specSummary = getListingSpecSummary(listing);
 
   return (
-    <section className="mt-8 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_18px_55px_rgba(23,23,28,0.04)]">
+    <section className="mt-8 overflow-hidden rounded-2xl border border-[#E7E7E2] bg-white shadow-[0_18px_55px_rgba(23,23,28,0.04)]">
       <div className="relative min-w-0 p-6 pb-0 sm:p-8 sm:pb-0">
         <Link
-          className="absolute right-5 top-5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-[#17171c] px-3.5 text-[13px] font-medium text-white shadow-[0_10px_24px_rgba(23,23,28,0.14)] hover:bg-[#2a2a32] sm:right-6 sm:top-6"
+          className="absolute right-5 top-5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-[#003C33] px-3.5 text-[13px] font-medium text-white shadow-[0_10px_24px_rgba(23,23,28,0.14)] hover:bg-[#0B4A3F] sm:right-6 sm:top-6"
           href={`/listings/${listing.id}/edit`}
         >
           <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -788,18 +785,18 @@ function ListingDetailHero({
 
         <div className="max-w-[calc(100%-5.5rem)] sm:max-w-[calc(100%-6.5rem)]">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex min-h-7 items-center rounded-full border border-[#e5e7eb] bg-[#fbfbfa] px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6f7080]">
+            <span className="inline-flex min-h-7 items-center rounded-full border border-[#E7E7E2] bg-[#F1F2EE] px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
               {assetType}
             </span>
-            <span className="text-[12px] font-medium text-[#75758a]">
+            <span className="text-[12px] font-medium text-[#8E918B]">
               {listing.builder} / {listing.model}
             </span>
           </div>
 
-          <h1 className="bb-display mt-5 max-w-4xl text-[2.2rem] font-medium leading-[1.04] tracking-[-0.03em] text-[#17171c] sm:text-[2.75rem]">
+          <h1 className="bb-display mt-5 max-w-4xl text-[2.2rem] font-medium leading-[1.04] tracking-[-0.03em] text-[#171719] sm:text-[2.75rem]">
             {listing.name}
           </h1>
-          <p className="mt-4 max-w-3xl text-[15px] leading-7 text-[#52525b]">
+          <p className="mt-4 max-w-3xl text-[15px] leading-7 text-[#5F625E]">
             {specSummary}
           </p>
         </div>
@@ -807,10 +804,10 @@ function ListingDetailHero({
         <div className="mt-6 flex flex-wrap items-center gap-2 pb-6">
           <Badge tone={statusTone(listing.status)}>{listing.status}</Badge>
           <Badge tone={vatTone(listing.vatStatus)}>{listing.vatStatus}</Badge>
-          <span className="text-[13px] leading-6 text-[#616161]">{listing.idealBuyer}</span>
+          <span className="text-[13px] leading-6 text-[#5F625E]">{listing.idealBuyer}</span>
           {sellerHref ? (
             <Link
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[#d9d9dd] bg-white px-3 text-[12px] font-medium text-[#17171c] hover:border-[#17171c]"
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[#D9DAD4] bg-white px-3 text-[12px] font-medium text-[#171719] hover:border-[#003C33]"
               href={sellerHref}
             >
               Owner context
@@ -820,7 +817,7 @@ function ListingDetailHero({
         </div>
       </div>
 
-      <div className="grid border-t border-[#f2f2f2] bg-[#fbfbfa] sm:grid-cols-3">
+      <div className="grid border-t border-[#E7E7E2] bg-[#F1F2EE] sm:grid-cols-3">
         <HeroMetric label="Ask" value={formatCurrency(listing.priceEur)} />
         <HeroMetric label="Documents" value={percentage(documentPercent)} />
         <HeroMetric label="Top fit" value={percentage(topFitPercent)} />
@@ -831,9 +828,9 @@ function ListingDetailHero({
 
 function HeroMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-b border-[#e8e8ec] px-5 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a8a96]">{label}</p>
-      <p className="mt-1 font-mono text-[17px] font-semibold text-[#17171c]">{value}</p>
+    <div className="border-b border-[#E7E7E2] px-5 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B]">{label}</p>
+      <p className="mt-1 font-mono text-[17px] font-semibold text-[#171719]">{value}</p>
     </div>
   );
 }
@@ -868,7 +865,7 @@ export function ListingCard({
           listing={listing}
           showChrome={false}
         />
-        <span className="absolute left-5 top-5 inline-flex h-10 min-w-10 items-center justify-center rounded-full bg-white/85 px-2 font-mono text-lg font-semibold text-[#17171c] shadow-[0_6px_18px_rgba(23,23,28,0.12)] backdrop-blur">
+        <span className="absolute left-5 top-5 inline-flex h-10 min-w-10 items-center justify-center rounded-full bg-white/85 px-2 font-mono text-lg font-semibold text-[#171719] shadow-[0_6px_18px_rgba(23,23,28,0.12)] backdrop-blur">
           {String(index + 1).padStart(2, "0")}
         </span>
         <div className="absolute right-5 top-5 flex flex-wrap justify-end gap-2">
@@ -880,16 +877,16 @@ export function ListingCard({
       <div className="p-5 sm:p-6">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div className="min-w-0">
-            <h2 className="bb-display truncate text-[1.45rem] font-medium leading-tight text-[#17171c]">
+            <h2 className="bb-display truncate text-[1.45rem] font-medium leading-tight text-[#171719]">
               <Link className="hover:text-[#1863dc]" href={`/listings/${listing.id}`}>
                 {listing.name}
               </Link>
             </h2>
-            <p className="mt-1 text-[14px] leading-6 text-[#75758a]">
+            <p className="mt-1 text-[14px] leading-6 text-[#8E918B]">
               {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
             </p>
           </div>
-          <p className="font-mono text-[15px] font-semibold text-[#17171c] sm:text-right">
+          <p className="font-mono text-[15px] font-semibold text-[#171719] sm:text-right">
             {formatCurrency(listing.priceEur)}
           </p>
         </div>
@@ -902,7 +899,7 @@ export function ListingCard({
           ))}
         </div>
 
-        <div className="mt-5 divide-y divide-[#f2f2f2] border-y border-[#f2f2f2]">
+        <div className="mt-5 divide-y divide-[#E7E7E2] border-y border-[#E7E7E2]">
           <ListingCardRow
             icon={Gauge}
             label="Owner"
@@ -934,18 +931,18 @@ export function ListingCard({
         <div className="mt-5">
           <div className="flex items-center justify-between gap-3">
             <p className="bb-mono-label">Document completeness</p>
-            <span className="font-mono text-[12px] font-semibold text-[#17171c]">
+            <span className="font-mono text-[12px] font-semibold text-[#171719]">
               {completeness.percent}%
             </span>
           </div>
           <ProgressBar className="mt-3 h-2" value={completeness.percent} />
-          <p className="mt-2 text-[13px] text-[#616161]">
+          <p className="mt-2 text-[13px] text-[#5F625E]">
             {completeness.missingCount} missing facts
           </p>
         </div>
 
         <Link
-          className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white hover:bg-[#2a2a32] sm:w-auto"
+          className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F] sm:w-auto"
           href={`/listings/${listing.id}`}
         >
           Open listing brain
@@ -969,13 +966,13 @@ function ListingCardRow({
 }) {
   return (
     <div className="grid gap-3 py-4 sm:grid-cols-[38px_minmax(0,1fr)]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f5f4ef] text-[#17171c]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F2EE] text-[#171719]">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0">
         <p className="bb-mono-label">{label}</p>
-        <p className="mt-1 truncate text-[15px] font-medium text-[#17171c]">{title}</p>
-        <p className="mt-1 text-[13px] leading-5 text-[#75758a]">{detail}</p>
+        <p className="mt-1 truncate text-[15px] font-medium text-[#171719]">{title}</p>
+        <p className="mt-1 text-[13px] leading-5 text-[#8E918B]">{detail}</p>
       </div>
     </div>
   );
@@ -991,14 +988,14 @@ function ListingMiniStat({
   value: string;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-[#f0f0f2] bg-[#fbfbfa] p-3">
+    <div className="min-w-0 rounded-xl border border-[#F1F2EE] bg-[#F1F2EE] p-3">
       <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#3f3f46] shadow-[0_1px_8px_rgba(23,23,28,0.05)]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#5F625E] shadow-[0_1px_8px_rgba(23,23,28,0.05)]">
           <Icon className="h-4 w-4" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="font-mono text-[15px] font-semibold text-[#17171c]">{value}</p>
-          <p className="truncate text-[11px] font-medium text-[#75758a]">{label}</p>
+          <p className="font-mono text-[15px] font-semibold text-[#171719]">{value}</p>
+          <p className="truncate text-[11px] font-medium text-[#8E918B]">{label}</p>
         </div>
       </div>
     </div>
@@ -1060,7 +1057,7 @@ export function ListingBrain({
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#3f3f46] hover:text-[#17171c]"
+        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
         href="/listings"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1076,7 +1073,7 @@ export function ListingBrain({
 
       <div className="mt-12 grid gap-8">
         <Card>
-          <div className="grid items-stretch gap-5 border-b border-[#f2f2f2] px-6 py-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+          <div className="grid items-stretch gap-5 border-b border-[#E7E7E2] px-6 py-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
             <ListingMediaGallery listing={listing} />
             <ListingLocationMap listing={listing} />
           </div>
@@ -1094,17 +1091,17 @@ export function ListingBrain({
           <div className="grid content-start gap-8">
             <Card>
               <CardHeader eyebrow="Source-aware answers" title="Broker question examples" />
-              <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+              <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
                 {questions.map((question) => {
                   const response = answerListingQuestion(listing, question);
                   return (
                     <li key={question} className="grid gap-3 px-6 py-5 sm:grid-cols-[28px_1fr]">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#17171c]">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#171719]">
                         <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
-                        <h2 className="text-[14px] font-medium text-[#17171c]">{question}</h2>
-                        <p className="mt-2 text-[13px] leading-6 text-[#3f3f46]">
+                        <h2 className="text-[14px] font-medium text-[#171719]">{question}</h2>
+                        <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">
                           {response.answer}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -1133,7 +1130,6 @@ export function ListingBrain({
 
           <Card>
             <CardHeader
-              eyebrow="Objection memory"
               title="Record and surface buyer objections"
             />
             <div className="px-6 py-5">
@@ -1149,7 +1145,6 @@ export function ListingBrain({
         <div className="grid content-start gap-8">
           <Card>
             <CardHeader
-              eyebrow="AI pitch"
               title="Broker-ready positioning"
               action={
                 <CardHeaderIcon>
@@ -1157,7 +1152,7 @@ export function ListingBrain({
                 </CardHeaderIcon>
               }
             />
-            <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
               <PitchRow label="30-second pitch" value={pitch.thirtySecond} />
               <PitchRow label="Buyer-safe angle" value={pitch.buyerSafe} />
               <PitchRow label="Internal shorthand" value={pitch.short} />
@@ -1166,7 +1161,6 @@ export function ListingBrain({
 
           <Card>
             <CardHeader
-              eyebrow="Competitive set"
               title={comparison.title}
               action={
                 <CardHeaderIcon>
@@ -1174,9 +1168,9 @@ export function ListingBrain({
                 </CardHeaderIcon>
               }
             />
-            <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
               {comparison.points.map((point) => (
-                <li key={point} className="px-6 py-3.5 text-sm leading-6 text-[#3f3f46]">
+                <li key={point} className="px-6 py-3.5 text-sm leading-6 text-[#5F625E]">
                   {point}
                 </li>
               ))}
@@ -1185,22 +1179,22 @@ export function ListingBrain({
 
           <Card>
             <CardHeader eyebrow="Buyer fit" title="Top buyers for this listing" />
-            <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
               {fitSignals.topMatches.map(({ buyer, match }) => (
                 <li key={match.id} className="px-6 py-5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="text-[14px] font-medium text-[#17171c]">{buyer?.name}</h3>
-                      <p className="mt-0.5 text-[12px] uppercase tracking-[0.12em] text-[#75758a]">
+                      <h3 className="text-[14px] font-medium text-[#171719]">{buyer?.name}</h3>
+                      <p className="mt-0.5 text-[12px] uppercase tracking-[0.12em] text-[#8E918B]">
                         {match.category}
                       </p>
                     </div>
-                    <span className="font-mono text-[13px] font-medium text-[#17171c]">
+                    <span className="font-mono text-[13px] font-medium text-[#171719]">
                       {percentage(match.fitScore)}
                     </span>
                   </div>
                   <ProgressBar className="mt-3" value={match.fitScore} />
-                  <p className="mt-3 text-[13px] leading-6 text-[#616161]">{match.rationale}</p>
+                  <p className="mt-3 text-[13px] leading-6 text-[#5F625E]">{match.rationale}</p>
                 </li>
               ))}
             </ul>
@@ -1208,7 +1202,6 @@ export function ListingBrain({
 
           <Card>
             <CardHeader
-              eyebrow="Buyer memory echoes"
               title="Rejections and objections"
               action={
                 <CardHeaderIcon>
@@ -1216,7 +1209,7 @@ export function ListingBrain({
                 </CardHeaderIcon>
               }
             />
-            <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
               {objectionItems.length ? (
                 objectionItems.map((objection) => (
                   <li
@@ -1224,16 +1217,16 @@ export function ListingBrain({
                     className="px-6 py-5"
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <StatusDot className="bg-amber-500" />
-                      <h3 className="text-[14px] font-medium text-[#17171c]">
+                      <StatusDot className="bg-[#A86642]" />
+                      <h3 className="text-[14px] font-medium text-[#171719]">
                         {objection.buyerName ?? "Unknown buyer"}
                       </h3>
                     </div>
-                    <p className="mt-2 text-[13px] leading-6 text-[#616161]">{objection.detail}</p>
+                    <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{objection.detail}</p>
                   </li>
                 ))
               ) : (
-                <li className="px-6 py-5 text-sm leading-6 text-[#616161]">
+                <li className="px-6 py-5 text-sm leading-6 text-[#5F625E]">
                   No buyer-memory objections recorded yet.
                 </li>
               )}
@@ -1255,7 +1248,7 @@ function ListingLocationMap({ listing }: { listing: YachtListing }) {
     : undefined;
 
   return (
-    <div className="h-full min-h-48 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-[#f5f4ef]">
+    <div className="h-full min-h-48 overflow-hidden rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE]">
       <div className="relative h-full min-h-48">
         {embedUrl ? (
           <iframe
@@ -1266,7 +1259,7 @@ function ListingLocationMap({ listing }: { listing: YachtListing }) {
             title={`${listing.name} map`}
           />
         ) : (
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,#edf1ee_0%,#f8f6ef_45%,#e5ece8_100%)]">
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,#edf1ee_0%,#F8F3E8_45%,#e5ece8_100%)]">
             <div className="absolute left-1/4 top-0 h-full w-px rotate-12 bg-white/80" />
             <div className="absolute left-1/2 top-0 h-full w-px -rotate-12 bg-white/80" />
             <div className="absolute left-0 top-1/2 h-px w-full bg-white/80" />
@@ -1276,10 +1269,10 @@ function ListingLocationMap({ listing }: { listing: YachtListing }) {
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
               <p className="bb-mono-label">{type === "Yacht" ? "Location / marina" : "Location"}</p>
-              <h3 className="mt-1 truncate text-[15px] font-semibold text-[#17171c]">
+              <h3 className="mt-1 truncate text-[15px] font-semibold text-[#171719]">
                 {mapLocation.label}
               </h3>
-              <p className="mt-1 text-[12px] leading-5 text-[#616161]">
+              <p className="mt-1 text-[12px] leading-5 text-[#5F625E]">
                 {mapLocation.precision === "Private"
                   ? "Private or approximate pin. Exact address stays broker-controlled."
                   : `${mapLocation.precision} map preview for broker orientation.`}
@@ -1288,7 +1281,7 @@ function ListingLocationMap({ listing }: { listing: YachtListing }) {
             {openUrl ? (
               <a
                 aria-label={`Open ${mapLocation.label} in OpenStreetMap`}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#17171c] text-white hover:bg-[#2a2a32]"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#003C33] text-white hover:bg-[#0B4A3F]"
                 href={openUrl}
                 rel="noreferrer"
                 target="_blank"
@@ -1296,7 +1289,7 @@ function ListingLocationMap({ listing }: { listing: YachtListing }) {
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
               </a>
             ) : (
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#003c33]">
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#003C33]">
                 <MapPin className="h-4 w-4" aria-hidden="true" />
               </span>
             )}
@@ -1322,7 +1315,7 @@ function PitchRow({ label, value }: { label: string; value: string }) {
   return (
     <li className="px-6 py-4">
       <p className="bb-mono-label">{label}</p>
-      <p className="mt-2 text-[13px] leading-6 text-[#3f3f46]">{value}</p>
+      <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{value}</p>
     </li>
   );
 }

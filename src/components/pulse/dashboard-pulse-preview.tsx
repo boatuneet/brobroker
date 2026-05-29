@@ -23,11 +23,11 @@ import {
 } from "./pulse-types";
 
 const TONE_DOT: Record<EventTone, string> = {
-  overdue:   "bg-rose-500",
-  urgent:    "bg-amber-500",
-  scheduled: "bg-sky-500",
-  done:      "bg-emerald-500",
-  info:      "bg-[#75758a]",
+  overdue:   "bg-[#A86642]",
+  urgent:    "bg-[#A86642]",
+  scheduled: "bg-[#3D6F8F]",
+  done:      "bg-[#0F8F62]",
+  info:      "bg-[#8E918B]",
   dormant:   "bg-[#d3d3d8]",
 };
 
@@ -85,19 +85,19 @@ export function DashboardPulsePreview({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="bb-mono-label">Pulse</p>
-          <p className="bb-display mt-1.5 text-lg font-medium text-[#17171c]">
+          <p className="bb-display mt-1.5 text-lg font-medium text-[#171719]">
             Top deals on the timeline
           </p>
         </div>
         <div className="flex items-center gap-3">
           {needsMe > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[11.5px] font-semibold text-rose-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F0DDD0] px-2.5 py-1 text-[11.5px] font-semibold text-[#A86642]">
               <Flame aria-hidden="true" className="h-3 w-3" />
               Needs me · {needsMe}
             </span>
           ) : null}
           <Link
-            className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#17171c] hover:underline"
+            className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#171719] hover:underline"
             href="/pulse"
           >
             Open Pulse <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
@@ -108,11 +108,11 @@ export function DashboardPulsePreview({
       <PreviewAxis window={window} />
 
       {sorted.length === 0 ? (
-        <p className="mt-3 text-[12.5px] text-[#75758a]">
+        <p className="mt-3 text-[12.5px] text-[#8E918B]">
           No active deals to surface yet.
         </p>
       ) : (
-        <ul className="mt-1 divide-y divide-[#f2f2f2]">
+        <ul className="mt-1 divide-y divide-[#E7E7E2]">
           {sorted.map((lane) => (
             <li key={lane.buyer.id}>
               <PreviewRow lane={lane} window={window} />
@@ -129,12 +129,12 @@ function PreviewAxis({ window }: { window: Window }) {
   const back = Math.round((DEMO_NOW.getTime() - window.startMs) / 86_400_000);
   const ahead = Math.round((window.endMs - DEMO_NOW.getTime()) / 86_400_000);
   return (
-    <div className="mt-5 grid grid-cols-[140px_minmax(0,1fr)_92px] items-center gap-3 border-b border-[#f2f2f2] pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a8a96]">
+    <div className="mt-5 grid grid-cols-[140px_minmax(0,1fr)_92px] items-center gap-3 border-b border-[#E7E7E2] pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B]">
       <span>Buyer</span>
       <div className="relative">
         <span className="absolute left-0">-{back}d</span>
         <span
-          className="absolute font-bold text-[#17171c]"
+          className="absolute font-bold text-[#171719]"
           style={{ left: `${pct}%`, transform: "translateX(-50%)" }}
         >
           Today
@@ -163,24 +163,24 @@ function PreviewRow({
 
   return (
     <Link
-      className="group grid grid-cols-[140px_minmax(0,1fr)_92px] items-center gap-3 py-2.5 transition-colors hover:bg-[#fafaf7]"
+      className="group grid grid-cols-[140px_minmax(0,1fr)_92px] items-center gap-3 py-2.5 transition-colors hover:bg-[#F1F2EE]"
       href={`/pulse?focus=${buyer.id}`}
     >
       {/* Identity */}
       <div className="min-w-0">
-        <p className="truncate text-[12.5px] font-semibold leading-[1.3] text-[#17171c] group-hover:text-[#003c33]">
+        <p className="truncate text-[12.5px] font-semibold leading-[1.3] text-[#171719] group-hover:text-[#003C33]">
           {buyer.name}
         </p>
-        <p className="mt-0.5 truncate text-[11px] leading-[1.3] text-[#75758a]">
+        <p className="mt-0.5 truncate text-[11px] leading-[1.3] text-[#8E918B]">
           {buyer.currentStage}
         </p>
       </div>
 
       {/* Mini-lane */}
       <div className={cn("relative h-6", health === "dormant" && "opacity-55")}>
-        <div className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-[#f2f2f5]" />
+        <div className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-[#E7E7E2]" />
         <div
-          className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-[#cce0d6]"
+          className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-[#E7EFEA]"
           style={{
             left: `${Math.max(0, stageStartPct)}%`,
             width: `${Math.max(0, todayPct - Math.max(0, stageStartPct))}%`,
@@ -188,7 +188,7 @@ function PreviewRow({
         />
         <div
           aria-hidden="true"
-          className="absolute top-0 bottom-0 w-px bg-[#17171c]/70"
+          className="absolute top-0 bottom-0 w-px bg-[#171719]/70"
           style={{ left: `${todayPct}%` }}
         />
         {events.map((event) => {
@@ -235,7 +235,7 @@ function MiniHealthPill({
 }) {
   if (health === "overdue" && primary) {
     return (
-      <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-semibold text-rose-700">
+      <span className="inline-flex items-center rounded-full bg-[#F0DDD0] px-2 py-0.5 text-[10.5px] font-semibold text-[#A86642]">
         Overdue {Math.abs(daysUntil(primary.date))}d
       </span>
     );
@@ -243,27 +243,27 @@ function MiniHealthPill({
   if (health === "urgent" && primary) {
     const days = daysUntil(primary.date);
     return (
-      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold text-amber-700">
+      <span className="inline-flex items-center rounded-full bg-[#F0DDD0] px-2 py-0.5 text-[10.5px] font-semibold text-[#A86642]">
         {days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `${days}d`}
       </span>
     );
   }
   if (health === "dormant") {
     return (
-      <span className="inline-flex items-center rounded-full bg-[#f4f4f5] px-2 py-0.5 text-[10.5px] font-semibold text-[#75758a]">
+      <span className="inline-flex items-center rounded-full bg-[#F1F2EE] px-2 py-0.5 text-[10.5px] font-semibold text-[#8E918B]">
         Dormant {contactDays}d
       </span>
     );
   }
   if (health === "scheduled" && primary) {
     return (
-      <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[10.5px] font-semibold text-sky-700">
+      <span className="inline-flex items-center rounded-full bg-[#E0ECF2] px-2 py-0.5 text-[10.5px] font-semibold text-[#3D6F8F]">
         In {daysUntil(primary.date)}d
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700">
+    <span className="inline-flex items-center rounded-full bg-[#E1F1EA] px-2 py-0.5 text-[10.5px] font-semibold text-[#0F8F62]">
       On track
     </span>
   );

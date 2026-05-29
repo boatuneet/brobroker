@@ -76,8 +76,8 @@ export function ObjectionRecorder({
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
       <div className="min-w-0">
-        <div className="flex items-center gap-2 text-sm font-medium text-[#17171c]">
-          <UserRoundCheck className="h-3.5 w-3.5 text-[#003c33]" aria-hidden="true" />
+        <div className="flex items-center gap-2 text-sm font-medium text-[#171719]">
+          <UserRoundCheck className="h-3.5 w-3.5 text-[#003C33]" aria-hidden="true" />
           Record buyer objection
         </div>
 
@@ -99,11 +99,11 @@ export function ObjectionRecorder({
             value={label}
           />
 
-          <label className="grid gap-1.5 text-[13px] font-medium text-[#212121]">
+          <label className="grid gap-1.5 text-[13px] font-medium text-[#171719]">
             <span className="bb-mono-label">Broker note</span>
             <textarea
               aria-label="Broker note"
-              className="min-h-28 rounded-lg border border-[#d9d9dd] bg-white px-3 py-2 text-[14px] leading-6 text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+              className="min-h-28 rounded-lg border border-[#D9DAD4] bg-white px-3 py-2 text-[14px] leading-6 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
               onChange={(event) => setDetail(event.target.value)}
               value={detail}
             />
@@ -118,7 +118,7 @@ export function ObjectionRecorder({
         </div>
 
         {selectedBuyer ? (
-          <p className="mt-4 text-[13px] leading-6 text-[#75758a]">
+          <p className="mt-4 text-[13px] leading-6 text-[#8E918B]">
             Buyer memory impact: {selectedBuyer.memoryNote}
           </p>
         ) : null}
@@ -126,17 +126,17 @@ export function ObjectionRecorder({
 
       <div className="min-w-0">
         <p className="bb-mono-label">Listing intelligence and buyer memory</p>
-        <ul className="mt-3 grid gap-0 divide-y divide-[#f2f2f2] border-t border-[#f2f2f2]">
+        <ul className="mt-3 grid gap-0 divide-y divide-[#E7E7E2] border-t border-[#E7E7E2]">
           {objections.map((objection) => (
             <li key={objection.id} className="py-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="warning">{objection.label}</Badge>
-                <span className="text-[12px] uppercase tracking-[0.14em] text-[#75758a]">
+                <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                   {objection.source}
                 </span>
               </div>
-              <p className="mt-2 text-[13px] leading-6 text-[#3f3f46]">{objection.detail}</p>
-              <p className="mt-2 text-[12px] text-[#75758a]">
+              <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{objection.detail}</p>
+              <p className="mt-2 text-[12px] text-[#8E918B]">
                 {[objection.buyerName, objection.raisedAt].filter(Boolean).join(" · ")}
               </p>
             </li>

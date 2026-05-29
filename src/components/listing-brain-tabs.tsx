@@ -114,7 +114,7 @@ function ListingBrainTabNav({
   return (
     <div
       aria-label="Listing brain sections"
-      className="inline-flex items-center gap-1 rounded-full border border-[#d9d9dd] bg-white p-1"
+      className="inline-flex items-center gap-1 rounded-full border border-[#D9DAD4] bg-white p-1"
       role="tablist"
     >
       {listingBrainTabs.map((tab) => {
@@ -126,8 +126,8 @@ function ListingBrainTabNav({
             className={cn(
               "min-h-8 rounded-full px-3 text-[13px] font-medium transition-[background-color,color,box-shadow,transform] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
               isActive
-                ? "bg-[#17171c] text-white shadow-[0_8px_22px_rgba(23,23,28,0.14)]"
-                : "text-[#3f3f46] hover:bg-[#f5f4ef] hover:text-[#17171c]",
+                ? "bg-[#171719] text-white shadow-[0_8px_22px_rgba(23,23,28,0.14)]"
+                : "text-[#5F625E] hover:bg-[#F1F2EE] hover:text-[#171719]",
             )}
             key={tab.value}
             onClick={() => onChange(tab.label)}
@@ -199,12 +199,12 @@ function ListingOverviewPanel({
           </div>
         </section>
 
-        <section className="min-w-0 rounded-2xl bg-[#f7f7f9] p-4">
+        <section className="min-w-0 rounded-2xl bg-[#F6F6F3] p-4">
           <PanelKicker icon={MessageSquareText} title="Owner snapshot" />
-          <h3 className="mt-3 text-[16px] font-semibold text-[#17171c]">
+          <h3 className="mt-3 text-[16px] font-semibold text-[#171719]">
             {seller?.name ?? "Owner not recorded"}
           </h3>
-          <p className="mt-2 text-[13px] leading-6 text-[#54545f]">
+          <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">
             {seller?.motivation ?? "Connect this listing to a seller profile to add motivation and cadence."}
           </p>
           <div className="mt-4 grid gap-2">
@@ -214,7 +214,7 @@ function ListingOverviewPanel({
         </section>
       </div>
 
-      <div className="grid gap-4 border-t border-[#f2f2f2] px-6 py-5 lg:grid-cols-3">
+      <div className="grid gap-4 border-t border-[#E7E7E2] px-6 py-5 lg:grid-cols-3">
         <CompactSignalCard
           icon={FileText}
           items={approvedDocuments.map((document) => document.title)}
@@ -247,14 +247,14 @@ function ListingDocsPanel({
   return (
     <div className="grid gap-6 px-6 py-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
       <section className="min-w-0">
-        <div className="rounded-2xl bg-[#f7f7f9] p-4">
+        <div className="rounded-2xl bg-[#F6F6F3] p-4">
           <div className="grid gap-4 sm:grid-cols-[minmax(130px,0.55fr)_minmax(0,1fr)] sm:items-center">
             <div>
               <p className="bb-mono-label">Readiness</p>
-              <p className="mt-2 font-mono text-[2rem] font-semibold leading-none text-[#17171c]">
+              <p className="mt-2 font-mono text-[2rem] font-semibold leading-none text-[#171719]">
                 {percentage(documentCompleteness.percent)}
               </p>
-              <p className="mt-2 text-[12px] leading-5 text-[#75758a]">
+              <p className="mt-2 text-[12px] leading-5 text-[#8E918B]">
                 {documentCompleteness.approved} ready · {documentCompleteness.missingCount} gaps
               </p>
             </div>
@@ -269,18 +269,18 @@ function ListingDocsPanel({
           </div>
         </div>
 
-        <ul className="mt-4 divide-y divide-[#f2f2f2] rounded-2xl border border-[#f0f0f2] bg-white">
+        <ul className="mt-4 divide-y divide-[#E7E7E2] rounded-2xl border border-[#F1F2EE] bg-white">
           {listing.documents.map((document) => (
             <li
               className="grid gap-3 px-4 py-4 sm:grid-cols-[36px_minmax(0,1fr)_auto] sm:items-center"
               key={document.id}
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f5f4ef] text-[#003c33]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F2EE] text-[#003C33]">
                 <FileText className="h-4 w-4" aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <h3 className="text-[14px] font-medium text-[#17171c]">{document.title}</h3>
-                <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#75758a]">
+                <h3 className="text-[14px] font-medium text-[#171719]">{document.title}</h3>
+                <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
                   {document.category} · {formatDate(document.updatedAt)}
                 </p>
               </div>
@@ -341,7 +341,7 @@ function ListingOwnerPanel({
       <div className="grid gap-5 px-6 py-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <section className="min-w-0">
           <PanelKicker icon={MessageSquareText} title="Owner profile" />
-          <h3 className="mt-3 text-[18px] font-semibold text-[#17171c]">{seller.name}</h3>
+          <h3 className="mt-3 text-[18px] font-semibold text-[#171719]">{seller.name}</h3>
           <div className="mt-4 grid gap-2">
             <MiniRow label="Motivation" value={seller.motivation} />
             <MiniRow label="Pricing posture" value={seller.pricingSensitivity} />
@@ -350,7 +350,7 @@ function ListingOwnerPanel({
           <div className="mt-5 flex flex-wrap gap-2">
             {hasOwnerRoute ? (
               <Link
-                className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#17171c] bg-[#17171c] px-4 text-[13px] font-medium text-white hover:bg-[#2a2a32]"
+                className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#171719] bg-[#003C33] px-4 text-[13px] font-medium text-white hover:bg-[#0B4A3F]"
                 href={`/sellers/${seller.id}`}
               >
                 Open owner context
@@ -358,7 +358,7 @@ function ListingOwnerPanel({
               </Link>
             ) : null}
             <Link
-              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] hover:border-[#17171c]"
+              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
               href="/reports"
             >
               Open owner reports
@@ -366,27 +366,27 @@ function ListingOwnerPanel({
           </div>
         </section>
 
-        <section className="min-w-0 rounded-2xl bg-[#f7f7f9] p-4">
+        <section className="min-w-0 rounded-2xl bg-[#F6F6F3] p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <PanelKicker icon={Gauge} title="Communication expectation" />
             <Badge tone={ownerTasks.length ? "warning" : "success"}>
               {ownerTasks.length ? `${ownerTasks.length} open tasks` : "Cadence clear"}
             </Badge>
           </div>
-          <p className="mt-3 text-[14px] leading-7 text-[#3f3f46]">{seller.communicationExpectation}</p>
-          <p className="mt-4 text-[13px] leading-6 text-[#75758a]">
+          <p className="mt-3 text-[14px] leading-7 text-[#5F625E]">{seller.communicationExpectation}</p>
+          <p className="mt-4 text-[13px] leading-6 text-[#8E918B]">
             Review this before owner reporting so buyer names, price sensitivity, and private context stay controlled.
           </p>
         </section>
       </div>
 
-      <div className="grid gap-4 border-t border-[#f2f2f2] px-6 py-5 lg:grid-cols-3">
+      <div className="grid gap-4 border-t border-[#E7E7E2] px-6 py-5 lg:grid-cols-3">
         <CompactSignalCard icon={MessageSquareText} items={listing.ownerNotes} title="Owner notes" />
         <CompactSignalCard icon={ShieldCheck} items={listing.brokerOnlyNotes} title="Broker-only notes" />
         <CompactSignalCard icon={Gauge} items={listing.marketSignals} title="Market signals" />
       </div>
 
-      <div className="grid gap-4 border-t border-[#f2f2f2] px-6 py-5 lg:grid-cols-2">
+      <div className="grid gap-4 border-t border-[#E7E7E2] px-6 py-5 lg:grid-cols-2">
         <CompactSignalCard icon={FileText} items={seller.feedbackHistory} title="Owner feedback history" />
         <CompactSignalCard
           icon={AlertTriangle}
@@ -402,7 +402,7 @@ function ListingOwnerPanel({
 function PanelKicker({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
   return (
     <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 text-[#003c33]" aria-hidden="true" />
+      <Icon className="h-3.5 w-3.5 text-[#003C33]" aria-hidden="true" />
       <p className="bb-mono-label">{title}</p>
     </div>
   );
@@ -410,8 +410,8 @@ function PanelKicker({ icon: Icon, title }: { icon: LucideIcon; title: string })
 
 function FactTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-[#f0f0f2] bg-white px-4 py-3">
-      <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#75758a]">{label}</p>
+    <div className="min-w-0 rounded-2xl border border-[#F1F2EE] bg-white px-4 py-3">
+      <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{label}</p>
       <p className="mt-2 line-clamp-3 text-[14px] font-medium leading-6 text-[#2f2f37]">{value}</p>
     </div>
   );
@@ -420,8 +420,8 @@ function FactTile({ label, value }: { label: string; value: string }) {
 function MiniRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 text-[13px] sm:grid-cols-[120px_minmax(0,1fr)]">
-      <span className="text-[#75758a]">{label}</span>
-      <span className="leading-6 text-[#3f3f46]">{value}</span>
+      <span className="text-[#8E918B]">{label}</span>
+      <span className="leading-6 text-[#5F625E]">{value}</span>
     </div>
   );
 }
@@ -441,14 +441,14 @@ function CompactSignalCard({
   const remainingCount = Math.max(0, items.length - visibleItems.length);
 
   return (
-    <section className="min-w-0 rounded-2xl border border-[#f0f0f2] bg-white p-4">
+    <section className="min-w-0 rounded-2xl border border-[#F1F2EE] bg-white p-4">
       <PanelKicker icon={Icon} title={title} />
       <ul className="mt-3 grid gap-2">
         {visibleItems.map((item) => (
           <li
             className={cn(
-              "rounded-xl px-3 py-2 text-[13px] leading-6 text-[#3f3f46]",
-              tone === "warning" ? "bg-amber-50" : "bg-[#fbfbfa]",
+              "rounded-xl px-3 py-2 text-[13px] leading-6 text-[#5F625E]",
+              tone === "warning" ? "bg-[#F0DDD0]" : "bg-[#F1F2EE]",
             )}
             key={item}
           >
@@ -457,7 +457,7 @@ function CompactSignalCard({
         ))}
       </ul>
       {remainingCount ? (
-        <p className="mt-3 text-[12px] font-medium text-[#75758a]">+{remainingCount} more</p>
+        <p className="mt-3 text-[12px] font-medium text-[#8E918B]">+{remainingCount} more</p>
       ) : null}
     </section>
   );
@@ -466,8 +466,8 @@ function CompactSignalCard({
 function ReadinessStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-white px-3 py-2">
-      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#75758a]">{label}</p>
-      <p className="mt-1 font-mono text-[14px] font-semibold text-[#17171c]">{value}</p>
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{label}</p>
+      <p className="mt-1 font-mono text-[14px] font-semibold text-[#171719]">{value}</p>
     </div>
   );
 }
@@ -484,23 +484,23 @@ function DocumentSection({
   tone: "success" | "warning" | "info";
 }) {
   const iconColor =
-    tone === "success" ? "text-emerald-700" : tone === "warning" ? "text-amber-700" : "text-[#003c33]";
+    tone === "success" ? "text-[#0F8F62]" : tone === "warning" ? "text-[#A86642]" : "text-[#003C33]";
 
   return (
-    <section className="min-w-0 rounded-2xl border border-[#f0f0f2] bg-white p-4">
+    <section className="min-w-0 rounded-2xl border border-[#F1F2EE] bg-white p-4">
       <div className="flex items-center gap-2">
         <Icon className={`h-3.5 w-3.5 ${iconColor}`} aria-hidden="true" />
         <p className="bb-mono-label">{title}</p>
       </div>
       <ul className="mt-3 grid gap-2">
         {items.slice(0, 4).map((item) => (
-          <li className="rounded-xl bg-[#fbfbfa] px-3 py-2 text-[13px] leading-6 text-[#3f3f46]" key={item}>
+          <li className="rounded-xl bg-[#F1F2EE] px-3 py-2 text-[13px] leading-6 text-[#5F625E]" key={item}>
             {item}
           </li>
         ))}
       </ul>
       {items.length > 4 ? (
-        <p className="mt-3 text-[12px] font-medium text-[#75758a]">+{items.length - 4} more</p>
+        <p className="mt-3 text-[12px] font-medium text-[#8E918B]">+{items.length - 4} more</p>
       ) : null}
     </section>
   );

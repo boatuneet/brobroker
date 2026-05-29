@@ -160,7 +160,7 @@ export function YachtCsvImportPanel() {
         {parseError ? <ImportNotice tone="error" title="Import issue" detail={parseError} /> : null}
 
         {yachts && images && !yachtHeaderErrors.length && !imageHeaderErrors.length ? (
-          <div className="grid gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-4 sm:grid-cols-3">
+          <div className="grid gap-3 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-4 sm:grid-cols-3">
             <PreviewMetric label="Yachts" value={`${yachts.rows.length}`} />
             <PreviewMetric label="Images" value={`${images.rows.length}`} />
             <PreviewMetric label="Matched images" value={`${matchedImageCount}`} />
@@ -168,13 +168,13 @@ export function YachtCsvImportPanel() {
         ) : null}
 
         {isImporting || stats ? (
-          <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4">
+          <div className="rounded-2xl border border-[#E7E7E2] bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-[#17171c]">
+                <p className="text-sm font-semibold text-[#171719]">
                   {isImporting ? "Importing yacht batches..." : "Import complete"}
                 </p>
-                <p className="mt-1 text-[13px] text-[#616161]">
+                <p className="mt-1 text-[13px] text-[#5F625E]">
                   {completedBatches}/{totalBatches} batches processed
                 </p>
               </div>
@@ -182,13 +182,13 @@ export function YachtCsvImportPanel() {
             </div>
             <ProgressBar className="mt-4" tone="green" value={progress} />
             {stats ? (
-              <p className="mt-3 text-[13px] leading-6 text-[#616161]">
+              <p className="mt-3 text-[13px] leading-6 text-[#5F625E]">
                 Created or updated {stats.imported}/{stats.requested} yachts. Copied {stats.imagesCopied} images
                 {stats.imagesFailed ? `, ${stats.imagesFailed} images failed` : ""}.
               </p>
             ) : null}
             {stats?.failures.length ? (
-              <ul className="mt-3 grid gap-1 text-[12px] leading-5 text-amber-800">
+              <ul className="mt-3 grid gap-1 text-[12px] leading-5 text-[#A86642]">
                 {stats.failures.map((failure, index) => (
                   <li key={`${failure.id}-${index}`}>{failure.id}: {failure.reason}</li>
                 ))}
@@ -198,7 +198,7 @@ export function YachtCsvImportPanel() {
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="max-w-2xl text-[13px] leading-6 text-[#616161]">
+          <p className="max-w-2xl text-[13px] leading-6 text-[#5F625E]">
             The importer stores only current BroBroker listing fields plus the raw source metadata for future cleanup.
           </p>
           <Button disabled={!canImport} onClick={() => void startImport()} type="button">
@@ -225,17 +225,17 @@ function CsvFileInput({
   value: string;
 }) {
   return (
-    <label className="grid cursor-pointer gap-3 rounded-2xl border border-dashed border-[#cfd3d8] bg-[#fbfbfa] p-5 transition-colors hover:border-[#003c33] hover:bg-[#f7fbf8]">
+    <label className="grid cursor-pointer gap-3 rounded-2xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] p-5 transition-colors hover:border-[#003C33] hover:bg-[#f7fbf8]">
       <span className="flex items-center gap-3">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#003c33] shadow-[0_8px_24px_rgba(23,23,28,0.08)]">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#003C33] shadow-[0_8px_24px_rgba(23,23,28,0.08)]">
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>
         <span>
-          <span className="block text-sm font-semibold text-[#17171c]">{label}</span>
-          <span className="mt-0.5 block text-[12px] text-[#75758a]">{description}</span>
+          <span className="block text-sm font-semibold text-[#171719]">{label}</span>
+          <span className="mt-0.5 block text-[12px] text-[#8E918B]">{description}</span>
         </span>
       </span>
-      <span className="rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-[13px] font-medium text-[#3f3f46]">
+      <span className="rounded-xl border border-[#E7E7E2] bg-white px-3 py-2 text-[13px] font-medium text-[#5F625E]">
         {value}
       </span>
       <input
@@ -252,7 +252,7 @@ function PreviewMetric({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="bb-mono-label">{label}</p>
-      <p className="mt-1 font-mono text-lg font-semibold text-[#17171c]">{value}</p>
+      <p className="mt-1 font-mono text-lg font-semibold text-[#171719]">{value}</p>
     </div>
   );
 }
@@ -267,7 +267,7 @@ function ImportNotice({
   tone: "error" | "warning";
 }) {
   return (
-    <div className={tone === "error" ? "rounded-2xl bg-red-50 px-4 py-3 text-red-700" : "rounded-2xl bg-amber-50 px-4 py-3 text-amber-800"}>
+    <div className={tone === "error" ? "rounded-2xl bg-red-50 px-4 py-3 text-red-700" : "rounded-2xl bg-[#F0DDD0] px-4 py-3 text-[#A86642]"}>
       <p className="text-sm font-semibold">{title}</p>
       <p className="mt-1 text-[13px] leading-6">{detail}</p>
     </div>

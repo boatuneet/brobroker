@@ -139,7 +139,6 @@ export function GlobalSearch({
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        eyebrow="Global search"
         title="Search everything"
         description="Find buyers, listings, owner notes, tasks, tags, and document gaps."
         metrics={[
@@ -166,11 +165,11 @@ export function GlobalSearch({
         <label className="relative flex-1">
           <span className="sr-only">Search everything</span>
           <Search
-            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#75758a]"
+            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
             aria-hidden="true"
           />
           <input
-            className="h-11 w-full rounded-full border border-[#d9d9dd] bg-white pl-11 pr-4 text-sm text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+            className="h-11 w-full rounded-full border border-[#D9DAD4] bg-white pl-11 pr-4 text-sm text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
             name="q"
             onChange={(event) => setValue(event.target.value)}
             placeholder="Search buyer memory, listing facts, owner notes..."
@@ -179,7 +178,7 @@ export function GlobalSearch({
           />
         </label>
         <button
-          className="min-h-11 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+          className="min-h-11 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
           type="submit"
         >
           Search
@@ -190,17 +189,17 @@ export function GlobalSearch({
         <Card className="mt-12">
           <div className="p-6 sm:p-8">
             <p className="bb-mono-label">Quick starts</p>
-            <h2 className="bb-display mt-2 text-[22px] font-medium text-[#17171c]">
+            <h2 className="bb-display mt-2 text-[22px] font-medium text-[#171719]">
               Pick a starting point or return to the dashboard
             </h2>
-            <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-[#3f3f46]">
+            <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-[#5F625E]">
               Type any keyword above — buyer names, locations, tags, owner
               notes, document gaps — or jump in with one of these.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {SUGGESTIONS.map((term) => (
                 <button
-                  className="inline-flex h-8 items-center rounded-full border border-[#d9d9dd] bg-white px-3 text-[12.5px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] hover:bg-[#17171c] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  className="inline-flex h-8 items-center rounded-full border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
                   key={term}
                   onClick={() => applySuggestion(term)}
                   type="button"
@@ -211,7 +210,7 @@ export function GlobalSearch({
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <Link
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
                 href="/dashboard"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -244,7 +243,7 @@ export function GlobalSearch({
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.map((term) => (
                 <button
-                  className="inline-flex h-8 items-center rounded-full border border-[#d9d9dd] bg-white px-3 text-[12.5px] font-medium text-[#17171c] transition-colors hover:border-[#17171c] hover:bg-[#17171c] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  className="inline-flex h-8 items-center rounded-full border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
                   key={term}
                   onClick={() => applySuggestion(term)}
                   type="button"
@@ -259,16 +258,16 @@ export function GlobalSearch({
         <div className="mt-12 grid gap-8 xl:grid-cols-2">
           <Card>
             <CardHeader eyebrow="Listings" title="Asset intelligence matches" />
-            <ul className="divide-y divide-[#f2f2f2]">
+            <ul className="divide-y divide-[#E7E7E2]">
               {listingResults.map((listing) => (
                 <li key={listing.id} className="px-6 py-5">
                   <Link
-                    className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]"
+                    className="text-[15px] font-medium text-[#171719] hover:text-[#1863dc]"
                     href={`/listings/${listing.id}`}
                   >
                     {listing.name}
                   </Link>
-                  <p className="mt-1 text-[13px] leading-6 text-[#616161]">
+                  <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">
                     {listing.builder} {listing.model} ·{" "}
                     {getListingSpecSummary(listing)}
                   </p>
@@ -285,16 +284,16 @@ export function GlobalSearch({
 
           <Card>
             <CardHeader eyebrow="Buyers" title="Client memory matches" />
-            <ul className="divide-y divide-[#f2f2f2]">
+            <ul className="divide-y divide-[#E7E7E2]">
               {buyerResults.map((buyer) => (
                 <li key={buyer.id} className="px-6 py-5">
                   <Link
-                    className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]"
+                    className="text-[15px] font-medium text-[#171719] hover:text-[#1863dc]"
                     href={`/buyers/${buyer.id}`}
                   >
                     {buyer.name}
                   </Link>
-                  <p className="mt-1 text-[13px] leading-6 text-[#616161]">
+                  <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">
                     {[buyer.company, buyer.country, buyer.currentStage]
                       .filter(Boolean)
                       .join(" · ")}
@@ -313,16 +312,16 @@ export function GlobalSearch({
 
           <Card>
             <CardHeader eyebrow="Tasks" title="Broker actions" />
-            <ul className="divide-y divide-[#f2f2f2]">
+            <ul className="divide-y divide-[#E7E7E2]">
               {taskResults.map((task) => (
                 <li key={task.id} className="px-6 py-5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[15px] font-medium text-[#17171c]">
+                    <p className="text-[15px] font-medium text-[#171719]">
                       {task.title}
                     </p>
                     <Badge tone="neutral">{task.priority}</Badge>
                   </div>
-                  <p className="mt-1 text-[13px] leading-6 text-[#616161]">
+                  <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">
                     {task.reason}
                   </p>
                 </li>
@@ -332,16 +331,16 @@ export function GlobalSearch({
 
           <Card>
             <CardHeader eyebrow="Owners" title="Seller context" />
-            <ul className="divide-y divide-[#f2f2f2]">
+            <ul className="divide-y divide-[#E7E7E2]">
               {sellerResults.map((seller) => (
                 <li key={seller.id} className="px-6 py-5">
                   <Link
-                    className="text-[15px] font-medium text-[#17171c] hover:text-[#1863dc]"
+                    className="text-[15px] font-medium text-[#171719] hover:text-[#1863dc]"
                     href={`/sellers/${seller.id}`}
                   >
                     {seller.name}
                   </Link>
-                  <p className="mt-1 text-[13px] leading-6 text-[#616161]">
+                  <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">
                     {seller.motivation}
                   </p>
                 </li>

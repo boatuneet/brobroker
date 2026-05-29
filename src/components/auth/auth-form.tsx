@@ -84,10 +84,10 @@ function Field({
       <input
         aria-invalid={error ? true : undefined}
         autoComplete={autoComplete}
-        className={`min-h-11 rounded-xl border bg-white px-4 text-[15px] text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:ring-2 ${
+        className={`min-h-11 rounded-xl border bg-white px-4 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:ring-2 ${
           error
             ? "border-[#b42318] focus:border-[#b42318] focus:ring-[#b42318]/15"
-            : "border-[#d9d9dd] focus:border-[#9b60aa] focus:ring-[#9b60aa]/15"
+            : "border-[#D9DAD4] focus:border-[#003C33] focus:ring-[#003C33]/15"
         }`}
         inputMode={inputMode}
         name={name}
@@ -106,7 +106,7 @@ function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button
-      className="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32] disabled:cursor-not-allowed disabled:bg-[#3f3f46]"
+      className="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] disabled:cursor-not-allowed disabled:bg-[#5F625E]"
       disabled={pending}
       type="submit"
     >

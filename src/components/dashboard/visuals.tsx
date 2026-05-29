@@ -27,12 +27,12 @@ export function FitRing({
   const dash = (clamped / 100) * circumference;
   const color =
     tone === "green"
-      ? "#003c33"
+      ? "#003C33"
       : tone === "coral"
-        ? "#9f4f2e"
+        ? "#A86642"
         : tone === "ivory"
-          ? "#f4ead5"
-          : "#17171c";
+          ? "#F2EADC"
+          : "#171719";
   const track =
     tone === "ivory" ? "rgba(255,255,255,0.18)" : "rgba(23,23,28,0.08)";
 
@@ -71,7 +71,7 @@ export function FitRing({
       <span
         className={cn(
           "absolute font-mono text-[12px] font-semibold tabular-nums",
-          tone === "ivory" ? "text-white" : "text-[#17171c]",
+          tone === "ivory" ? "text-white" : "text-[#171719]",
         )}
       >
         {label ?? `${Math.round(clamped)}`}
@@ -119,13 +119,13 @@ export function HalfGauge({
   const outerWidth = baseWidth * 1.12;
 
   const activeColor =
-    tone === "coral" ? "#9f4f2e"
-    : tone === "green" ? "#003c33"
-    : "#17171c";
+    tone === "coral" ? "#A86642"
+    : tone === "green" ? "#003C33"
+    : "#171719";
   const inactiveColor =
     tone === "coral" ? "#f1ddd0"
-    : tone === "green" ? "#d8e7e0"
-    : "#e5e7eb";
+    : tone === "green" ? "#E7EFEA"
+    : "#E7E7E2";
 
   return (
     <div
@@ -163,14 +163,14 @@ export function HalfGauge({
             bars when the gauge is rendered small (dashboard tile) vs large
             (standalone). At size=128 → label ≈16px; at 180 → ≈22px. */}
         <span
-          className="bb-display font-medium leading-none tabular-nums text-[#17171c]"
+          className="bb-display font-medium leading-none tabular-nums text-[#171719]"
           style={{ fontSize: Math.max(13, Math.round(size * 0.125)) }}
         >
           {label ?? `${Math.round(clamped)}%`}
         </span>
         {sublabel ? (
           <span
-            className="mt-1 leading-4 text-[#75758a]"
+            className="mt-1 leading-4 text-[#8E918B]"
             style={{ fontSize: Math.max(9, Math.round(size * 0.065)) }}
           >
             {sublabel}
@@ -258,10 +258,10 @@ export function BubbleCluster({
         const size = 56 + ratio * 62; // 56–118px
         const bg =
           item.tone === "coral"
-            ? "bg-[#9f4f2e] text-[#f7efe5]"
+            ? "bg-[#A86642] text-[#f7efe5]"
             : item.tone === "ink"
-              ? "bg-[#17171c] text-white"
-              : "bg-[#003c33] text-[#f4ead5]";
+              ? "bg-[#171719] text-white"
+              : "bg-[#003C33] text-[#F2EADC]";
         return (
           <div className="flex flex-col items-center" key={item.label}>
             <div
@@ -275,11 +275,11 @@ export function BubbleCluster({
                 {item.value}
               </span>
             </div>
-            <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.14em] text-[#3f3f46]">
+            <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.14em] text-[#5F625E]">
               {item.label}
             </p>
             {item.detail ? (
-              <p className="mt-1 text-[11px] text-[#75758a]">{item.detail}</p>
+              <p className="mt-1 text-[11px] text-[#8E918B]">{item.detail}</p>
             ) : null}
           </div>
         );
@@ -310,12 +310,12 @@ export function Sparkbars({
               aria-label={`${d.label}: ${d.value}`}
               className={cn(
                 "w-full rounded-t-[3px] transition-all",
-                isHigh ? "bg-[#9f4f2e]" : "bg-[#17171c]/15",
+                isHigh ? "bg-[#A86642]" : "bg-[#171719]/15",
               )}
               role="img"
               style={{ height: Math.max(2, h) }}
             />
-            <span className="truncate text-[9px] font-medium uppercase tracking-[0.12em] text-[#75758a]">
+            <span className="truncate text-[9px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
               {d.label}
             </span>
           </div>
@@ -340,7 +340,7 @@ export function StatBadge({
       className={cn(
         "inline-flex items-center gap-2 rounded-full px-3 py-1.5",
         tone === "ivory"
-          ? "bg-[#f4ead5]/15 text-[#f4ead5]"
+          ? "bg-[#F2EADC]/15 text-[#F2EADC]"
           : "border border-white/20 bg-transparent text-white/85",
       )}
     >
@@ -367,16 +367,16 @@ export function Tile({
 }) {
   const base =
     tone === "ink"
-      ? "bg-[#17171c] text-white"
+      ? "bg-[#171719] text-white"
       : tone === "cream"
-        ? "bg-[#f4ead5] text-[#17171c]"
+        ? "bg-[#F2EADC] text-[#171719]"
         : tone === "outline"
-          ? "border border-[#e5e7eb] bg-transparent text-[#17171c]"
-          : "bg-white text-[#17171c] border border-[#ececef]";
+          ? "border border-[#E7E7E2] bg-transparent text-[#171719]"
+          : "bg-white text-[#171719] border border-[#E7E7E2]";
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[22px] p-5 sm:p-6",
+        "relative overflow-hidden rounded-[24px] p-5 sm:p-6",
         base,
         className,
       )}

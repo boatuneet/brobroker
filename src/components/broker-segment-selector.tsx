@@ -60,13 +60,13 @@ export function BrokerSegmentSelector({
             className={cn(
               "group h-full overflow-hidden rounded-2xl border bg-white text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
               active
-                ? "border-[#003c33] shadow-[0_18px_45px_rgba(0,60,51,0.14)]"
-                : "border-[#e5e7eb] hover:-translate-y-0.5 hover:border-[#cfcfd6] hover:shadow-[0_18px_45px_rgba(23,23,28,0.08)]",
+                ? "border-[#003C33] shadow-[0_18px_45px_rgba(0,60,51,0.14)]"
+                : "border-[#E7E7E2] hover:-translate-y-0.5 hover:border-[#D9DAD4] hover:shadow-[0_18px_45px_rgba(23,23,28,0.08)]",
             )}
             onClick={() => selectSegment(segment.id)}
             type="button"
           >
-            <div className="relative aspect-[16/9] overflow-hidden bg-[#f5f4ef]">
+            <div className="relative aspect-[16/9] overflow-hidden bg-[#F1F2EE]">
               <Image
                 alt=""
                 className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
@@ -79,13 +79,13 @@ export function BrokerSegmentSelector({
               <span
                 className={cn(
                   "absolute left-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 shadow-[0_10px_28px_rgba(23,23,28,0.14)] backdrop-blur",
-                  active ? "text-[#003c33]" : "text-[#3f3f46]",
+                  active ? "text-[#003C33]" : "text-[#5F625E]",
                 )}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
               </span>
               {active ? (
-                <span className="absolute right-4 top-4 inline-flex h-8 items-center gap-1.5 rounded-full bg-[#003c33] px-3 text-[12px] font-medium text-white shadow-[0_10px_28px_rgba(0,60,51,0.24)]">
+                <span className="absolute right-4 top-4 inline-flex h-8 items-center gap-1.5 rounded-full bg-[#003C33] px-3 text-[12px] font-medium text-white shadow-[0_10px_28px_rgba(0,60,51,0.24)]">
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                   Selected
                 </span>
@@ -97,7 +97,7 @@ export function BrokerSegmentSelector({
                 <div className="flex flex-wrap items-start justify-between gap-3 sm:block">
                   <div className="min-w-0">
                     <p className="bb-mono-label">{segment.label}</p>
-                    <h3 className="bb-display mt-2 text-xl font-medium leading-tight text-[#17171c]">
+                    <h3 className="bb-display mt-2 text-xl font-medium leading-tight text-[#171719]">
                       {segment.title}
                     </h3>
                   </div>
@@ -110,8 +110,8 @@ export function BrokerSegmentSelector({
                     {segment.listings} assets
                   </span>
                 </div>
-                <p className="mt-2 text-[13px] leading-6 text-[#616161]">{segment.description}</p>
-                <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.12em] text-[#75758a]">
+                <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{segment.description}</p>
+                <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
                   {segment.buyers} clients in demo data
                 </p>
               </div>

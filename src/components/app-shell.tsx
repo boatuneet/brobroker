@@ -18,18 +18,17 @@ import {
   Users,
 } from "lucide-react";
 import { BrokerSegmentBridge } from "@/components/broker-segment-bridge";
+import { GoProButton } from "@/components/go-pro-button";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { getBrokerSegmentMeta } from "@/lib/broker-segments";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { Fraunces } from "next/font/google";
 
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  weight: ["600", "700"],
-  variable: "--font-fraunces",
-});
+/* Fraunces is loaded once at the root layout and exposed as
+   var(--font-fraunces). Reference the variable directly so we don't
+   double-load the font. */
+const fraunces = { className: "font-display" } as const;
 
 const navItems: Array<{
   label: string;
@@ -70,20 +69,20 @@ export async function AppShell({
   const segmentMeta = getBrokerSegmentMeta(segment);
 
   return (
-    <div className="min-h-dvh bg-[#f7f7f9] text-[#17171c]">
+    <div className="min-h-dvh bg-[#F6F6F3] text-[#171719]">
       <BrokerSegmentBridge currentSegment={segment} />
       {/* Light sidebar with green reserved for active navigation and broker mode. */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-[#e5e7eb] bg-white text-[#17171c] lg:block">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-[#E7E7E2] bg-white text-[#171719] lg:block">
         <div className="flex h-full flex-col">
           <div className="px-6 pb-6 pt-7">
             <Link aria-label="BroBroker dashboard" className="inline-flex" href="/dashboard">
-              <span className={cn(fraunces.className, "text-[2rem] font-bold tracking-tight text-[#17171c]")}>
+              <span className={cn(fraunces.className, "text-[1.85rem] font-bold tracking-tight text-[#171719]")}>
                 Brobroker.
               </span>
             </Link>
-            <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#003c33]">
+            <span className="mt-1 inline-flex items-center bg-[#003C33] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
               {segmentMeta.label} workspace
-            </p>
+            </span>
           </div>
 
           <nav aria-label="Primary" className="flex-1 px-3">
@@ -94,18 +93,18 @@ export async function AppShell({
                   <li key={item.label}>
                     <Link
                       className={cn(
-                        "group flex min-h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003c33]",
+                        "group flex min-h-11 items-center gap-3 rounded-[10px] px-4 text-[14px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
                         isActive
-                          ? "bg-[#003c33] text-white shadow-[0_10px_24px_rgba(0,60,51,0.14)]"
-                          : "text-[#52525b] hover:bg-[#f7f7f9] hover:text-[#17171c]",
+                          ? "bg-[#003C33] text-white shadow-[0_10px_24px_rgba(0,60,51,0.14)]"
+                          : "text-[#5F625E] hover:bg-[#E7EFEA] hover:text-[#003C33]",
                       )}
                       href={item.href}
                     >
                       <item.icon
                         aria-hidden="true"
                         className={cn(
-                          "h-4 w-4",
-                          isActive ? "text-white" : "text-[#8a8a95] group-hover:text-[#52525b]",
+                          "h-[18px] w-[18px]",
+                          isActive ? "text-white" : "text-[#8E918B] group-hover:text-[#003C33]",
                         )}
                       />
                       {item.label}
@@ -116,39 +115,22 @@ export async function AppShell({
             </ul>
           </nav>
 
-          <div className="shrink-0 px-4 pb-6 pt-4">
-            <div className="relative overflow-hidden rounded-2xl bg-[#17171c] p-5 text-white shadow-[0_18px_45px_rgba(23,23,28,0.16)]">
-              {/* Decorative background shapes */}
-              <div className="absolute -right-4 -top-4 h-16 w-12 rotate-12 bg-[#003c33] opacity-80" />
-              <div className="absolute -right-8 top-6 h-16 w-12 rotate-12 bg-[#003c33] opacity-80" />
-              
-              <div className="relative z-10">
-                <h3 className="text-xl font-bold leading-tight tracking-tight">
-                  Loving<br />
-                  Brobroker<br />
-                  Free?
-                </h3>
-                <p className="mt-3 text-[13px] leading-relaxed text-[rgba(255,255,255,0.85)]">
-                  Go Pro to access priority support, real-time tracking, and full analytics.
-                </p>
-                <Link
-                  href="/pricing"
-                  className="mt-5 flex min-h-10 w-full items-center justify-center rounded-xl bg-white px-4 text-[14px] font-semibold text-[#17171c] transition-transform hover:scale-[1.02]"
-                >
-                  Go Pro Today
-                </Link>
-              </div>
-            </div>
+          <div className="shrink-0 px-3 pb-5 pt-2">
+            {/* Compact promo strip — slim enough to leave room for the
+                Profile entry below. Pro tier isn't shipped yet so this is a
+                client-side toast trigger, not a 404 link. */}
+            <GoProButton />
 
-            {/* Profile tile stays visible even while Supabase is still being
-                configured. Once signed in, it shows the broker email. */}
+            {/* Profile entry — styled to match the nav-item shape (44px pill,
+                brand-pale hover) so it feels like a continuation of the
+                navigation rather than a separate card. */}
             <Link
               aria-label="Open your profile"
               className={cn(
-                "group mt-3 flex items-center gap-3 rounded-2xl border p-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003c33]",
+                "group flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-[14px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
                 active === "Profile"
-                  ? "border-[#003c33] bg-[#003c33]"
-                  : "border-[#e5e7eb] bg-white hover:bg-[#f7f7f9]",
+                  ? "bg-[#003C33] text-white shadow-[0_10px_24px_rgba(0,60,51,0.14)]"
+                  : "text-[#5F625E] hover:bg-[#E7EFEA] hover:text-[#003C33]",
               )}
               href="/profile"
               prefetch={false}
@@ -156,34 +138,22 @@ export async function AppShell({
               <span
                 aria-hidden="true"
                 className={cn(
-                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-medium",
-                  active === "Profile" ? "bg-white text-[#003c33]" : "bg-[#f4f4f5] text-[#3f3f46]",
+                  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold",
+                  active === "Profile"
+                    ? "bg-white/15 text-white"
+                    : "bg-[#F1F2EE] text-[#5F625E] group-hover:bg-white group-hover:text-[#003C33]",
                 )}
               >
                 {userInitial}
               </span>
-              <div className="min-w-0 flex-1">
-                <p
-                  className="bb-mono-label"
-                  style={{ color: active === "Profile" ? "rgba(246, 242, 234, 0.62)" : "#75758a" }}
-                >
-                  Profile
-                </p>
-                <p
-                  className={cn(
-                    "truncate text-[13px] font-medium",
-                    active === "Profile" ? "text-white" : "text-[#17171c]",
-                  )}
-                  title={userEmail ?? "Account settings"}
-                >
-                  {userEmail ?? "Account settings"}
-                </p>
-              </div>
+              <span className="min-w-0 flex-1 truncate" title={userEmail ?? "Profile"}>
+                {userEmail ? userEmail.split("@")[0] : "Profile"}
+              </span>
               <ChevronRight
                 aria-hidden="true"
                 className={cn(
                   "h-4 w-4 transition-transform group-hover:translate-x-0.5",
-                  active === "Profile" ? "text-[rgba(255,255,255,0.55)] group-hover:text-white" : "text-[#a1a1aa] group-hover:text-[#52525b]",
+                  active === "Profile" ? "text-white/55 group-hover:text-white" : "text-[#A9ABA5] group-hover:text-[#003C33]",
                 )}
               />
             </Link>
@@ -192,10 +162,10 @@ export async function AppShell({
       </aside>
 
       {/* Compact mobile header, hairline rule, single-row icon nav. */}
-      <header className="sticky top-0 z-10 border-b border-[#e5e7eb] bg-[#f7f7f9]/95 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-10 border-b border-[#E7E7E2] bg-[#F6F6F3]/95 px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link aria-label="BroBroker dashboard" className="inline-flex" href="/dashboard">
-            <span className={cn(fraunces.className, "text-2xl font-bold tracking-tight text-[#17171c]")}>
+            <span className={cn(fraunces.className, "text-2xl font-bold tracking-tight text-[#171719]")}>
               Brobroker.
             </span>
           </Link>
@@ -205,8 +175,8 @@ export async function AppShell({
               className={cn(
                 "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium",
                 active === "Profile"
-                  ? "border-[#003c33] bg-[#003c33] text-white"
-                  : "border-[#d9d9dd] bg-white text-[#3f3f46] hover:border-[#17171c]",
+                  ? "border-[#003C33] bg-[#003C33] text-white"
+                  : "border-[#D9DAD4] bg-white text-[#5F625E] hover:border-[#003C33]",
               )}
               href="/profile"
             >
@@ -214,7 +184,7 @@ export async function AppShell({
               Profile
             </Link>
           ) : (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#003c33]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#003C33]">
               {segmentMeta.label} workspace
             </p>
           )}
@@ -226,8 +196,8 @@ export async function AppShell({
               className={cn(
                 "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium",
                 active === item.label
-                  ? "border-[#003c33] bg-[#003c33] text-white"
-                  : "border-[#d9d9dd] bg-white text-[#3f3f46]",
+                  ? "border-[#003C33] bg-[#003C33] text-white"
+                  : "border-[#D9DAD4] bg-white text-[#5F625E]",
               )}
               href={item.href}
             >

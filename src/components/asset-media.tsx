@@ -25,13 +25,13 @@ export function AssetMedia({
     type === "Car"
       ? "bg-[#ebe7e0] text-[#3c2f2f]"
       : type === "Real Estate"
-        ? "bg-[#e7ece7] text-[#263c32]"
+        ? "bg-[#E7EFEA] text-[#263c32]"
         : "bg-[#e7ecef] text-[#233c45]";
 
   return (
     <div
       className={cn(
-        "relative flex aspect-[16/10] min-h-44 w-full overflow-hidden rounded-2xl border border-[#e5e7eb]",
+        "relative flex aspect-[16/10] min-h-44 w-full overflow-hidden rounded-2xl border border-[#E7E7E2]",
         photo ? "bg-[#edeae3]" : tone,
         className,
       )}
@@ -63,10 +63,10 @@ export function AssetMedia({
           </div>
           {!compact ? (
             <div>
-              <p className={cn("bb-display text-base font-medium", photo ? "text-white" : "text-[#17171c]")}>
+              <p className={cn("bb-display text-base font-medium", photo ? "text-white" : "text-[#171719]")}>
                 {listing.name}
               </p>
-              <p className={cn("mt-1 text-[12px] leading-5", photo ? "text-white/82" : "text-[#3f3f46]")}>
+              <p className={cn("mt-1 text-[12px] leading-5", photo ? "text-white/82" : "text-[#5F625E]")}>
                 {listing.location}
               </p>
             </div>

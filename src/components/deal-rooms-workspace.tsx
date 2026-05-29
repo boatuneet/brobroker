@@ -155,7 +155,6 @@ function DealRoomsOperational({
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        eyebrow="Buyer deal rooms"
         title="Private deal rooms"
         description="Create buyer-safe shortlists with approved listings and documents."
         metrics={[
@@ -174,7 +173,6 @@ function DealRoomsOperational({
       <div className="mt-12 grid gap-8 xl:grid-cols-[380px_minmax(0,1fr)]">
         <Card>
           <CardHeader
-            eyebrow="Create deal room"
             title="Curate buyer-facing shortlist"
             action={
               <CardHeaderIcon>
@@ -188,7 +186,7 @@ function DealRoomsOperational({
               description="Add a buyer first, then curate a private room here."
               action={
                 <Link
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] hover:border-[#17171c]"
+                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
                   href="/voice-crm"
                 >
                   Capture a buyer
@@ -211,7 +209,7 @@ function DealRoomsOperational({
               <div>
                 <p className="bb-mono-label">Listings in the room</p>
                 {listings.length === 0 ? (
-                  <p className="mt-2 text-[13px] leading-6 text-[#75758a]">
+                  <p className="mt-2 text-[13px] leading-6 text-[#8E918B]">
                     Add inventory to curate a deal room shortlist.
                   </p>
                 ) : (
@@ -222,30 +220,30 @@ function DealRoomsOperational({
                       return (
                         <li key={listing.id}>
                           <label
-                            className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
                               isSelected
-                                ? "border-[#003c33] bg-[#edfce9]/40"
-                                : "border-[#e5e7eb] bg-white hover:border-[#17171c]"
+                                ? "border-[#003C33] bg-[#E7EFEA]/40"
+                                : "border-[#E7E7E2] bg-white hover:border-[#003C33]"
                             }`}
                           >
                             <input
                               checked={isSelected}
-                              className="mt-1 h-4 w-4 cursor-pointer accent-[#003c33]"
+                              className="mt-1 h-4 w-4 cursor-pointer accent-[#003C33]"
                               onChange={() => toggleListing(listing.id)}
                               type="checkbox"
                             />
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <p className="text-[13px] font-medium text-[#17171c]">
+                                <p className="text-[13px] font-medium text-[#171719]">
                                   {listing.name}
                                 </p>
                                 {isSuggested ? (
-                                  <span className="text-[11px] uppercase tracking-[0.14em] text-[#003c33]">
+                                  <span className="text-[11px] uppercase tracking-[0.14em] text-[#003C33]">
                                     Suggested
                                   </span>
                                 ) : null}
                               </div>
-                              <p className="mt-0.5 text-[12px] text-[#75758a]">
+                              <p className="mt-0.5 text-[12px] text-[#8E918B]">
                                 {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
                               </p>
                             </div>
@@ -255,12 +253,12 @@ function DealRoomsOperational({
                     })}
                   </ul>
                 )}
-                <p className="mt-2 text-[12px] text-[#75758a]">
+                <p className="mt-2 text-[12px] text-[#8E918B]">
                   {selectedListingIds.length} of {listings.length} listings selected.
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-[#f7f7f9] p-5">
+              <div className="rounded-2xl bg-[#F6F6F3] p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className={generatedTone.className}>
                     <StatusDot className={generatedTone.dotClassName} />
@@ -269,16 +267,16 @@ function DealRoomsOperational({
                   <Badge tone="neutral">{generatedRoom.brokerApprovalStatus}</Badge>
                   {isCommitted || persistedRoomIds.has(generatedRoom.id) ? <Badge tone="success">Saved</Badge> : null}
                 </div>
-                <h2 className="bb-display mt-3 text-base font-medium text-[#17171c]">
+                <h2 className="bb-display mt-3 text-base font-medium text-[#171719]">
                   {generatedRoom.title}
                 </h2>
-                <p className="mt-2 text-[13px] leading-6 text-[#616161]">
+                <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">
                   {selectedBuyer.communicationStyle}. {generatedListings.length} listings ·{" "}
                   {generatedRoom.approvedDocumentIds.length} approved docs.
                 </p>
               </div>
 
-              <div className="grid gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+              <div className="grid gap-3 rounded-2xl border border-[#E7E7E2] bg-white p-4">
                 <p className="bb-mono-label">Share controls</p>
                 <SelectMenu
                   label="Access mode"
@@ -290,10 +288,10 @@ function DealRoomsOperational({
                   ]}
                   value={shareAccess}
                 />
-                <label className="grid gap-1.5 text-[13px] font-medium text-[#212121]">
+                <label className="grid gap-1.5 text-[13px] font-medium text-[#171719]">
                   <span>Room passcode</span>
                   <input
-                    className="min-h-10 rounded-lg border border-[#d9d9dd] bg-white px-3 text-[14px] text-[#17171c] outline-none focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+                    className="min-h-10 rounded-lg border border-[#D9DAD4] bg-white px-3 text-[14px] text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
                     onChange={(event) => setPasscode(event.target.value)}
                     value={passcode}
                   />
@@ -313,7 +311,7 @@ function DealRoomsOperational({
                   {isCommitted ? "Room saved" : "Save room draft"}
                 </Button>
                 <Link
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-5 text-sm font-medium text-[#17171c] hover:border-[#17171c]"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
                   href={`/deal-rooms/${generatedRoom.id}`}
                 >
                   Preview buyer-facing room
@@ -340,7 +338,6 @@ function DealRoomsOperational({
                 return (
                   <Card key={room.id}>
                     <CardHeader
-                      eyebrow="Deal room status"
                       title={room.title}
                       action={
                         <Badge className={tone.className}>
@@ -351,14 +348,14 @@ function DealRoomsOperational({
                     />
                     <div className="grid gap-6 px-6 py-5 lg:grid-cols-[1fr_240px]">
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.14em] text-[#75758a]">
+                        <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                           <Badge tone="neutral">{room.status}</Badge>
                           <Badge tone="neutral">{room.brokerApprovalStatus}</Badge>
                           {persistedRoomIds.has(room.id) ? <Badge tone="success">Saved draft</Badge> : null}
                           <span>Updated {formatDate(room.lastUpdatedAt)}</span>
                         </div>
-                        <p className="mt-3 text-sm leading-6 text-[#3f3f46]">
-                          <span className="font-medium text-[#17171c]">{buyer?.name}</span> ·{" "}
+                        <p className="mt-3 text-sm leading-6 text-[#5F625E]">
+                          <span className="font-medium text-[#171719]">{buyer?.name}</span> ·{" "}
                           {accessWarning}
                         </p>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -369,16 +366,16 @@ function DealRoomsOperational({
                             return (
                               <div
                                 key={listing.id}
-                                className="rounded-xl border border-[#e5e7eb] bg-white p-4"
+                                className="rounded-xl border border-[#E7E7E2] bg-white p-4"
                               >
-                                <p className="text-[14px] font-medium text-[#17171c]">
+                                <p className="text-[14px] font-medium text-[#171719]">
                                   {listing.name}
                                 </p>
-                                <p className="mt-1 text-[13px] text-[#75758a]">
+                                <p className="mt-1 text-[13px] text-[#8E918B]">
                                   {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
                                 </p>
                                 <ProgressBar className="mt-3" value={match?.fitScore ?? 72} />
-                                <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.12em] text-[#17171c]">
+                                <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.12em] text-[#171719]">
                                   {percentage(match?.fitScore ?? 72)} buyer fit
                                 </p>
                               </div>
@@ -386,7 +383,7 @@ function DealRoomsOperational({
                           })}
                         </div>
                       </div>
-                      <div className="grid content-start gap-4 border-l border-[#f2f2f2] pl-5">
+                      <div className="grid content-start gap-4 border-l border-[#E7E7E2] pl-5">
                         <Stat
                           label="Access"
                           value={room.verificationStatus}
@@ -403,7 +400,7 @@ function DealRoomsOperational({
                           detail={`/deal-rooms/${room.id}`}
                         />
                         <Link
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-sm font-medium text-[#17171c] hover:border-[#17171c]"
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-sm font-medium text-[#171719] hover:border-[#003C33]"
                           href={`/deal-rooms/${room.id}`}
                         >
                           Open buyer room
@@ -427,12 +424,11 @@ function FirstRunDealRooms() {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        eyebrow="Buyer deal rooms"
         title="Build private buyer rooms"
         description="Curate approved listings and buyer-safe rationale while seller notes stay internal."
         actions={
           <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white hover:bg-[#2a2a32]"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
             href="/voice-crm"
           >
             <Sparkles className="h-4 w-4" aria-hidden="true" />
@@ -446,13 +442,13 @@ function FirstRunDealRooms() {
           <div>
             <p className="bb-mono-label">Quick start</p>
             <h2
-              className="bb-display mt-2 text-xl font-medium text-[#17171c]"
+              className="bb-display mt-2 text-xl font-medium text-[#171719]"
               id="rooms-quick-start"
             >
               Three paths to your first deal room
             </h2>
           </div>
-          <p className="hidden text-[13px] text-[#75758a] sm:block">
+          <p className="hidden text-[13px] text-[#8E918B] sm:block">
             Each one ends with a verified buyer.
           </p>
         </div>
@@ -484,10 +480,9 @@ function FirstRunDealRooms() {
 
       <Card className="mt-12">
         <CardHeader
-          eyebrow="What each deal room contains"
           title="A private space, scoped to one buyer"
         />
-        <ul className="divide-y divide-[#f2f2f2]">
+        <ul className="divide-y divide-[#E7E7E2]">
           <RoomsExplainerRow
             icon={ShieldCheck}
             title="Verification + broker approval state"
@@ -524,20 +519,20 @@ function RoomsActionCard({
 }) {
   return (
     <Link
-      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#e5e7eb] bg-white p-6 transition-colors hover:border-[#17171c]"
+      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#E7E7E2] bg-white p-6 transition-colors hover:border-[#003C33]"
       href={href}
     >
       <div>
         <div className="flex items-center justify-between">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#003c33] text-white">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#003C33] text-white">
             <Icon className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="bb-mono-label">{step}</span>
         </div>
-        <h3 className="bb-display mt-5 text-lg font-medium text-[#17171c]">{title}</h3>
-        <p className="mt-2 text-[13px] leading-6 text-[#616161]">{description}</p>
+        <h3 className="bb-display mt-5 text-lg font-medium text-[#171719]">{title}</h3>
+        <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{description}</p>
       </div>
-      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#17171c]">
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#171719]">
         Get started
         <ArrowRight
           className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
@@ -559,12 +554,12 @@ function RoomsExplainerRow({
 }) {
   return (
     <li className="grid gap-4 px-6 py-5 sm:grid-cols-[36px_1fr]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#003c33]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0">
-        <p className="text-[14px] font-medium text-[#17171c]">{title}</p>
-        <p className="mt-1 text-[13px] leading-6 text-[#616161]">{description}</p>
+        <p className="text-[14px] font-medium text-[#171719]">{title}</p>
+        <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{description}</p>
       </div>
     </li>
   );

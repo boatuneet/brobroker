@@ -4,22 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Bot,
-  Building2,
-  CarFront,
   CheckCircle2,
   Clock3,
   ExternalLink,
   Mic,
   FilePenLine,
   Send,
-  Ship,
   Sparkles,
   Trash2,
   UserPlus,
   Users,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { getBrokerSegmentMeta, type BrokerSegment } from "@/lib/broker-segments";
+import { type BrokerSegment } from "@/lib/broker-segments";
 import { getVoiceToCrmWorkflow, nowIso } from "@/lib/services";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -48,12 +44,7 @@ import {
 } from "./ui";
 import { ConfirmDialog, ToastViewport } from "./app-feedback";
 import { Tile } from "./dashboard/visuals";
-
-const segmentIcons = {
-  Yacht: Ship,
-  Car: CarFront,
-  "Real Estate": Building2,
-} satisfies Record<BrokerSegment, LucideIcon>;
+import { SelectMenu } from "./select-menu";
 
 type CaptureMode = "existing" | "new";
 
@@ -152,9 +143,6 @@ export function VoiceToCrmWorkspace({
     () => storedBuyers.find((buyer) => buyer.id === selectedBuyerId),
     [storedBuyers, selectedBuyerId],
   );
-
-  const segmentMeta = getBrokerSegmentMeta(segment);
-  const SegmentIcon = segmentIcons[segmentMeta.id];
 
   const hasParsed = parsedSummary.trim().length > 0;
 
@@ -418,10 +406,8 @@ export function VoiceToCrmWorkspace({
     writePersisted(activeVoiceKey, { activeRunId, callSummary, parsedSummary, drafts, auditLog });
   }, [activeRunId, auditLog, callSummary, drafts, parsedSummary]);
 
-  const todayLabel = formatDate(nowIso);
-
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <ToastViewport
         message={syncError ?? syncMessage}
         onDismiss={() => {
@@ -447,28 +433,20 @@ export function VoiceToCrmWorkspace({
         title="Delete saved CRM capture?"
       />
 
-      {/* Editorial cockpit header — segment chip + mono date + display h1 + ghost reset. */}
+      {/* Page header — title-first, no eyebrow chip / no date (matches the
+          rest of the workspaces; only the dashboard keeps the cockpit chip). */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#dedee3] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#3f3f46]">
-              <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              {segmentMeta.label} · Voice-to-CRM
-            </span>
-            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#75758a]">
-              {todayLabel}
-            </span>
-          </div>
-          <h1 className="bb-display mt-3 text-[2rem] font-medium leading-[1.04] text-[#17171c] sm:text-[2.35rem]">
+          <h1 className="bb-display text-[2rem] font-medium leading-[1.04] text-[#171719] sm:text-[2.35rem]">
             Capture a call
           </h1>
-          <p className="mt-3 max-w-xl text-[13.5px] leading-7 text-[#3f3f46]">
+          <p className="mt-3 max-w-xl text-[13.5px] leading-7 text-[#5F625E]">
             Parse a call summary into saved buyer memory, tasks, and editable follow-up drafts.
           </p>
         </div>
         {hasParsed ? (
           <button
-            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#dedee3] bg-white px-4 text-[13px] font-medium text-[#3f3f46] transition-colors hover:border-[#17171c] hover:text-[#17171c]"
+            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#171719]"
             onClick={resetWorkspace}
             type="button"
           >
@@ -484,10 +462,10 @@ export function VoiceToCrmWorkspace({
       >
         <Tile tone="paper">
           <p className="bb-mono-label">Buyer detected</p>
-          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#17171c]">
+          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#171719]">
             {buyerLabel}
           </p>
-          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#54545f]">
+          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#5F625E]">
             {hasParsed
               ? captureMode === "existing"
                 ? "Attached to saved buyer"
@@ -497,19 +475,19 @@ export function VoiceToCrmWorkspace({
         </Tile>
         <Tile tone="paper">
           <p className="bb-mono-label">Urgency</p>
-          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#17171c]">
+          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#171719]">
             {urgencyLabel}
           </p>
-          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#54545f]">
+          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#5F625E]">
             {hasParsed ? workflow.extracted.pipelineUpdate : "Pipeline update appears after parse"}
           </p>
         </Tile>
         <Tile tone="paper">
           <p className="bb-mono-label">Approvals</p>
-          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#17171c] tabular-nums">
+          <p className="bb-display mt-3 text-[1.5rem] font-medium leading-[1.1] text-[#171719] tabular-nums">
             {approvalsLabel}
           </p>
-          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#54545f]">
+          <p className="mt-2 text-[12.5px] leading-[1.5] text-[#5F625E]">
             {drafts.length
               ? `${drafts.length - approvedCount} drafts pending review`
               : "No drafts generated yet"}
@@ -533,15 +511,15 @@ export function VoiceToCrmWorkspace({
             <div className="grid gap-4 px-6 py-5">
               <div
                 aria-label="Capture mode"
-                className="inline-flex rounded-full border border-[#dedee3] bg-[#fafaf7] p-1 text-[13px] font-medium"
+                className="inline-flex rounded-full border border-[#D9DAD4] bg-[#F1F2EE] p-1 text-[13px] font-medium"
                 role="tablist"
               >
                 <button
                   aria-selected={captureMode === "existing"}
                   className={`inline-flex min-h-9 items-center gap-2 rounded-full px-4 transition-colors ${
                     captureMode === "existing"
-                      ? "bg-white text-[#17171c] shadow-sm"
-                      : "text-[#75758a] hover:text-[#3f3f46]"
+                      ? "bg-white text-[#171719] shadow-sm"
+                      : "text-[#8E918B] hover:text-[#5F625E]"
                   }`}
                   disabled={!storedBuyers.length}
                   onClick={() => setCaptureMode("existing")}
@@ -555,8 +533,8 @@ export function VoiceToCrmWorkspace({
                   aria-selected={captureMode === "new"}
                   className={`inline-flex min-h-9 items-center gap-2 rounded-full px-4 transition-colors ${
                     captureMode === "new"
-                      ? "bg-white text-[#17171c] shadow-sm"
-                      : "text-[#75758a] hover:text-[#3f3f46]"
+                      ? "bg-white text-[#171719] shadow-sm"
+                      : "text-[#8E918B] hover:text-[#5F625E]"
                   }`}
                   onClick={() => setCaptureMode("new")}
                   role="tab"
@@ -569,35 +547,32 @@ export function VoiceToCrmWorkspace({
 
               {captureMode === "existing" ? (
                 storedBuyers.length ? (
-                  <label className="grid gap-1.5 text-[13px] font-medium text-[#212121]">
-                    <span className="bb-mono-label">Saved buyer</span>
-                    <select
-                      aria-label="Attach to saved buyer"
-                      className="min-h-10 rounded-lg border border-[#d9d9dd] bg-white px-3 text-[14px] text-[#17171c] outline-none focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
-                      onChange={(event) => setSelectedBuyerId(event.target.value)}
+                  <div className="grid gap-1.5">
+                    <SelectMenu
+                      label="Saved buyer"
+                      onChange={(value) => setSelectedBuyerId(value)}
+                      options={storedBuyers.map((buyer) => ({
+                        value: buyer.id,
+                        label: buyer.name,
+                        meta: [buyer.company, buyer.country]
+                          .filter(Boolean)
+                          .join(" · "),
+                      }))}
                       value={selectedBuyerId}
-                    >
-                      {storedBuyers.map((buyer) => (
-                        <option key={buyer.id} value={buyer.id}>
-                          {buyer.name}
-                          {buyer.company ? ` · ${buyer.company}` : ""}
-                          {buyer.country ? ` · ${buyer.country}` : ""}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     {selectedBuyer ? (
-                      <span className="text-[12px] leading-6 text-[#75758a]">
+                      <span className="text-[12px] leading-6 text-[#8E918B]">
                         Parsed memory will upsert into {selectedBuyer.name}&apos;s buyer row — preferences, tasks, and drafts stay attached to this saved profile.
                       </span>
                     ) : null}
-                  </label>
+                  </div>
                 ) : (
-                  <p className="rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
+                  <p className="rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
                     No saved buyers in this segment yet. Switch to “New buyer from voice” to capture this call as a fresh profile.
                   </p>
                 )
               ) : (
-                <p className="rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
+                <p className="rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
                   A new buyer record will be created from the parsed call. Move them to an existing buyer next time by selecting from the saved list above.
                 </p>
               )}
@@ -618,7 +593,7 @@ export function VoiceToCrmWorkspace({
             <div className="grid gap-4 px-6 py-5">
               <textarea
                 aria-label="Call summary"
-                className="min-h-56 w-full rounded-xl border border-[#d9d9dd] bg-white p-4 text-[15px] leading-7 text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+                className="min-h-56 w-full rounded-xl border border-[#D9DAD4] bg-white p-4 text-[15px] leading-7 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
                 onChange={(event) => setCallSummary(event.target.value)}
                 placeholder="Describe the call in your own words — buyer name, size, budget, must-haves, deal-breakers, urgency, and follow-up timing."
                 value={callSummary}
@@ -640,7 +615,7 @@ export function VoiceToCrmWorkspace({
                   Load example
                 </Button>
                 {callSummary && callSummary !== parsedSummary ? (
-                  <span className="text-[12px] uppercase tracking-[0.14em] text-[#75758a]">
+                  <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                     Unparsed changes
                   </span>
                 ) : null}
@@ -663,11 +638,11 @@ export function VoiceToCrmWorkspace({
               <>
                 {/* Attachment confirmation strip — only in existing mode with a real buyer selected. */}
                 {captureMode === "existing" && selectedBuyer ? (
-                  <div className="mx-6 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-[#dedee3] bg-[#fafaf7] px-4 py-2.5 text-[12.5px] leading-6 text-[#3f3f46]">
-                    <Users className="h-3.5 w-3.5 text-[#75758a]" aria-hidden="true" />
+                  <div className="mx-6 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-[#D9DAD4] bg-[#F1F2EE] px-4 py-2.5 text-[12.5px] leading-6 text-[#5F625E]">
+                    <Users className="h-3.5 w-3.5 text-[#8E918B]" aria-hidden="true" />
                     <span>
                       Attached to{" "}
-                      <span className="font-medium text-[#17171c]">{selectedBuyer.name}</span>
+                      <span className="font-medium text-[#171719]">{selectedBuyer.name}</span>
                       {selectedBuyer.company ? <> · {selectedBuyer.company}</> : null}
                     </span>
                   </div>
@@ -686,10 +661,10 @@ export function VoiceToCrmWorkspace({
                       ].map(([label, value]) => (
                         <div
                           key={label}
-                          className="rounded-xl border border-[#ececef] bg-[#fafaf7] p-4"
+                          className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] p-4"
                         >
                           <p className="bb-mono-label">{label}</p>
-                          <p className="mt-1.5 text-[14px] font-medium leading-6 text-[#17171c]">
+                          <p className="mt-1.5 text-[14px] font-medium leading-6 text-[#171719]">
                             {value}
                           </p>
                         </div>
@@ -704,21 +679,21 @@ export function VoiceToCrmWorkspace({
                         {workflow.profileUpdates.preferences.map((item) => (
                           <li
                             key={item}
-                            className="rounded-xl border border-[#ececef] bg-[#fafaf7] px-4 py-2.5 text-[13px] leading-6 text-[#3f3f46]"
+                            className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] px-4 py-2.5 text-[13px] leading-6 text-[#5F625E]"
                           >
                             {item}
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
+                      <p className="mt-3 rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
                         Add size, budget, interior, VAT, or timing language to extract preferences.
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="grid gap-6 border-t border-[#f2f2f2] px-6 py-5 lg:grid-cols-2">
+                <div className="grid gap-6 border-t border-[#E7E7E2] px-6 py-5 lg:grid-cols-2">
                   <div className="min-w-0">
                     <p className="bb-mono-label">Linked listings</p>
                     {workflow.linkedListings.length ? (
@@ -726,17 +701,17 @@ export function VoiceToCrmWorkspace({
                         {workflow.linkedListings.map((listing) => (
                           <li key={listing.id}>
                             <Link
-                              className="grid gap-1 rounded-xl border border-[#ececef] bg-[#fafaf7] px-4 py-3 transition-colors hover:border-[#dedee3] hover:bg-white sm:grid-cols-[1fr_auto] sm:items-center sm:gap-3"
+                              className="grid gap-1 rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] px-4 py-3 transition-colors hover:border-[#D9DAD4] hover:bg-white sm:grid-cols-[1fr_auto] sm:items-center sm:gap-3"
                               href={`/listings/${listing.id}`}
                             >
                               <div className="min-w-0">
-                                <p className="text-[14px] font-medium text-[#17171c]">{listing.name}</p>
-                                <p className="mt-0.5 text-[12.5px] text-[#75758a]">
+                                <p className="text-[14px] font-medium text-[#171719]">{listing.name}</p>
+                                <p className="mt-0.5 text-[12.5px] text-[#8E918B]">
                                   {listing.builder} {listing.model} · {listing.lengthFt}ft ·{" "}
                                   {listing.location}
                                 </p>
                               </div>
-                              <span className="font-mono text-[13px] font-medium text-[#17171c] tabular-nums">
+                              <span className="font-mono text-[13px] font-medium text-[#171719] tabular-nums">
                                 {formatCurrency(listing.priceEur)}
                               </span>
                             </Link>
@@ -744,7 +719,7 @@ export function VoiceToCrmWorkspace({
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
+                      <p className="mt-3 rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
                         Add inventory and mention a size range, area, brand, or model to auto-link matching listings here.
                       </p>
                     )}
@@ -757,19 +732,19 @@ export function VoiceToCrmWorkspace({
                         {workflow.tasks.map((task) => (
                           <li
                             key={task.id}
-                            className="rounded-xl border border-[#ececef] bg-[#fafaf7] p-4"
+                            className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] p-4"
                           >
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge tone={taskPriorityTone(task.priority)}>{task.priority}</Badge>
                               <Badge tone="neutral">{task.kind}</Badge>
                             </div>
-                            <h3 className="mt-2 text-[14px] font-medium leading-6 text-[#17171c]">{task.title}</h3>
-                            <p className="mt-1 text-[12.5px] leading-6 text-[#616161]">{task.reason}</p>
+                            <h3 className="mt-2 text-[14px] font-medium leading-6 text-[#171719]">{task.title}</h3>
+                            <p className="mt-1 text-[12.5px] leading-6 text-[#5F625E]">{task.reason}</p>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 rounded-xl border border-dashed border-[#dedee3] bg-[#fafaf7] px-4 py-3 text-[13px] leading-6 text-[#75758a]">
+                      <p className="mt-3 rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
                         Tasks appear here once the note mentions actions, viewings, or comparisons.
                       </p>
                     )}
@@ -798,10 +773,10 @@ export function VoiceToCrmWorkspace({
                   </CardHeaderIcon>
                 }
               />
-              <ul className="divide-y divide-[#f2f2f2]">
+              <ul className="divide-y divide-[#E7E7E2]">
                 {auditLog.map((event) => (
                   <li key={event.id} className="grid gap-3 px-6 py-5 sm:grid-cols-[28px_1fr]">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#17171c]">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#171719]">
                       <FilePenLine className="h-3.5 w-3.5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
@@ -809,12 +784,12 @@ export function VoiceToCrmWorkspace({
                         <Badge tone={event.actor === "Broker" ? "coral" : "neutral"}>
                           {event.actor}
                         </Badge>
-                        <span className="text-[12px] uppercase tracking-[0.14em] text-[#75758a]">
+                        <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                           {formatDate(event.occurredAt)}
                         </span>
                       </div>
-                      <h3 className="mt-2 text-[14px] font-medium text-[#17171c]">{event.label}</h3>
-                      <p className="mt-1 text-[13px] leading-6 text-[#616161]">{event.detail}</p>
+                      <h3 className="mt-2 text-[14px] font-medium text-[#171719]">{event.label}</h3>
+                      <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{event.detail}</p>
                     </div>
                   </li>
                 ))}
@@ -850,27 +825,27 @@ export function VoiceToCrmWorkspace({
                   </CardHeaderIcon>
                 }
               />
-              <ul className="divide-y divide-[#f2f2f2]">
+              <ul className="divide-y divide-[#E7E7E2]">
                 {savedRuns.slice(0, 4).map((run) => (
                   <li key={run.id} className="px-6 py-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-[14px] font-medium text-[#17171c]">{run.buyerName}</p>
+                      <p className="text-[14px] font-medium text-[#171719]">{run.buyerName}</p>
                       <Badge tone="success">Saved</Badge>
                     </div>
-                    <p className="mt-1 text-[13px] leading-6 text-[#616161]">{run.summary}</p>
-                    <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-[#75758a]">
+                    <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{run.summary}</p>
+                    <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                       {run.taskCount} tasks · {run.draftCount} drafts
                     </p>
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <Link
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] transition-colors hover:border-[#17171c]"
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33]"
                         href="/buyers"
                       >
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                         Open buyers
                       </Link>
                       <Link
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] transition-colors hover:border-[#17171c]"
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33]"
                         href="#voice-approval-queue"
                       >
                         Review drafts
@@ -909,7 +884,7 @@ export function VoiceToCrmWorkspace({
               <div className="grid gap-4 px-6 py-5">
                 {approvedCount === drafts.length ? (
                   <Tile tone="cream">
-                    <div className="flex flex-wrap items-start gap-2 text-[13px] leading-6 text-[#003c33]">
+                    <div className="flex flex-wrap items-start gap-2 text-[13px] leading-6 text-[#003C33]">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                       <p>
                         All {drafts.length} drafts approved. The prototype does not send messages
@@ -922,7 +897,7 @@ export function VoiceToCrmWorkspace({
                 {drafts.map((draft) => (
                   <article
                     key={draft.id}
-                    className="rounded-2xl border border-[#e5e7eb] bg-white p-5"
+                    className="rounded-2xl border border-[#E7E7E2] bg-white p-5"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex flex-wrap items-center gap-2">
@@ -930,10 +905,10 @@ export function VoiceToCrmWorkspace({
                           <StatusDot
                             className={
                               draft.status === "Approved"
-                                ? "bg-emerald-500"
+                                ? "bg-[#0F8F62]"
                                 : draft.status === "Edited"
-                                  ? "bg-amber-500"
-                                  : "bg-[#75758a]"
+                                  ? "bg-[#A86642]"
+                                  : "bg-[#8E918B]"
                             }
                           />
                           {draft.status}
@@ -953,18 +928,18 @@ export function VoiceToCrmWorkspace({
                       </Button>
                     </div>
 
-                    <label className="mt-4 grid gap-1.5 text-[13px] font-medium text-[#212121]">
+                    <label className="mt-4 grid gap-1.5 text-[13px] font-medium text-[#171719]">
                       <span className="bb-mono-label">Subject</span>
                       <input
-                        className="min-h-10 rounded-lg border border-[#d9d9dd] bg-white px-3 text-[14px] text-[#17171c] outline-none focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+                        className="min-h-10 rounded-lg border border-[#D9DAD4] bg-white px-3 text-[14px] text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
                         onChange={(event) => updateDraft(draft.id, "subject", event.target.value)}
                         value={draft.subject}
                       />
                     </label>
-                    <label className="mt-3 grid gap-1.5 text-[13px] font-medium text-[#212121]">
+                    <label className="mt-3 grid gap-1.5 text-[13px] font-medium text-[#171719]">
                       <span className="bb-mono-label">Body</span>
                       <textarea
-                        className="min-h-36 rounded-lg border border-[#d9d9dd] bg-white p-3 text-[14px] leading-7 text-[#17171c] outline-none focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+                        className="min-h-36 rounded-lg border border-[#D9DAD4] bg-white p-3 text-[14px] leading-7 text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
                         onChange={(event) => updateDraft(draft.id, "body", event.target.value)}
                         value={draft.body}
                       />

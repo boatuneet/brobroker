@@ -24,7 +24,7 @@ export default async function LoginPage({
         <>
           New to BroBroker?{" "}
           <Link
-            className="font-medium text-[#17171c] underline-offset-4 hover:underline"
+            className="font-medium text-[#171719] underline-offset-4 hover:underline"
             href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
           >
             Create an account

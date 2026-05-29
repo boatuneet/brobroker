@@ -1,12 +1,26 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/* Inter — UI body font per the BroBroker design brief.
+   Keep the latin subset and expose as --font-inter so globals.css can
+   compose it into --font-ui. */
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
+/* Fraunces — display/brand font for the logo, hero titles, and other
+   editorial moments. Loaded once here so every route can reference it. */
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
+
+/* Geist Mono kept for the monospaced eyebrow labels (bb-mono-label). */
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -25,10 +39,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
       data-scroll-behavior="smooth"
     >
-      <body className="flex min-h-full flex-col bg-[#f7f7f9] text-[#17171c]">
+      <body className="flex min-h-full flex-col bg-[#F6F6F3] font-sans text-[#171719]">
         {children}
       </body>
     </html>

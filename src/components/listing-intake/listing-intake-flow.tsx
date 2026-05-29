@@ -251,7 +251,7 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
       <ToastViewport
         action={
           saveResult ? (
-            <Link className="font-semibold text-[#003c33] underline underline-offset-4" href={`/listings/${saveResult.id}`}>
+            <Link className="font-semibold text-[#003C33] underline underline-offset-4" href={`/listings/${saveResult.id}`}>
               Open listing
             </Link>
           ) : null
@@ -268,7 +268,7 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
         onDismiss={() => setSaveResult(null)}
       />
       <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#3f3f46] hover:text-[#17171c]"
+        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
         href="/listings"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -281,17 +281,17 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="min-w-0">
                 <p className="bb-mono-label">Listing intake</p>
-                <h1 className="bb-display mt-3 text-[2.2rem] font-medium leading-[1.05] text-[#17171c]">
+                <h1 className="bb-display mt-3 text-[2.2rem] font-medium leading-[1.05] text-[#171719]">
                   {config.title}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-[#616161]">{config.description}</p>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-[#5F625E]">{config.description}</p>
               </div>
               <Badge tone="info">{completion}% complete</Badge>
             </div>
 
             {/* Compact "active segment" hint — image kept as small thumbnail,
                 copy condensed to one row so the form gets the visual weight. */}
-            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-2.5">
+            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-2.5">
               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#edeae3]">
                 <Image
                   alt=""
@@ -302,15 +302,15 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="bb-mono-label text-[#75758a]">
+                <p className="bb-mono-label text-[#8E918B]">
                   Active segment · {segmentMeta.label}
                 </p>
-                <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#616161]">
+                <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#5F625E]">
                   Follows your broker segment from Profile.
                 </p>
               </div>
               <Link
-                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-3.5 text-[12.5px] font-medium text-[#17171c] hover:border-[#17171c]"
+                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#D9DAD4] bg-white px-3.5 text-[12.5px] font-medium text-[#171719] hover:border-[#003C33]"
                 href="/profile"
               >
                 Change segment
@@ -359,13 +359,13 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
         <aside className="sticky top-8 grid gap-5">
           <Card className="p-6">
             <p className="bb-mono-label">Listing summary</p>
-            <h2 className="bb-display mt-3 text-2xl font-medium leading-tight text-[#17171c]">
+            <h2 className="bb-display mt-3 text-2xl font-medium leading-tight text-[#171719]">
               {draftName}
             </h2>
-            <p className="mt-3 text-sm leading-6 text-[#616161]">
+            <p className="mt-3 text-sm leading-6 text-[#5F625E]">
               {specSummary || "Complete core fields to generate a broker-ready summary."}
             </p>
-            <dl className="mt-5 grid gap-3 border-y border-[#f2f2f2] py-5">
+            <dl className="mt-5 grid gap-3 border-y border-[#E7E7E2] py-5">
               <SummaryLine label="Segment" value={getSegmentLabel(segment)} />
               <SummaryLine label="Price" value={price ? formatCurrency(price) : "To confirm"} />
               <SummaryLine
@@ -379,16 +379,16 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
             {photos.length ? (
               <div className="mt-5 grid grid-cols-3 gap-2">
                 {photos.slice(0, 3).map((photo) => (
-                  <div className="relative aspect-square overflow-hidden rounded-xl bg-[#f5f4ef]" key={photo.id}>
+                  <div className="relative aspect-square overflow-hidden rounded-xl bg-[#F1F2EE]" key={photo.id}>
                     <Image alt={photo.alt} className="object-cover" fill sizes="90px" src={photo.src} />
                   </div>
                 ))}
               </div>
             ) : null}
-            <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-4">
+            <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-4">
               <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-[#17171c]">Save as draft</span>
-                <span className="mt-1 block text-[12px] leading-5 text-[#616161]">
+                <span className="block text-[13px] font-semibold text-[#171719]">Save as draft</span>
+                <span className="mt-1 block text-[12px] leading-5 text-[#5F625E]">
                   Drafts stay internal; turn this off to create a live listing item.
                 </span>
               </span>
@@ -400,7 +400,7 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
               />
               <span
                 aria-hidden="true"
-                className="relative h-7 w-12 shrink-0 rounded-full bg-[#d9d9dd] transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-[#003c33] peer-checked:after:translate-x-5"
+                className="relative h-7 w-12 shrink-0 rounded-full bg-[#D9DAD4] transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-[#003C33] peer-checked:after:translate-x-5"
               />
             </label>
             <Button className="mt-4 w-full" disabled={isSaving} onClick={saveListing} type="button">
@@ -412,8 +412,8 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
                 {saveError}
               </div>
             ) : (
-              <div className="mt-4 rounded-2xl bg-[#f7f7f9] px-4 py-3 text-[13px] leading-6 text-[#616161]">
-                <Sparkles className="mr-1 inline h-4 w-4 align-[-3px] text-[#003c33]" aria-hidden="true" />
+              <div className="mt-4 rounded-2xl bg-[#F6F6F3] px-4 py-3 text-[13px] leading-6 text-[#5F625E]">
+                <Sparkles className="mr-1 inline h-4 w-4 align-[-3px] text-[#003C33]" aria-hidden="true" />
                 Saved listings become real listing records. Draft mode keeps the item internal.
               </div>
             )}
@@ -444,17 +444,17 @@ function FieldControl({
 
     return (
       <fieldset className="grid gap-1.5">
-        <legend className="text-sm font-medium text-[#212121]">{field.label}</legend>
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#d9d9dd] bg-white">
+        <legend className="text-sm font-medium text-[#171719]">{field.label}</legend>
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#D9DAD4] bg-white">
           <input
-            className="min-h-11 min-w-0 border-r border-[#e5e7eb] px-3.5 text-[15px] text-[#17171c] outline-none placeholder:text-[#9b9ba6]"
+            className="min-h-11 min-w-0 border-r border-[#E7E7E2] px-3.5 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5]"
             inputMode="numeric"
             onChange={(event) => onChange({ ...rangeValue, from: event.target.value })}
             placeholder={field.fromPlaceholder ?? "From"}
             value={rangeValue.from}
           />
           <input
-            className="min-h-11 min-w-0 px-3.5 text-[15px] text-[#17171c] outline-none placeholder:text-[#9b9ba6]"
+            className="min-h-11 min-w-0 px-3.5 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5]"
             inputMode="numeric"
             onChange={(event) => onChange({ ...rangeValue, to: event.target.value })}
             placeholder={field.toPlaceholder ?? "To"}
@@ -468,15 +468,15 @@ function FieldControl({
   if (field.kind === "segmented") {
     return (
       <fieldset className="grid gap-1.5">
-        <legend className="text-sm font-medium text-[#212121]">{field.label}</legend>
-        <div className="flex overflow-hidden rounded-xl border border-[#d9d9dd] bg-white">
+        <legend className="text-sm font-medium text-[#171719]">{field.label}</legend>
+        <div className="flex overflow-hidden rounded-xl border border-[#D9DAD4] bg-white">
           {field.options?.map((option) => (
             <button
               className={cn(
-                "min-h-11 flex-1 border-r border-[#e5e7eb] px-3 text-sm font-medium last:border-r-0",
+                "min-h-11 flex-1 border-r border-[#E7E7E2] px-3 text-sm font-medium last:border-r-0",
                 stringValue === option.value
-                  ? "bg-[#17171c] text-white"
-                  : "text-[#17171c] hover:bg-[#f7f7f9]",
+                  ? "bg-[#171719] text-white"
+                  : "text-[#171719] hover:bg-[#F6F6F3]",
               )}
               key={option.value}
               onClick={() => onChange(option.value)}
@@ -517,10 +517,10 @@ function FieldControl({
 
   if (field.kind === "textarea") {
     return (
-      <label className="grid gap-1.5 text-sm font-medium text-[#212121] lg:col-span-3">
+      <label className="grid gap-1.5 text-sm font-medium text-[#171719] lg:col-span-3">
         <span>{field.label}</span>
         <textarea
-          className="min-h-28 rounded-xl border border-[#d9d9dd] bg-white px-3.5 py-3 text-[15px] text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+          className="min-h-28 rounded-xl border border-[#D9DAD4] bg-white px-3.5 py-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
           onChange={(event) => onChange(event.target.value)}
           placeholder={field.placeholder}
           value={stringValue}
@@ -531,7 +531,7 @@ function FieldControl({
 
   if (field.kind === "checkbox") {
     return (
-      <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[#d9d9dd] bg-white px-3.5 text-sm font-medium text-[#212121]">
+      <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[#D9DAD4] bg-white px-3.5 text-sm font-medium text-[#171719]">
         <input
           checked={value === true}
           className="h-4 w-4"
@@ -547,13 +547,13 @@ function FieldControl({
     const values = Array.isArray(value) ? value : [];
     return (
       <fieldset className="grid gap-3 lg:col-span-3">
-        <legend className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#777888]">
+        <legend className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
           {field.label}
         </legend>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {field.options?.map((option) => (
             <label
-              className="flex min-h-11 items-center gap-3 rounded-xl border border-[#d9d9dd] bg-white px-3.5 text-sm font-medium text-[#212121]"
+              className="flex min-h-11 items-center gap-3 rounded-xl border border-[#D9DAD4] bg-white px-3.5 text-sm font-medium text-[#171719]"
               key={option.value}
             >
               <input
@@ -579,7 +579,7 @@ function FieldControl({
   if (field.kind === "color") {
     return (
       <fieldset className="grid gap-3 lg:col-span-3">
-        <legend className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#777888]">
+        <legend className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
           {field.label}
         </legend>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -587,14 +587,14 @@ function FieldControl({
             <button
               className={cn(
                 "flex min-h-11 items-center gap-3 rounded-xl border bg-white px-3 text-left text-sm font-medium transition-colors",
-                value === option.value ? "border-[#17171c]" : "border-[#d9d9dd] hover:border-[#17171c]",
+                value === option.value ? "border-[#171719]" : "border-[#D9DAD4] hover:border-[#003C33]",
               )}
               key={option.value}
               onClick={() => onChange(option.value)}
               type="button"
             >
               <span
-                className="h-5 w-5 rounded border border-[#b8b8be]"
+                className="h-5 w-5 rounded border border-[#A9ABA5]"
                 style={{ background: option.swatch }}
                 aria-hidden="true"
               />
@@ -678,16 +678,16 @@ function LocationAutocomplete({
   }
 
   return (
-    <div className="relative grid gap-1.5 text-sm font-medium text-[#212121]">
+    <div className="relative grid gap-1.5 text-sm font-medium text-[#171719]">
       <label htmlFor={`location-${field.id}`}>{field.label}</label>
       <div className="relative">
         <MapPin
           aria-hidden="true"
-          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#75758a]"
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
         />
         <input
           autoComplete="off"
-          className="h-11 w-full rounded-xl border border-[#d9d9dd] bg-white pl-10 pr-3.5 text-[15px] text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+          className="h-11 w-full rounded-xl border border-[#D9DAD4] bg-white pl-10 pr-3.5 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
           id={`location-${field.id}`}
           onBlur={() => window.setTimeout(() => setOpen(false), 120)}
           onClick={() => setOpen(true)}
@@ -707,21 +707,21 @@ function LocationAutocomplete({
         />
       </div>
       {open && (suggestions.length || isSearching) ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-80 overflow-y-auto rounded-xl border border-[#e1e1e5] bg-white shadow-[0_18px_45px_rgba(23,23,28,0.14)]">
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-80 overflow-y-auto rounded-xl border border-[#E7E7E2] bg-white shadow-[0_18px_45px_rgba(23,23,28,0.14)]">
           {suggestions.map((option) => (
             <button
-              className="flex w-full items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-[#f7f7f9] focus:bg-[#f7f7f9] focus:outline-none"
+              className="flex w-full items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-[#F6F6F3] focus:bg-[#F6F6F3] focus:outline-none"
               key={option.id}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectOption(option)}
               type="button"
             >
-              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#edf7f4] text-[#003c33]">
+              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#edf7f4] text-[#003C33]">
                 <MapPin className="h-4 w-4" aria-hidden="true" />
               </span>
               <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-[#17171c]">{option.label}</span>
-                <span className="mt-0.5 block text-[12px] leading-5 text-[#75758a]">
+                <span className="block text-[13px] font-semibold text-[#171719]">{option.label}</span>
+                <span className="mt-0.5 block text-[12px] leading-5 text-[#8E918B]">
                   {option.secondaryLabel} ·{" "}
                   {option.coordinates ? `${option.precision.toLowerCase()} map pin` : "private label"}
                 </span>
@@ -729,7 +729,7 @@ function LocationAutocomplete({
             </button>
           ))}
           {isSearching ? (
-            <div className="border-t border-[#f2f2f2] px-3.5 py-3 text-[12px] font-medium text-[#75758a]">
+            <div className="border-t border-[#E7E7E2] px-3.5 py-3 text-[12px] font-medium text-[#8E918B]">
               Searching address matches...
             </div>
           ) : null}
@@ -1125,12 +1125,12 @@ function PhotoAttachmentField({
 
   return (
     <div className="grid gap-4">
-      <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#cfd3d8] bg-[#fbfbfa] px-5 py-8 text-center transition-colors hover:border-[#003c33] hover:bg-[#f7fbf8]">
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#003c33] shadow-[0_8px_24px_rgba(23,23,28,0.08)]">
+      <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-5 py-8 text-center transition-colors hover:border-[#003C33] hover:bg-[#f7fbf8]">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#003C33] shadow-[0_8px_24px_rgba(23,23,28,0.08)]">
           <ImagePlus className="h-5 w-5" aria-hidden="true" />
         </span>
-        <span className="mt-4 text-sm font-medium text-[#17171c]">Upload owner-approved photos</span>
-        <span className="mt-1 text-[13px] leading-6 text-[#616161]">
+        <span className="mt-4 text-sm font-medium text-[#171719]">Upload owner-approved photos</span>
+        <span className="mt-1 text-[13px] leading-6 text-[#5F625E]">
           JPG, PNG, or WebP. Up to 8 photos are stored with this browser draft.
         </span>
         <input
@@ -1147,12 +1147,12 @@ function PhotoAttachmentField({
       {photos.length ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {photos.map((photo) => (
-            <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white" key={photo.id}>
-              <div className="relative aspect-[4/3] bg-[#f5f4ef]">
+            <div className="overflow-hidden rounded-2xl border border-[#E7E7E2] bg-white" key={photo.id}>
+              <div className="relative aspect-[4/3] bg-[#F1F2EE]">
                 <Image alt={photo.alt} className="object-cover" fill sizes="240px" src={photo.src} />
                 <button
                   aria-label={`Remove ${photo.name ?? "photo"}`}
-                  className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[#17171c] shadow-[0_8px_20px_rgba(23,23,28,0.12)] backdrop-blur hover:bg-white"
+                  className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[#171719] shadow-[0_8px_20px_rgba(23,23,28,0.12)] backdrop-blur hover:bg-white"
                   onClick={() => setPhotos((current) => current.filter((item) => item.id !== photo.id))}
                   type="button"
                 >
@@ -1160,8 +1160,8 @@ function PhotoAttachmentField({
                 </button>
               </div>
               <div className="px-3 py-2">
-                <p className="truncate text-[12px] font-medium text-[#17171c]">{photo.name}</p>
-                <p className="mt-0.5 text-[11px] text-[#75758a]">{Math.round(photo.size / 1024)} KB</p>
+                <p className="truncate text-[12px] font-medium text-[#171719]">{photo.name}</p>
+                <p className="mt-0.5 text-[11px] text-[#8E918B]">{Math.round(photo.size / 1024)} KB</p>
               </div>
             </div>
           ))}
@@ -1197,7 +1197,7 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <dt className="bb-mono-label">{label}</dt>
-      <dd className="text-right text-[13px] font-medium text-[#17171c]">{value}</dd>
+      <dd className="text-right text-[13px] font-medium text-[#171719]">{value}</dd>
     </div>
   );
 }

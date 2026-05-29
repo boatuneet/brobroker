@@ -129,7 +129,6 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        eyebrow="Seller reports"
         title="Owner reports"
         description="Draft editable seller updates from activity, feedback, and next steps."
         metrics={[
@@ -146,7 +145,7 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
             description="Add seller context and weekly activity to draft owner updates."
             action={
               <Link
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-5 text-sm font-medium text-[#17171c] hover:border-[#17171c]"
+                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
                 href="/listings"
               >
                 Open listings
@@ -160,7 +159,6 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
             <div className="grid gap-8">
               <Card className="overflow-hidden">
                 <CardHeader
-                  eyebrow="Owner queue"
                   title="Reports due"
                   action={
                     <CardHeaderIcon>
@@ -177,20 +175,20 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                       <li key={report.input.id}>
                         <button
                           className={cn(
-                            "block w-full rounded-2xl border p-4 text-left transition-all hover:border-[#003c33] hover:bg-white",
+                            "block w-full rounded-2xl border p-4 text-left transition-all hover:border-[#003C33] hover:bg-white",
                             isSelected
-                              ? "border-[#003c33] bg-white shadow-[0_16px_34px_rgba(0,60,51,0.1)]"
-                              : "border-[#ececf0] bg-[#fbfbfa]",
+                              ? "border-[#003C33] bg-white shadow-[0_16px_34px_rgba(0,60,51,0.1)]"
+                              : "border-[#E7E7E2] bg-[#F1F2EE]",
                           )}
                           onClick={() => selectReport(report.input.id)}
                           type="button"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="line-clamp-2 text-[14px] font-medium leading-5 text-[#17171c]">
+                              <p className="line-clamp-2 text-[14px] font-medium leading-5 text-[#171719]">
                                 {report.report.title}
                               </p>
-                              <p className="mt-1.5 text-[12px] leading-5 text-[#75758a]">
+                              <p className="mt-1.5 text-[12px] leading-5 text-[#8E918B]">
                                 {report.seller?.name} · {report.input.period}
                               </p>
                             </div>
@@ -199,27 +197,27 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                             </Badge>
                           </div>
                           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                            <div className="rounded-xl border border-[#f0f0f2] bg-white px-2 py-2">
-                              <p className="font-mono text-[13px] font-semibold text-[#17171c]">
+                            <div className="rounded-xl border border-[#F1F2EE] bg-white px-2 py-2">
+                              <p className="font-mono text-[13px] font-semibold text-[#171719]">
                                 {report.input.inquiries}
                               </p>
-                              <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#8a8a96]">
+                              <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#8E918B]">
                                 Inq.
                               </p>
                             </div>
-                            <div className="rounded-xl border border-[#f0f0f2] bg-white px-2 py-2">
-                              <p className="font-mono text-[13px] font-semibold text-[#17171c]">
+                            <div className="rounded-xl border border-[#F1F2EE] bg-white px-2 py-2">
+                              <p className="font-mono text-[13px] font-semibold text-[#171719]">
                                 {report.input.qualifiedLeads}
                               </p>
-                              <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#8a8a96]">
+                              <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#8E918B]">
                                 Leads
                               </p>
                             </div>
-                            <div className="rounded-xl border border-[#f0f0f2] bg-white px-2 py-2">
-                              <p className="font-mono text-[13px] font-semibold text-[#17171c]">
+                            <div className="rounded-xl border border-[#F1F2EE] bg-white px-2 py-2">
+                              <p className="font-mono text-[13px] font-semibold text-[#171719]">
                                 {report.input.viewings}
                               </p>
-                              <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#8a8a96]">
+                              <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#8E918B]">
                                 Views
                               </p>
                             </div>
@@ -232,11 +230,11 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
               </Card>
 
               <Card>
-                <div className="border-b border-[#f2f2f2] px-6 py-5">
+                <div className="border-b border-[#E7E7E2] px-6 py-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="bb-mono-label">Audit trail</p>
-                      <h2 className="bb-display mt-2 text-xl font-medium leading-tight text-[#17171c]">
+                      <h2 className="bb-display mt-2 text-xl font-medium leading-tight text-[#171719]">
                         Report generation and approval
                       </h2>
                     </div>
@@ -245,20 +243,20 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                     </CardHeaderIcon>
                   </div>
                   {pendingAuditRemoval ? (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-6 text-amber-900">
-                      <p className="font-medium text-amber-950">
+                    <div className="mt-4 rounded-2xl border border-[#F0DDD0] bg-[#F0DDD0] px-4 py-3 text-[13px] leading-6 text-[#A86642]">
+                      <p className="font-medium text-[#A86642]">
                         Remove “{pendingAuditRemoval.label}” from the audit trail?
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
-                          className="inline-flex min-h-8 items-center justify-center rounded-full bg-[#17171c] px-3 text-[12px] font-medium text-white hover:bg-[#2a2a32]"
+                          className="inline-flex min-h-8 items-center justify-center rounded-full bg-[#003C33] px-3 text-[12px] font-medium text-white hover:bg-[#0B4A3F]"
                           onClick={() => removeAuditEvent(pendingAuditRemoval.id)}
                           type="button"
                         >
                           Remove entry
                         </button>
                         <button
-                          className="inline-flex min-h-8 items-center justify-center rounded-full border border-amber-300 bg-white px-3 text-[12px] font-medium text-amber-950 hover:border-amber-500"
+                          className="inline-flex min-h-8 items-center justify-center rounded-full border border-[#F0DDD0] bg-white px-3 text-[12px] font-medium text-[#A86642] hover:border-[#A86642]"
                           onClick={() => setPendingAuditRemoval(null)}
                           type="button"
                         >
@@ -268,7 +266,7 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                     </div>
                   ) : null}
                 </div>
-                <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+                <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
                   {auditEvents.map((event) => (
                     <li key={event.id} className="grid gap-3 px-6 py-5 sm:grid-cols-[1fr_auto]">
                       <div className="min-w-0">
@@ -276,16 +274,16 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                           <Badge tone={event.actor === "Broker" ? "success" : "neutral"}>
                             {event.actor}
                           </Badge>
-                          <span className="text-[12px] uppercase tracking-[0.14em] text-[#75758a]">
+                          <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                             {formatDate(event.occurredAt)}
                           </span>
                         </div>
-                        <h2 className="mt-2 text-[14px] font-medium text-[#17171c]">{event.label}</h2>
-                        <p className="mt-1 text-[13px] leading-6 text-[#616161]">{event.detail}</p>
+                        <h2 className="mt-2 text-[14px] font-medium text-[#171719]">{event.label}</h2>
+                        <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{event.detail}</p>
                       </div>
                       <button
                         aria-label={`Remove audit entry: ${event.label}`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#9b9ba6] transition-colors hover:bg-[#f7f7f9] hover:text-[#17171c]"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#A9ABA5] transition-colors hover:bg-[#F6F6F3] hover:text-[#171719]"
                         onClick={() => setPendingAuditRemoval(event)}
                         type="button"
                       >
@@ -300,7 +298,6 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
             <div className="grid gap-8">
               <Card className="overflow-hidden">
               <CardHeader
-                eyebrow="Editable draft"
                 title={selected.report.title}
                 description={`${selected.seller?.name ?? "Owner"} · ${selected.input.period}`}
                 action={
@@ -310,7 +307,7 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                 }
               />
               <div className="grid gap-5 px-6 py-5">
-                <div className="grid gap-3 rounded-2xl border border-[#e6eee9] bg-[#f7fbf8] p-4 sm:grid-cols-3">
+                <div className="grid gap-3 rounded-2xl border border-[#E7EFEA] bg-[#f7fbf8] p-4 sm:grid-cols-3">
                   <ReportStat label="Inquiries" value={`${selected.input.inquiries}`} />
                   <ReportStat label="Qualified" value={`${selected.input.qualifiedLeads}`} />
                   <ReportStat label="Viewings" value={`${selected.input.viewings}`} />
@@ -318,12 +315,12 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
 
                 <textarea
                   aria-label="Editable seller report draft"
-                  className="min-h-[460px] w-full resize-y rounded-2xl border border-[#d9d9dd] bg-[#fffefc] p-6 text-[15px] leading-8 text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#003c33] focus:ring-2 focus:ring-[#003c33]/10"
+                  className="min-h-[460px] w-full resize-y rounded-2xl border border-[#D9DAD4] bg-[#fffefc] p-6 text-[15px] leading-8 text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/10"
                   onChange={(event) => editDraft(event.target.value)}
                   value={draftBody}
                 />
 
-                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-3">
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-3">
                   <Button onClick={approveDraft} type="button">
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                     {approvedReportIds.includes(selected.input.id) ? "Approved" : "Approve report"}
@@ -337,7 +334,7 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                     {sentReportIds.includes(selected.input.id) ? "Staged" : "Stage send"}
                   </Button>
                   <Link
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-5 text-sm font-medium text-[#17171c] hover:border-[#17171c]"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
                     href={`/sellers/${selected.input.sellerId}`}
                   >
                     Open owner context
@@ -345,11 +342,11 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                 </div>
 
                 {showExportPreview ? (
-                  <div className="rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-6">
-                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e5e7eb] pb-4">
+                  <div className="rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E7E7E2] pb-4">
                       <div>
                         <p className="bb-mono-label">Owner report PDF preview</p>
-                        <h3 className="bb-display mt-2 text-xl font-medium text-[#17171c]">
+                        <h3 className="bb-display mt-2 text-xl font-medium text-[#171719]">
                           {selected.report.title}
                         </h3>
                       </div>
@@ -357,7 +354,7 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                         Print / save PDF
                       </Button>
                     </div>
-                    <pre className="mt-5 whitespace-pre-wrap font-sans text-[13px] leading-7 text-[#3f3f46]">
+                    <pre className="mt-5 whitespace-pre-wrap font-sans text-[13px] leading-7 text-[#5F625E]">
                       {draftBody}
                     </pre>
                   </div>
@@ -367,7 +364,6 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
 
               <Card>
                 <CardHeader
-                  eyebrow="Report inputs"
                   title="Source activity and plan"
                   action={
                     <CardHeaderIcon>
@@ -377,9 +373,9 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
                 />
                 <div className="grid gap-4 p-6 sm:grid-cols-2">
                   {selected.report.sections.map((section) => (
-                    <div key={section.label} className="rounded-2xl border border-[#ececf0] bg-[#fbfbfa] p-5">
+                    <div key={section.label} className="rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-5">
                       <p className="bb-mono-label">{section.label}</p>
-                      <p className="mt-3 text-[14px] leading-7 text-[#3f3f46]">{section.value}</p>
+                      <p className="mt-3 text-[14px] leading-7 text-[#5F625E]">{section.value}</p>
                     </div>
                   ))}
                 </div>
@@ -394,9 +390,9 @@ export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
 
 function ReportStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[#e8f0ea] bg-white px-4 py-3 shadow-[0_10px_24px_rgba(23,23,28,0.03)]">
+    <div className="rounded-xl border border-[#E7EFEA] bg-white px-4 py-3 shadow-[0_10px_24px_rgba(23,23,28,0.03)]">
       <p className="bb-mono-label">{label}</p>
-      <p className="mt-2 font-mono text-lg font-semibold text-[#17171c]">{value}</p>
+      <p className="mt-2 font-mono text-lg font-semibold text-[#171719]">{value}</p>
     </div>
   );
 }

@@ -46,7 +46,7 @@ export function ListingMediaGallery({ listing }: { listing: YachtListing }) {
         {hiddenCount ? (
           <button
             aria-label={`Open all ${photos.length} listing photos`}
-            className="group relative min-h-48 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-[#17171c] text-left text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            className="group relative min-h-48 overflow-hidden rounded-2xl border border-[#E7E7E2] bg-[#171719] text-left text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
             onClick={() => openPreview(2)}
             type="button"
           >
@@ -103,7 +103,7 @@ export function ListingMediaGallery({ listing }: { listing: YachtListing }) {
                 <ChevronLeft className="h-5 w-5" aria-hidden="true" />
               </button>
             ) : null}
-            <div className="relative h-full max-h-[72vh] w-full overflow-hidden rounded-[28px]">
+            <div className="relative h-full max-h-[72vh] w-full overflow-hidden rounded-[24px]">
               <Image
                 alt={selectedPhoto.alt}
                 className="object-contain"
@@ -153,7 +153,7 @@ function ListingPhotoTile({
   photo?: ListingPhoto;
 }) {
   return (
-    <div className="relative h-full min-h-48 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-[#f5f4ef]">
+    <div className="relative h-full min-h-48 overflow-hidden rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE]">
       {photo ? (
         <Image
           alt={photo.alt}
@@ -163,7 +163,7 @@ function ListingPhotoTile({
           src={photo.src}
         />
       ) : (
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#edf1ee_0%,#f8f6ef_45%,#e5ece8_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#edf1ee_0%,#F8F3E8_45%,#e5ece8_100%)]" />
       )}
     </div>
   );

@@ -186,11 +186,11 @@ export function BuyerIntakeFlow({
       <ToastViewport
         action={
           saveResult?.storage === "database" ? (
-            <Link className="font-semibold text-[#003c33] underline underline-offset-4" href={`/buyers/${saveResult.id}`}>
+            <Link className="font-semibold text-[#003C33] underline underline-offset-4" href={`/buyers/${saveResult.id}`}>
               Open buyer memory
             </Link>
           ) : (
-            <Link className="font-semibold text-[#003c33] underline underline-offset-4" href="/buyers">
+            <Link className="font-semibold text-[#003C33] underline underline-offset-4" href="/buyers">
               Back to buyers
             </Link>
           )
@@ -212,7 +212,7 @@ export function BuyerIntakeFlow({
       />
 
       <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#3f3f46] hover:text-[#17171c]"
+        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
         href={isEditing && editingBuyer ? `/buyers/${editingBuyer.id}` : "/buyers"}
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -225,12 +225,12 @@ export function BuyerIntakeFlow({
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="min-w-0">
                 <p className="bb-mono-label">{isEditing ? "Edit buyer" : "Buyer intake"}</p>
-                <h1 className="bb-display mt-3 text-[2.2rem] font-medium leading-[1.05] text-[#17171c]">
+                <h1 className="bb-display mt-3 text-[2.2rem] font-medium leading-[1.05] text-[#171719]">
                   {isEditing && editingBuyer
                     ? `Edit ${editingBuyer.name}`
                     : config.title}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-[#616161]">
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-[#5F625E]">
                   {isEditing
                     ? "Update criteria, urgency, or relationship memory. Saved changes overwrite the existing profile."
                     : config.description}
@@ -241,7 +241,7 @@ export function BuyerIntakeFlow({
 
             {/* Compact "active segment" hint — image kept as small thumbnail,
                 copy condensed to one row so the form gets the visual weight. */}
-            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-2.5">
+            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-2.5">
               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#edeae3]">
                 <Image
                   alt=""
@@ -252,15 +252,15 @@ export function BuyerIntakeFlow({
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="bb-mono-label text-[#75758a]">
+                <p className="bb-mono-label text-[#8E918B]">
                   Active segment · {segmentMeta.label}
                 </p>
-                <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#616161]">
+                <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#5F625E]">
                   Follows your broker segment from Profile.
                 </p>
               </div>
               <Link
-                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-3.5 text-[12.5px] font-medium text-[#17171c] hover:border-[#17171c]"
+                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#D9DAD4] bg-white px-3.5 text-[12.5px] font-medium text-[#171719] hover:border-[#003C33]"
                 href="/profile"
               >
                 Change segment
@@ -293,19 +293,19 @@ export function BuyerIntakeFlow({
           <Card className="p-6">
             <p className="bb-mono-label">Buyer summary</p>
             <div className="mt-4 flex items-start gap-3">
-              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#003c33] text-white shadow-[0_10px_24px_rgba(0,60,51,0.18)]">
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#003C33] text-white shadow-[0_10px_24px_rgba(0,60,51,0.18)]">
                 <UserRound className="h-5 w-5" aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <h2 className="bb-display text-2xl font-medium leading-tight text-[#17171c]">
+                <h2 className="bb-display text-2xl font-medium leading-tight text-[#171719]">
                   {buyerName}
                 </h2>
-                <p className="mt-1 text-sm leading-6 text-[#616161]">
+                <p className="mt-1 text-sm leading-6 text-[#5F625E]">
                   {summary || "Complete core fields to generate a buyer-ready memory summary."}
                 </p>
               </div>
             </div>
-            <dl className="mt-5 grid gap-3 border-y border-[#f2f2f2] py-5">
+            <dl className="mt-5 grid gap-3 border-y border-[#E7E7E2] py-5">
               <SummaryLine label="Segment" value={getSegmentLabel(segment)} />
               <SummaryLine
                 label="Budget"
@@ -319,10 +319,10 @@ export function BuyerIntakeFlow({
               <SummaryLine label="Save mode" value={saveAsDraft ? "Draft" : "Active buyer"} />
               <SummaryLine label="Required fields" value={`${completedRequired}/${requiredFields.length}`} />
             </dl>
-            <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#e5e7eb] bg-[#fbfbfa] p-4">
+            <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-4">
               <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-[#17171c]">Save as draft</span>
-                <span className="mt-1 block text-[12px] leading-5 text-[#616161]">
+                <span className="block text-[13px] font-semibold text-[#171719]">Save as draft</span>
+                <span className="mt-1 block text-[12px] leading-5 text-[#5F625E]">
                   Drafts stay internal; turn this off to create an active buyer memory.
                 </span>
               </span>
@@ -334,7 +334,7 @@ export function BuyerIntakeFlow({
               />
               <span
                 aria-hidden="true"
-                className="relative h-7 w-12 shrink-0 rounded-full bg-[#d9d9dd] transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-[#003c33] peer-checked:after:translate-x-5"
+                className="relative h-7 w-12 shrink-0 rounded-full bg-[#D9DAD4] transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-[#003C33] peer-checked:after:translate-x-5"
               />
             </label>
             <Button className="mt-4 w-full" disabled={isSaving} onClick={saveBuyer} type="button">
@@ -352,8 +352,8 @@ export function BuyerIntakeFlow({
                 {saveError}
               </div>
             ) : (
-              <div className="mt-4 rounded-2xl bg-[#f7f7f9] px-4 py-3 text-[13px] leading-6 text-[#616161]">
-                <Sparkles className="mr-1 inline h-4 w-4 align-[-3px] text-[#003c33]" aria-hidden="true" />
+              <div className="mt-4 rounded-2xl bg-[#F6F6F3] px-4 py-3 text-[13px] leading-6 text-[#5F625E]">
+                <Sparkles className="mr-1 inline h-4 w-4 align-[-3px] text-[#003C33]" aria-hidden="true" />
                 Saved buyers become rich cards and memory pages for this broker account.
               </div>
             )}
@@ -380,24 +380,24 @@ function FieldControl({
 
     return (
       <fieldset className={cn("grid gap-1.5", field.wide && "lg:col-span-3")}>
-        <legend className="text-sm font-medium text-[#212121]">{field.label}</legend>
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#d9d9dd] bg-white">
+        <legend className="text-sm font-medium text-[#171719]">{field.label}</legend>
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#D9DAD4] bg-white">
           <input
-            className="min-h-11 min-w-0 border-r border-[#e5e7eb] px-3.5 text-[15px] text-[#17171c] outline-none placeholder:text-[#9b9ba6]"
+            className="min-h-11 min-w-0 border-r border-[#E7E7E2] px-3.5 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5]"
             inputMode="numeric"
             onChange={(event) => onChange({ ...rangeValue, from: event.target.value })}
             placeholder={field.fromPlaceholder ?? "From"}
             value={rangeValue.from}
           />
           <input
-            className="min-h-11 min-w-0 px-3.5 text-[15px] text-[#17171c] outline-none placeholder:text-[#9b9ba6]"
+            className="min-h-11 min-w-0 px-3.5 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5]"
             inputMode="numeric"
             onChange={(event) => onChange({ ...rangeValue, to: event.target.value })}
             placeholder={field.toPlaceholder ?? "To"}
             value={rangeValue.to}
           />
         </div>
-        {field.helper ? <p className="text-xs font-normal text-[#75758a]">{field.helper}</p> : null}
+        {field.helper ? <p className="text-xs font-normal text-[#8E918B]">{field.helper}</p> : null}
       </fieldset>
     );
   }
@@ -416,15 +416,15 @@ function FieldControl({
 
   if (field.kind === "textarea") {
     return (
-      <label className={cn("grid gap-1.5 text-sm font-medium text-[#212121]", field.wide && "lg:col-span-3")}>
+      <label className={cn("grid gap-1.5 text-sm font-medium text-[#171719]", field.wide && "lg:col-span-3")}>
         <span>{field.label}</span>
         <textarea
-          className="min-h-28 rounded-xl border border-[#d9d9dd] bg-white px-3.5 py-3 text-[15px] text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+          className="min-h-28 rounded-xl border border-[#D9DAD4] bg-white px-3.5 py-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
           onChange={(event) => onChange(event.target.value)}
           placeholder={field.placeholder}
           value={stringValue}
         />
-        {field.helper ? <span className="text-xs font-normal text-[#75758a]">{field.helper}</span> : null}
+        {field.helper ? <span className="text-xs font-normal text-[#8E918B]">{field.helper}</span> : null}
       </label>
     );
   }
@@ -446,8 +446,8 @@ function FieldControl({
 function SummaryLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[110px_1fr] gap-3 text-sm">
-      <dt className="text-[#75758a]">{label}</dt>
-      <dd className="min-w-0 font-medium text-[#17171c]">{value}</dd>
+      <dt className="text-[#8E918B]">{label}</dt>
+      <dd className="min-w-0 font-medium text-[#171719]">{value}</dd>
     </div>
   );
 }

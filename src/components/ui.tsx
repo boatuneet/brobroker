@@ -1,5 +1,4 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ============================================================
@@ -20,18 +19,18 @@ export function Badge({
 }) {
   const toneClass =
     tone === "success"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      ? "border-[#E1F1EA] bg-[#E1F1EA] text-[#0F8F62]"
       : tone === "warning"
-        ? "border-amber-200 bg-amber-50 text-amber-900"
+        ? "border-[#F0DDD0] bg-[#F0DDD0] text-[#A86642]"
         : tone === "error"
-          ? "border-rose-200 bg-rose-50 text-rose-800"
+          ? "border-[#F0DDD0] bg-[#F0DDD0] text-[#A86642]"
           : tone === "info"
             ? "border-[#cfdcfa] bg-[#f1f5ff] text-[#1448a8]"
             : tone === "coral"
               ? "border-[#ffd6cc] bg-white text-[#c64a31]"
               : tone === "ink"
-                ? "border-[#17171c] bg-[#17171c] text-white"
-                : "border-[#e5e7eb] bg-white text-[#3f3f46]";
+                ? "border-[#171719] bg-[#171719] text-white"
+                : "border-[#E7E7E2] bg-white text-[#5F625E]";
 
   return (
     <span
@@ -66,11 +65,11 @@ export function Button({
         "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6] disabled:pointer-events-none disabled:opacity-50",
         sizing,
         variant === "primary" &&
-          "bg-[#17171c] text-white hover:bg-[#2a2a32]",
+          "bg-[#003C33] text-white hover:bg-[#0B4A3F]",
         variant === "secondary" &&
-          "border border-[#d9d9dd] bg-white text-[#17171c] hover:border-[#17171c]",
+          "border border-[#D9DAD4] bg-white text-[#171719] hover:border-[#003C33]",
         variant === "ghost" &&
-          "text-[#3f3f46] hover:bg-[#f5f4ef]",
+          "text-[#5F625E] hover:bg-[#F1F2EE]",
         variant === "danger" &&
           "bg-[#b30000] text-white hover:bg-[#8d0000]",
         variant === "link" &&
@@ -86,7 +85,7 @@ export function Card({ children, className, ...props }: ComponentPropsWithoutRef
   return (
     <section
       className={cn(
-        "min-w-0 rounded-2xl border border-[#e5e7eb] bg-white",
+        "min-w-0 rounded-2xl border border-[#E7E7E2] bg-white",
         className,
       )}
       {...props}
@@ -108,12 +107,12 @@ export function CardHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-4 border-b border-[#f2f2f2] px-6 py-5 sm:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid grid-cols-1 items-start gap-4 border-b border-[#E7E7E2] px-6 py-5 sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="min-w-0">
         {eyebrow ? <p className="bb-mono-label">{eyebrow}</p> : null}
-        <h2 className="bb-display mt-2 text-xl font-medium text-[#17171c]">{title}</h2>
+        <h2 className="bb-display mt-2 text-xl font-medium text-[#171719]">{title}</h2>
         {description ? (
-          <p className="mt-2 max-w-xl text-sm leading-6 text-[#616161]">{description}</p>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-[#5F625E]">{description}</p>
         ) : null}
       </div>
       {action ? (
@@ -133,7 +132,7 @@ export function CardHeaderIcon({
   return (
     <span
       className={cn(
-        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003c33]",
+        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003C33]",
         className,
       )}
     >
@@ -152,28 +151,40 @@ export function PageHeader({
   metrics,
   actions,
 }: {
-  eyebrow: string;
+  /* Eyebrow chip is optional. Most workspace screens omit it now — only the
+     dashboard's custom header keeps a segment chip + date. */
+  eyebrow?: string;
   eyebrowActions?: ReactNode;
   title: string;
   description?: string;
   metrics?: Array<{ label: string; value: string }>;
   actions?: ReactNode;
 }) {
+  const hasEyebrowRow = Boolean(eyebrow || eyebrowActions);
   return (
-    <header className="grid gap-5 border-b border-[#e1e1e5] pb-7">
+    <header className="grid gap-5">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="inline-flex min-h-7 items-center rounded-full border border-[#dedee3] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-[#6f7080]">
-              {eyebrow}
-            </p>
-            {eyebrowActions}
-          </div>
-          <h1 className="bb-display mt-4 max-w-[860px] text-[2rem] font-medium leading-[1.08] text-[#17171c] sm:text-[2.35rem]">
+          {hasEyebrowRow ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {eyebrow ? (
+                <p className="inline-flex min-h-7 items-center rounded-full border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-[#8E918B]">
+                  {eyebrow}
+                </p>
+              ) : null}
+              {eyebrowActions}
+            </div>
+          ) : null}
+          <h1
+            className={cn(
+              "bb-display max-w-[860px] text-[2rem] font-medium leading-[1.08] text-[#171719] sm:text-[2.35rem]",
+              hasEyebrowRow ? "mt-4" : "",
+            )}
+          >
             {title}
           </h1>
           {description ? (
-            <p className="mt-3 max-w-3xl text-[14px] leading-7 text-[#54545f]">
+            <p className="mt-3 max-w-3xl text-[14px] leading-7 text-[#5F625E]">
               {description}
             </p>
           ) : null}
@@ -185,16 +196,30 @@ export function PageHeader({
         ) : null}
       </div>
       {metrics?.length ? (
-        <dl className="flex flex-wrap gap-2.5">
-          {metrics.map((metric) => (
+        /* KPI tile band — same shape Buyers/Listings use. White surface
+           with eyebrow label + big number. First tile gets the cream accent
+           so the row reads as one editorial cluster. */
+        <dl
+          className={cn(
+            "mt-2 grid gap-3",
+            metrics.length === 1 && "grid-cols-1",
+            metrics.length === 2 && "grid-cols-1 sm:grid-cols-2",
+            metrics.length === 3 && "grid-cols-2 md:grid-cols-3",
+            metrics.length >= 4 && "grid-cols-2 md:grid-cols-4",
+          )}
+        >
+          {metrics.map((metric, index) => (
             <div
               key={metric.label}
-              className="inline-flex min-h-11 items-center gap-3 rounded-full border border-[#dedee3] bg-white px-4 py-2"
+              className={cn(
+                "rounded-[24px] border p-5",
+                index === 0
+                  ? "border-transparent bg-[#F2EADC] text-[#171719]"
+                  : "border-[#E7E7E2] bg-white text-[#171719]",
+              )}
             >
-              <dt className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#777888]">
-                {metric.label}
-              </dt>
-              <dd className="font-mono text-[15px] font-semibold text-[#17171c]">
+              <dt className="bb-mono-label">{metric.label}</dt>
+              <dd className="bb-display mt-3 text-[28px] font-medium leading-none tabular-nums">
                 {metric.value}
               </dd>
             </div>
@@ -222,10 +247,10 @@ export function MetricCard({
     <Card className={cn("p-6", className)}>
       <p className="bb-mono-label">{label}</p>
       <div className="mt-4 flex items-end justify-between gap-3">
-        <p className="bb-display text-3xl font-medium text-[#17171c]">{value}</p>
+        <p className="bb-display text-3xl font-medium text-[#171719]">{value}</p>
         <Badge tone="neutral">{trend}</Badge>
       </div>
-      <p className="mt-4 text-sm leading-6 text-[#616161]">{detail}</p>
+      <p className="mt-4 text-sm leading-6 text-[#5F625E]">{detail}</p>
     </Card>
   );
 }
@@ -241,13 +266,13 @@ export function ProgressBar({
 }) {
   const bar =
     tone === "green"
-      ? "bg-[#003c33]"
+      ? "bg-[#003C33]"
       : tone === "coral"
-        ? "bg-[#ff7759]"
-        : "bg-[#17171c]";
+        ? "bg-[#A86642]"
+        : "bg-[#171719]";
 
   return (
-    <div className={cn("h-1.5 overflow-hidden rounded-full bg-[#eeece7]", className)}>
+    <div className={cn("h-1.5 overflow-hidden rounded-full bg-[#F2EADC]", className)}>
       <div
         className={cn("h-full rounded-full transition-all", bar)}
         style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
@@ -269,14 +294,14 @@ export function WorkflowState({
 }) {
   const toneClass =
     tone === "approval"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+      ? "border-[#E1F1EA] bg-[#E1F1EA] text-[#0F8F62]"
       : tone === "warning"
-        ? "border-amber-200 bg-amber-50 text-amber-950"
+        ? "border-[#F0DDD0] bg-[#F0DDD0] text-[#A86642]"
         : tone === "error"
-          ? "border-rose-200 bg-rose-50 text-rose-950"
+          ? "border-[#F0DDD0] bg-[#F0DDD0] text-[#A86642]"
           : tone === "loading"
             ? "border-[#cfdcfa] bg-[#f1f5ff] text-[#0e2a66]"
-            : "border-[#e5e7eb] bg-white text-[#17171c]";
+            : "border-[#E7E7E2] bg-white text-[#171719]";
 
   return (
     <div className={cn("rounded-xl border p-5", toneClass)}>
@@ -303,8 +328,8 @@ export function EmptyState({
 }) {
   return (
     <div className={cn("px-6 py-10 text-center", className)}>
-      <p className="bb-display text-[15px] font-medium text-[#17171c]">{title}</p>
-      <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-[#75758a]">
+      <p className="bb-display text-[15px] font-medium text-[#171719]">{title}</p>
+      <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-[#8E918B]">
         {description}
       </p>
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
@@ -322,43 +347,20 @@ export function TextInput({
   helper?: string;
 }) {
   return (
-    <label className={cn("grid gap-1.5 text-sm font-medium text-[#212121]", className)}>
+    <label className={cn("grid gap-1.5 text-sm font-medium text-[#171719]", className)}>
       <span>{label}</span>
       <input
-        className="min-h-11 rounded-lg border border-[#d9d9dd] bg-white px-3 text-[15px] text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
+        className="min-h-11 rounded-lg border border-[#D9DAD4] bg-white px-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
         {...props}
       />
-      {helper ? <span className="text-xs font-normal text-[#75758a]">{helper}</span> : null}
+      {helper ? <span className="text-xs font-normal text-[#8E918B]">{helper}</span> : null}
     </label>
   );
 }
 
-export function SelectInput({
-  label,
-  children,
-  className,
-  ...props
-}: ComponentPropsWithoutRef<"select"> & {
-  label: string;
-}) {
-  return (
-    <label className={cn("grid gap-1.5 text-sm font-medium text-[#212121]", className)}>
-      <span>{label}</span>
-      <span className="relative">
-        <select
-          className="min-h-11 w-full appearance-none rounded-xl border border-[#d9d9dd] bg-white px-3.5 py-2 pr-10 text-[15px] text-[#17171c] outline-none transition-colors hover:border-[#bfc0c8] focus:border-[#9b60aa] focus:ring-2 focus:ring-[#9b60aa]/15"
-          {...props}
-        >
-          {children}
-        </select>
-        <ChevronDown
-          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777888]"
-          aria-hidden="true"
-        />
-      </span>
-    </label>
-  );
-}
+/* SelectInput was a native-<select> wrapper. It's been removed in favor of
+   the custom SelectMenu component (src/components/select-menu.tsx), which
+   provides a styled popover instead of the OS native dropdown. */
 
 export function TabList({
   items,
@@ -368,15 +370,15 @@ export function TabList({
   active: string;
 }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-full border border-[#d9d9dd] bg-white p-1">
+    <div className="inline-flex items-center gap-1 rounded-full border border-[#D9DAD4] bg-white p-1">
       {items.map((item) => (
         <button
           key={item}
           className={cn(
             "min-h-8 rounded-full px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
             active === item
-              ? "bg-[#17171c] text-white"
-              : "text-[#3f3f46] hover:bg-[#f5f4ef]",
+              ? "bg-[#171719] text-white"
+              : "text-[#5F625E] hover:bg-[#F1F2EE]",
           )}
           type="button"
         >
@@ -400,14 +402,14 @@ export function DialogShell({
     <div
       aria-labelledby="dialog-preview-title"
       aria-modal="true"
-      className="rounded-2xl border border-[#e5e7eb] bg-white p-6"
+      className="rounded-2xl border border-[#E7E7E2] bg-white p-6"
       role="dialog"
     >
-      <div className="border-b border-[#f2f2f2] pb-4">
-        <h3 id="dialog-preview-title" className="bb-display text-lg font-medium text-[#17171c]">
+      <div className="border-b border-[#E7E7E2] pb-4">
+        <h3 id="dialog-preview-title" className="bb-display text-lg font-medium text-[#171719]">
           {title}
         </h3>
-        <p className="mt-2 text-sm leading-6 text-[#616161]">{description}</p>
+        <p className="mt-2 text-sm leading-6 text-[#5F625E]">{description}</p>
       </div>
       <div className="pt-4">{children}</div>
     </div>
@@ -434,8 +436,8 @@ export function Stat({
   return (
     <div className={cn("min-w-0", className)}>
       <p className="bb-mono-label">{label}</p>
-      <p className="mt-2 text-lg font-medium tracking-[-0.01em] text-[#17171c]">{value}</p>
-      {detail ? <p className="mt-1 text-sm leading-6 text-[#616161]">{detail}</p> : null}
+      <p className="mt-2 text-lg font-medium tracking-[-0.01em] text-[#171719]">{value}</p>
+      {detail ? <p className="mt-1 text-sm leading-6 text-[#5F625E]">{detail}</p> : null}
     </div>
   );
 }
@@ -458,13 +460,13 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cn("border-t border-[#e5e7eb] pt-8", className)}>
+    <section className={cn("border-t border-[#E7E7E2] pt-8", className)}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           {eyebrow ? <p className="bb-mono-label">{eyebrow}</p> : null}
-          <h2 className="bb-display mt-2 text-[22px] font-medium text-[#17171c]">{title}</h2>
+          <h2 className="bb-display mt-2 text-[22px] font-medium text-[#171719]">{title}</h2>
           {description ? (
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#616161]">{description}</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5F625E]">{description}</p>
           ) : null}
         </div>
         {action}

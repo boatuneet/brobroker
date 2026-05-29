@@ -38,20 +38,24 @@ function buildState(log: PulseActionEntry[]): PulseActionState {
 }
 
 export function usePulseActions() {
-  /* Lazy init reads localStorage during the first render. readPersisted is
-     SSR-safe (returns fallback when window is undefined), so SSR sees empty
-     and the first client render swaps in the persisted state. Matches the
-     codebase convention used in reports-workspace.tsx. */
-  const [state, setState] = useState<PulseActionState>(() =>
-    buildState(readPersisted<PulseActionEntry[]>(ACTIONS_KEY, [])),
-  );
-  const [lastVisitAt] = useState<string | null>(() =>
-    readPersisted<string | null>(LAST_VISIT_KEY, null),
-  );
+  /* SSR-safe defaults: both server and the first client render produce empty
+     state. We hydrate from localStorage AFTER mount, then update state. This
+     avoids a hydration mismatch where SSR's "your last visit" wouldn't match
+     the client's "29 May" once persisted data is read. */
+  const [state, setState] = useState<PulseActionState>(() => buildState([]));
+  const [lastVisitAt, setLastVisitAt] = useState<string | null>(null);
 
-  /* Side-effect only: record this visit after mount. No setState cascade
-     because lastVisitAt was already captured at render time. */
   useEffect(() => {
+    /* Hydrate persisted state. SSR + first paint use the empty defaults to
+       match initial server output; this effect then upgrades to real
+       persisted state. The setState-in-effect rule is intentionally disabled
+       here — it's the React-recommended pattern for SSR-safe localStorage
+       hydration. */
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setState(buildState(readPersisted<PulseActionEntry[]>(ACTIONS_KEY, [])));
+    setLastVisitAt(readPersisted<string | null>(LAST_VISIT_KEY, null));
+    /* eslint-enable react-hooks/set-state-in-effect */
+    /* Record this visit AFTER reading the prior value. */
     writePersisted(LAST_VISIT_KEY, new Date().toISOString());
   }, []);
 

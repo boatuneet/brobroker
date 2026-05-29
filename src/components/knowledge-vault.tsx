@@ -76,16 +76,16 @@ const HEALTH_ICON = {
 } satisfies Record<KnowledgeHealthCheck["tone"], typeof CheckCircle2>;
 
 const HEALTH_TEXT_TONE = {
-  success: "text-emerald-700",
-  warning: "text-amber-700",
-  error: "text-rose-700",
+  success: "text-[#0F8F62]",
+  warning: "text-[#A86642]",
+  error: "text-[#A86642]",
   info: "text-[#1448a8]",
 } satisfies Record<KnowledgeHealthCheck["tone"], string>;
 
 const HEALTH_DOT_TONE = {
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
-  error: "bg-rose-500",
+  success: "bg-[#0F8F62]",
+  warning: "bg-[#A86642]",
+  error: "bg-[#A86642]",
   info: "bg-[#1863dc]",
 } satisfies Record<KnowledgeHealthCheck["tone"], string>;
 
@@ -157,7 +157,7 @@ function AnchorTile({
   onJumpTo: () => void;
 }) {
   return (
-    <article className="relative overflow-hidden rounded-[28px] bg-[#003c33] px-7 py-8 text-[#f4ead5] shadow-[0_30px_80px_-30px_rgba(0,60,51,0.5)] sm:px-10 sm:py-10">
+    <article className="relative overflow-hidden rounded-[28px] bg-[#003C33] px-7 py-8 text-[#F2EADC] shadow-[0_30px_80px_-30px_rgba(0,60,51,0.5)] sm:px-10 sm:py-10">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-[0.18]"
@@ -168,17 +168,17 @@ function AnchorTile({
       />
       <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="min-w-0">
-          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#f4ead5]/85">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#ff7759]" aria-hidden="true" />
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#F2EADC]/85">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#A86642]" aria-hidden="true" />
             {segmentTitle} knowledge vault
           </p>
-          <h1 className="bb-display mt-5 max-w-[680px] text-[2rem] font-medium leading-[1.06] text-[#f4ead5] sm:text-[2.4rem]">
+          <h1 className="bb-display mt-5 max-w-[680px] text-[2rem] font-medium leading-[1.06] text-[#F2EADC] sm:text-[2.4rem]">
             What this vault knows — and where it&apos;s thin.
           </h1>
-          <p className="mt-4 max-w-[640px] text-[14.5px] leading-[1.65] text-[#f4ead5]/80">
+          <p className="mt-4 max-w-[640px] text-[14.5px] leading-[1.65] text-[#F2EADC]/80">
             Generated workspace pages compile operational records into
             source-linked broker memory. The weakest page right now is{" "}
-            <span className="font-medium text-[#f4ead5]">{anchorPage.title}</span>{" "}
+            <span className="font-medium text-[#F2EADC]">{anchorPage.title}</span>{" "}
             — {confidenceLabel(anchorPage.confidence).toLowerCase()} confidence
             ({anchorPage.confidence}%) with {anchorPage.openGaps.length} open{" "}
             {anchorPage.openGaps.length === 1 ? "gap" : "gaps"}. Fix that first.
@@ -199,7 +199,7 @@ function AnchorTile({
           </div>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <button
-              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#f4ead5] px-5 text-[13.5px] font-medium text-[#003c33] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff7759]"
+              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#F2EADC] px-5 text-[13.5px] font-medium text-[#003C33] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A86642]"
               onClick={onJumpTo}
               type="button"
             >
@@ -207,7 +207,7 @@ function AnchorTile({
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </button>
             <Link
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 px-5 text-[13.5px] font-medium text-[#f4ead5]/90 transition-colors hover:border-white/50 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff7759]"
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 px-5 text-[13.5px] font-medium text-[#F2EADC]/90 transition-colors hover:border-white/50 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A86642]"
               href="/dashboard"
             >
               Back to dashboard
@@ -216,7 +216,7 @@ function AnchorTile({
         </div>
         <div className="flex shrink-0 items-center justify-center lg:justify-end">
           <div className="rounded-[24px] border border-white/15 bg-white/[0.04] px-7 py-6 text-center backdrop-blur-sm">
-            <p className="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[#f4ead5]/70">
+            <p className="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[#F2EADC]/70">
               Anchor page
             </p>
             <div className="mt-4 flex items-center justify-center">
@@ -228,10 +228,10 @@ function AnchorTile({
                 label={`${anchorPage.confidence}%`}
               />
             </div>
-            <p className="mt-4 text-[13px] font-medium text-[#f4ead5]">
+            <p className="mt-4 text-[13px] font-medium text-[#F2EADC]">
               {anchorPage.title}
             </p>
-            <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#f4ead5]/65">
+            <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#F2EADC]/65">
               {confidenceLabel(anchorPage.confidence)} confidence
             </p>
           </div>
@@ -272,7 +272,7 @@ function KpiBand({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="bb-mono-label">Confidence spread</p>
-            <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#17171c]">
+            <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#171719]">
               {high} strong · {med} mid · {low} thin
             </p>
           </div>
@@ -293,7 +293,7 @@ function KpiBand({
           highlightIndex={low > 0 ? 0 : 2}
           height={64}
         />
-        <p className="text-[12px] leading-[1.6] text-[#54545f]">
+        <p className="text-[12px] leading-[1.6] text-[#5F625E]">
           Avg confidence {avg}% across {pages.length} compiled pages. Low-band
           pages need stronger source coverage before external use.
         </p>
@@ -303,7 +303,7 @@ function KpiBand({
       <Tile className="flex flex-col gap-5">
         <div>
           <p className="bb-mono-label">Composition</p>
-          <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#17171c]">
+          <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#171719]">
             What the vault is mostly about
           </p>
         </div>
@@ -316,7 +316,7 @@ function KpiBand({
             }))}
           />
         ) : null}
-        <p className="text-[12px] leading-[1.6] text-[#54545f]">
+        <p className="text-[12px] leading-[1.6] text-[#5F625E]">
           {categories.length} record type{categories.length === 1 ? "" : "s"}{" "}
           represented across the vault. Bigger circle = more compiled pages.
         </p>
@@ -326,11 +326,11 @@ function KpiBand({
       <Tile tone="cream" className="flex flex-col gap-5">
         <div>
           <p className="bb-mono-label">Vault signals</p>
-          <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#17171c]">
+          <p className="bb-display mt-2 text-[26px] font-medium leading-tight text-[#171719]">
             Health at a glance
           </p>
         </div>
-        <ul className="divide-y divide-[#17171c]/10">
+        <ul className="divide-y divide-[#171719]/10">
           {healthChecks.map((check) => {
             const Icon = HEALTH_ICON[check.tone];
             return (
@@ -346,7 +346,7 @@ function KpiBand({
                       HEALTH_DOT_TONE[check.tone],
                     )}
                   />
-                  <span className="truncate text-[12.5px] font-medium text-[#17171c]">
+                  <span className="truncate text-[12.5px] font-medium text-[#171719]">
                     {check.label}
                   </span>
                 </div>
@@ -385,22 +385,22 @@ function PageBrowserRow({
     <button
       aria-current={active ? "true" : undefined}
       className={cn(
-        "relative grid w-full gap-2 border-b border-[#f2f2f2] px-4 py-3.5 text-left transition-colors last:border-b-0",
+        "relative grid w-full gap-2 border-b border-[#E7E7E2] px-4 py-3.5 text-left transition-colors last:border-b-0",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#1863dc]",
         active
-          ? "bg-[#003c33]/[0.04] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-[3px] before:bg-[#003c33]"
-          : "bg-white hover:bg-[#fafaf7]",
+          ? "bg-[#003C33]/[0.04] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-[3px] before:bg-[#003C33]"
+          : "bg-white hover:bg-[#F1F2EE]",
       )}
       onClick={onSelect}
       type="button"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003c33]">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003C33]">
             <Icon className="h-3.5 w-3.5" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[13.5px] font-medium text-[#17171c]">{page.title}</p>
+            <p className="truncate text-[13.5px] font-medium text-[#171719]">{page.title}</p>
             <p className="bb-mono-label mt-0.5">{page.category}</p>
           </div>
         </div>
@@ -408,9 +408,9 @@ function PageBrowserRow({
           className={cn(
             "shrink-0 font-mono text-[11.5px] font-semibold tabular-nums",
             page.confidence >= 86
-              ? "text-emerald-700"
+              ? "text-[#0F8F62]"
               : page.confidence >= 72
-                ? "text-[#17171c]"
+                ? "text-[#171719]"
                 : "text-[#c64a31]",
           )}
         >
@@ -418,7 +418,7 @@ function PageBrowserRow({
         </span>
       </div>
       {page.openGaps.length ? (
-        <p className="ml-[42px] inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
+        <p className="ml-[42px] inline-flex items-center gap-1.5 text-[11px] font-medium text-[#A86642]">
           <AlertTriangle className="h-3 w-3" aria-hidden="true" />
           {page.openGaps.length} open {page.openGaps.length === 1 ? "gap" : "gaps"}
         </p>
@@ -459,10 +459,10 @@ function PageBrowser({
   return (
     <aside className="2xl:sticky 2xl:top-8">
       <Tile className="flex h-[720px] max-h-[calc(100dvh-7rem)] min-h-[480px] flex-col gap-0 p-0">
-        <div className="border-b border-[#ececef] px-4 pb-4 pt-4">
+        <div className="border-b border-[#E7E7E2] px-4 pb-4 pt-4">
           <div className="flex items-center justify-between gap-3">
             <p className="bb-mono-label">Pages</p>
-            <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#54545f]">
+            <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#5F625E]">
               {filteredPages.length}/{pages.length}
             </span>
           </div>
@@ -470,11 +470,11 @@ function PageBrowser({
             <span className="sr-only">Search knowledge vault</span>
             <Search
               aria-hidden="true"
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#777888]"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
             />
             <input
               autoComplete="off"
-              className="h-11 w-full rounded-full border border-[#d9d9dd] bg-white pl-10 pr-9 text-[13.5px] text-[#17171c] outline-none transition-colors placeholder:text-[#9b9ba6] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+              className="h-11 w-full rounded-full border border-[#D9DAD4] bg-white pl-10 pr-9 text-[13.5px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Search title, gap, source, tag…"
               type="search"
@@ -483,7 +483,7 @@ function PageBrowser({
             {query ? (
               <button
                 aria-label="Clear search"
-                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#777888] transition-colors hover:bg-[#f4ead5]/40 hover:text-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]"
+                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#8E918B] transition-colors hover:bg-[#F2EADC]/40 hover:text-[#171719] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]"
                 onClick={() => onQueryChange("")}
                 type="button"
               >
@@ -500,8 +500,8 @@ function PageBrowser({
                   className={cn(
                     "min-h-7 rounded-full border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
                     category === "All"
-                      ? "border-[#17171c] bg-[#17171c] text-white"
-                      : "border-[#e5e7eb] bg-white text-[#54545f] hover:border-[#17171c]",
+                      ? "border-[#171719] bg-[#171719] text-white"
+                      : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
                   )}
                   onClick={() => onCategoryChange("All")}
                   type="button"
@@ -522,10 +522,10 @@ function PageBrowser({
                   className={cn(
                     "min-h-7 rounded-full border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
                     isActive
-                      ? "border-[#17171c] bg-[#17171c] text-white"
+                      ? "border-[#171719] bg-[#171719] text-white"
                       : isEmpty
-                        ? "cursor-not-allowed border-[#ececef] bg-white text-[#9b9ba6] opacity-50"
-                        : "border-[#e5e7eb] bg-white text-[#54545f] hover:border-[#17171c]",
+                        ? "cursor-not-allowed border-[#E7E7E2] bg-white text-[#A9ABA5] opacity-50"
+                        : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
                   )}
                   disabled={isEmpty}
                   key={cat.label}
@@ -550,10 +550,10 @@ function PageBrowser({
             ))
           ) : (
             <div className="flex h-full flex-col items-center justify-center px-6 py-10 text-center">
-              <p className="bb-display text-[15px] font-medium text-[#17171c]">
+              <p className="bb-display text-[15px] font-medium text-[#171719]">
                 Nothing matches that filter.
               </p>
-              <p className="mt-2 max-w-[18rem] text-[12.5px] leading-6 text-[#75758a]">
+              <p className="mt-2 max-w-[18rem] text-[12.5px] leading-6 text-[#8E918B]">
                 Try a different keyword or category. Clearing the filter brings
                 back all {pages.length} pages.
               </p>
@@ -590,19 +590,19 @@ function PageBrief({ page }: { page: KnowledgePage }) {
       <Tile className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003c33]">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003C33]">
               <Icon className="h-4 w-4" aria-hidden="true" />
             </span>
             <Badge tone={CATEGORY_TONE[page.category]}>{page.category}</Badge>
             <Badge tone="neutral">{page.visibility}</Badge>
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#777888]">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#8E918B]">
               Updated {formatDate(page.updatedAt)}
             </span>
           </div>
-          <h2 className="bb-display mt-4 text-[1.75rem] font-medium leading-[1.1] text-[#17171c] sm:text-[2rem]">
+          <h2 className="bb-display mt-4 text-[1.75rem] font-medium leading-[1.1] text-[#171719] sm:text-[2rem]">
             {page.title}
           </h2>
-          <p className="mt-3 max-w-2xl text-[14px] leading-[1.7] text-[#3f3f46]">
+          <p className="mt-3 max-w-2xl text-[14px] leading-[1.7] text-[#5F625E]">
             {page.summary}
           </p>
           {page.tags.length ? (
@@ -615,7 +615,7 @@ function PageBrief({ page }: { page: KnowledgePage }) {
             </div>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-col items-center gap-2 rounded-[20px] border border-[#ececef] bg-[#fafaf7] px-6 py-5 sm:min-w-[180px]">
+        <div className="flex shrink-0 flex-col items-center gap-2 rounded-[20px] border border-[#E7E7E2] bg-[#F1F2EE] px-6 py-5 sm:min-w-[180px]">
           <p className="bb-mono-label">Confidence</p>
           <FitRing
             value={page.confidence}
@@ -628,9 +628,9 @@ function PageBrief({ page }: { page: KnowledgePage }) {
             className={cn(
               "text-[11px] font-medium uppercase tracking-[0.14em]",
               page.confidence >= 86
-                ? "text-emerald-700"
+                ? "text-[#0F8F62]"
                 : page.confidence >= 72
-                  ? "text-[#17171c]"
+                  ? "text-[#171719]"
                   : "text-[#c64a31]",
             )}
           >
@@ -641,28 +641,28 @@ function PageBrief({ page }: { page: KnowledgePage }) {
 
       {/* Open gaps signal strip */}
       {page.openGaps.length ? (
-        <Tile className="border-amber-200/70 bg-amber-50/60">
+        <Tile className="border-[#F0DDD0]/70 bg-[#F0DDD0]/60">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 text-amber-950">
-              <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden="true" />
+            <div className="flex items-center gap-2.5 text-[#A86642]">
+              <AlertTriangle className="h-4 w-4 text-[#A86642]" aria-hidden="true" />
               <p className="text-[13px] font-semibold">
                 {page.openGaps.length} open{" "}
                 {page.openGaps.length === 1 ? "gap" : "gaps"} to close
               </p>
             </div>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-amber-900/70">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[#A86642]/70">
               Resolve before confident external use
             </p>
           </div>
           <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
             {page.openGaps.map((gap, index) => (
               <li
-                className="flex gap-2.5 text-[12.5px] leading-[1.6] text-amber-950/85"
+                className="flex gap-2.5 text-[12.5px] leading-[1.6] text-[#A86642]/85"
                 key={`${gap}-${index}`}
               >
                 <span
                   aria-hidden="true"
-                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
+                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#A86642]"
                 />
                 <span>{gap}</span>
               </li>
@@ -680,7 +680,7 @@ function PageBrief({ page }: { page: KnowledgePage }) {
                 <p className="bb-mono-label">{section.title}</p>
               </div>
               {section.body ? (
-                <p className="text-[14px] leading-[1.75] text-[#3f3f46]">
+                <p className="text-[14px] leading-[1.75] text-[#5F625E]">
                   {section.body}
                 </p>
               ) : null}
@@ -697,15 +697,15 @@ function PageBrief({ page }: { page: KnowledgePage }) {
                 >
                   {section.stats.map((stat) => (
                     <div
-                      className="rounded-[14px] border border-[#ececef] bg-[#fafaf7] px-3.5 py-3"
+                      className="rounded-[14px] border border-[#E7E7E2] bg-[#F1F2EE] px-3.5 py-3"
                       key={`${section.title}-${stat.label}`}
                     >
                       <dt className="bb-mono-label">{stat.label}</dt>
-                      <dd className="mt-1.5 text-[18px] font-semibold leading-tight text-[#17171c]">
+                      <dd className="mt-1.5 text-[18px] font-semibold leading-tight text-[#171719]">
                         {stat.value}
                       </dd>
                       {stat.detail ? (
-                        <p className="mt-1 text-[11.5px] leading-[1.5] text-[#75758a]">
+                        <p className="mt-1 text-[11.5px] leading-[1.5] text-[#8E918B]">
                           {stat.detail}
                         </p>
                       ) : null}
@@ -717,12 +717,12 @@ function PageBrief({ page }: { page: KnowledgePage }) {
                 <ul className="grid gap-2.5">
                   {section.bullets.map((bullet, i) => (
                     <li
-                      className="flex gap-2.5 text-[13px] leading-[1.65] text-[#3f3f46]"
+                      className="flex gap-2.5 text-[13px] leading-[1.65] text-[#5F625E]"
                       key={`${section.title}-${i}-${bullet.slice(0, 24)}`}
                     >
                       <span
                         aria-hidden="true"
-                        className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#003c33]"
+                        className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#003C33]"
                       />
                       <span>{bullet}</span>
                     </li>
@@ -739,31 +739,31 @@ function PageBrief({ page }: { page: KnowledgePage }) {
           <Tile className="flex flex-col gap-0 !p-0">
             <div className="flex items-baseline justify-between gap-3 px-4 pb-3 pt-4">
               <p className="bb-mono-label">Sources</p>
-              <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#54545f]">
+              <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#5F625E]">
                 {page.sources.length}
               </span>
             </div>
             {page.sources.length ? (
-              <ul className="divide-y divide-[#f2f2f2]">
+              <ul className="divide-y divide-[#E7E7E2]">
                 {page.sources.slice(0, 14).map((src) => {
                   const titleAttr = `${src.label} · ${src.type.replace("-", " ")}`;
                   const row = (
                     <span className="flex items-center gap-2.5">
                       <span className="min-w-0 flex-1">
                         <span
-                          className="block truncate text-[12.5px] font-medium leading-[1.35] text-[#17171c]"
+                          className="block truncate text-[12.5px] font-medium leading-[1.35] text-[#171719]"
                           title={src.label}
                         >
                           {src.label}
                         </span>
-                        <span className="mt-0.5 block truncate text-[10.5px] font-medium uppercase tracking-[0.12em] text-[#777888]">
+                        <span className="mt-0.5 block truncate text-[10.5px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
                           {src.type.replace("-", " ")}
                         </span>
                       </span>
                       {src.href ? (
                         <ArrowUpRight
                           aria-hidden="true"
-                          className="h-3.5 w-3.5 shrink-0 text-[#9b9ba6] transition-colors group-hover:text-[#003c33]"
+                          className="h-3.5 w-3.5 shrink-0 text-[#A9ABA5] transition-colors group-hover:text-[#003C33]"
                         />
                       ) : null}
                     </span>
@@ -788,12 +788,12 @@ function PageBrief({ page }: { page: KnowledgePage }) {
                 })}
               </ul>
             ) : (
-              <p className="px-4 pb-4 text-[12.5px] leading-[1.6] text-[#75758a]">
+              <p className="px-4 pb-4 text-[12.5px] leading-[1.6] text-[#8E918B]">
                 No source records linked yet.
               </p>
             )}
             {page.sources.length > 14 ? (
-              <p className="border-t border-[#f2f2f2] px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.12em] text-[#777888]">
+              <p className="border-t border-[#E7E7E2] px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
                 + {page.sources.length - 14} more references
               </p>
             ) : null}
@@ -802,26 +802,26 @@ function PageBrief({ page }: { page: KnowledgePage }) {
           <Tile className="flex flex-col gap-0 !p-0">
             <div className="flex items-baseline justify-between gap-3 px-4 pb-3 pt-4">
               <p className="bb-mono-label">Related</p>
-              <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#54545f]">
+              <span className="font-mono text-[11.5px] font-semibold tabular-nums text-[#5F625E]">
                 {page.related.length}
               </span>
             </div>
             {page.related.length ? (
-              <ul className="divide-y divide-[#f2f2f2]">
+              <ul className="divide-y divide-[#E7E7E2]">
                 {page.related.slice(0, 8).map((rel) => {
                   const titleAttr = rel.note ? `${rel.label} · ${rel.note}` : rel.label;
                   const row = (
                     <span className="flex items-center gap-2.5">
                       <span className="min-w-0 flex-1">
                         <span
-                          className="block truncate text-[12.5px] font-medium leading-[1.35] text-[#17171c]"
+                          className="block truncate text-[12.5px] font-medium leading-[1.35] text-[#171719]"
                           title={rel.label}
                         >
                           {rel.label}
                         </span>
                         {rel.note ? (
                           <span
-                            className="mt-0.5 block truncate text-[11px] leading-[1.4] text-[#75758a]"
+                            className="mt-0.5 block truncate text-[11px] leading-[1.4] text-[#8E918B]"
                             title={rel.note}
                           >
                             {rel.note}
@@ -831,7 +831,7 @@ function PageBrief({ page }: { page: KnowledgePage }) {
                       {rel.href ? (
                         <ArrowUpRight
                           aria-hidden="true"
-                          className="h-3.5 w-3.5 shrink-0 text-[#9b9ba6] transition-colors group-hover:text-[#003c33]"
+                          className="h-3.5 w-3.5 shrink-0 text-[#A9ABA5] transition-colors group-hover:text-[#003C33]"
                         />
                       ) : null}
                     </span>
@@ -856,7 +856,7 @@ function PageBrief({ page }: { page: KnowledgePage }) {
                 })}
               </ul>
             ) : (
-              <p className="px-4 pb-4 text-[12.5px] leading-[1.6] text-[#75758a]">
+              <p className="px-4 pb-4 text-[12.5px] leading-[1.6] text-[#8E918B]">
                 No related pages linked yet.
               </p>
             )}

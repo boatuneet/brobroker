@@ -71,12 +71,12 @@ export function PulseEventPopover({
       style={{ left, top, transform, width: popoverWidth }}
     >
       <div className="overflow-hidden rounded-2xl border border-[#e3e3e8] bg-white shadow-[0_18px_45px_rgba(23,23,28,0.18)]">
-        <div className="border-b border-[#f2f2f2] px-3.5 py-3">
-          <p className="bb-mono-label text-[#75758a]">{kindLabel(event.kind)}</p>
-          <p className="mt-1 truncate text-[13px] font-semibold text-[#17171c]" title={event.label}>
+        <div className="border-b border-[#E7E7E2] px-3.5 py-3">
+          <p className="bb-mono-label text-[#8E918B]">{kindLabel(event.kind)}</p>
+          <p className="mt-1 truncate text-[13px] font-semibold text-[#171719]" title={event.label}>
             {event.label}
           </p>
-          <p className="mt-0.5 text-[11.5px] text-[#75758a]">{formatDate(event.date)}</p>
+          <p className="mt-0.5 text-[11.5px] text-[#8E918B]">{formatDate(event.date)}</p>
         </div>
         <div className="grid gap-1 p-1.5">
           <ActionItem
@@ -113,13 +113,13 @@ export function PulseEventPopover({
           />
           {isDraft ? (
             <Link
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#17171c] transition-colors hover:bg-[#fafaf7]"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE]"
               href={`/buyers/${buyerId}#drafts`}
               onClick={onClose}
             >
               <Mail className="h-3.5 w-3.5 text-[#1863dc]" aria-hidden="true" />
               Approve &amp; send
-              <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#75758a]" aria-hidden="true" />
+              <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-[#8E918B]" aria-hidden="true" />
             </Link>
           ) : null}
           <ActionItem
@@ -153,8 +153,8 @@ function ActionItem({
       className={
         "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors " +
         (tone === "danger"
-          ? "text-rose-700 hover:bg-rose-50"
-          : "text-[#17171c] hover:bg-[#fafaf7]")
+          ? "text-[#A86642] hover:bg-[#F0DDD0]"
+          : "text-[#171719] hover:bg-[#F1F2EE]")
       }
       onClick={onClick}
       type="button"
@@ -162,7 +162,7 @@ function ActionItem({
       <Icon
         aria-hidden="true"
         className={
-          "h-3.5 w-3.5 " + (tone === "danger" ? "text-rose-600" : "text-[#003c33]")
+          "h-3.5 w-3.5 " + (tone === "danger" ? "text-[#A86642]" : "text-[#003C33]")
         }
       />
       {label}

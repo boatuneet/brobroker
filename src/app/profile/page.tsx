@@ -10,9 +10,11 @@ import {
 import { signOut } from "@/app/auth/actions";
 import { AppShell } from "@/components/app-shell";
 import { BrokerSegmentSelector } from "@/components/broker-segment-selector";
+import { ProfileEditor } from "@/components/profile/profile-editor";
 import { Badge, Card, CardHeader, PageHeader } from "@/components/ui";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { fetchOwnProfile } from "@/lib/supabase/profiles";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
@@ -20,8 +22,6 @@ export const metadata = {
   description: "Manage your broker account and session.",
 };
 
-/* Account-detail timestamps benefit from year + time; the shared
-   formatDate util only shows month/day for use in tables. */
 function formatTimestamp(value: string | null | undefined): string {
   if (!value) return "—";
   return new Intl.DateTimeFormat("en-GB", {
@@ -38,6 +38,8 @@ export default async function ProfilePage() {
   let user:
     | Awaited<ReturnType<Awaited<ReturnType<typeof createClient>>["auth"]["getUser"]>>["data"]["user"]
     | null = null;
+  let fullName: string | null = null;
+  let avatarUrl: string | null = null;
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
@@ -45,10 +47,15 @@ export default async function ProfilePage() {
       data: { user: currentUser },
     } = await supabase.auth.getUser();
     user = currentUser;
+
+    if (user) {
+      const profile = await fetchOwnProfile(supabase, user.id);
+      fullName = profile?.full_name ?? null;
+      avatarUrl = profile?.avatar_url ?? null;
+    }
   }
 
   const userEmail = user?.email ?? "Account not connected";
-  const userInitial = user?.email?.charAt(0).toUpperCase() ?? "?";
   const memberSince = formatTimestamp(user?.created_at);
   const lastSignIn = formatTimestamp(user?.last_sign_in_at);
   const isConnected = Boolean(user);
@@ -57,14 +64,96 @@ export default async function ProfilePage() {
     <AppShell active="Profile">
       <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
         <PageHeader
-          eyebrow="Account"
           title="Your profile"
           description="Manage your broker identity, market segment, and workspace session."
         />
 
-        <Card className="mt-12">
+        {/* Two-column layout: identity editor on the left, account meta on the
+            right. The grid collapses to a single column below xl so the editor
+            owns full width on smaller screens. */}
+        <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:items-stretch">
+          <Card className="!p-6">
+            {/* Inline header keeps the eyebrow/title flush with the card's own
+                padding — CardHeader would add its own px-6 py-5 on top. */}
+            <div className="min-w-0">
+              <p className="bb-mono-label">Identity</p>
+              <h2 className="bb-display mt-1.5 text-lg font-medium text-[#171719]">
+                How you appear
+              </h2>
+              <p className="mt-2 max-w-xl text-[13px] leading-6 text-[#5F625E]">
+                Your name and photo show up in conversations, drafts, and shared deal rooms.
+              </p>
+            </div>
+            <div className="mt-5">
+              <ProfileEditor
+                email={userEmail}
+                initialAvatarUrl={avatarUrl}
+                initialFullName={fullName}
+                userId={user?.id ?? null}
+              />
+            </div>
+          </Card>
+
+          {/* Flex column with mt-auto on the sign-out button so the card
+              stretches to match the taller Identity card on its left. */}
+          <Card className="flex !flex-col !p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="bb-mono-label">Session</p>
+                <h2 className="bb-display mt-1.5 text-lg font-medium text-[#171719]">
+                  Account
+                </h2>
+              </div>
+              <Badge
+                className={
+                  isConnected
+                    ? "border-[#E1F1EA] bg-[#E1F1EA] text-[#0F8F62]"
+                    : "border-[#F0DDD0] bg-[#F0DDD0] text-[#A86642]"
+                }
+              >
+                <CheckCircle2
+                  aria-hidden="true"
+                  className={`h-3 w-3 ${
+                    isConnected ? "text-[#0F8F62]" : "text-[#A86642]"
+                  }`}
+                />
+                {isConnected ? "Signed in" : "Disconnected"}
+              </Badge>
+            </div>
+
+            <dl className="mt-5 grid gap-5 border-t border-[#E7E7E2] pt-5">
+              <DetailRow icon={Mail} label="Email" value={user?.email ?? "Not available"} />
+              <DetailRow icon={KeyRound} label="User ID" mono value={user?.id ?? "—"} />
+              <DetailRow icon={Calendar} label="Created" value={memberSince} />
+              <DetailRow icon={Clock} label="Last sign-in" value={lastSignIn} />
+            </dl>
+
+            {isConnected ? (
+              <form action={signOut} className="mt-auto pt-5">
+                <button
+                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-[13px] font-semibold text-[#171719] transition-colors hover:bg-[#F1F2EE]"
+                  type="submit"
+                >
+                  <LogOut aria-hidden="true" className="h-4 w-4" />
+                  Sign out
+                </button>
+              </form>
+            ) : (
+              <Link
+                className="mt-auto inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[#003C33] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#0B4A3F]"
+                href="/login"
+              >
+                Sign in
+              </Link>
+            )}
+          </Card>
+        </div>
+
+        {/* Segment selector — full-width band so the three workspace cards
+            have room to breathe. */}
+        <Card className="mt-5">
           <CardHeader
-            eyebrow="Broker segment"
+            eyebrow="Workspace"
             title="What do you sell?"
             description="Choose one operating mode. The portal filters listings, clients, tasks, reports, matching, and deal rooms around that segment."
           />
@@ -72,79 +161,6 @@ export default async function ProfilePage() {
             <BrokerSegmentSelector currentSegment={segment} />
           </div>
         </Card>
-
-        <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px] xl:auto-rows-min">
-          <Card className="overflow-hidden xl:col-start-1 xl:row-start-1">
-            <div className="bg-[#003c33] px-6 py-7 text-white">
-              <div className="flex flex-wrap items-start justify-between gap-5">
-                <div className="flex min-w-0 items-center gap-4">
-                  <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white text-xl font-medium text-[#003c33]">
-                    {userInitial}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="bb-mono-label !text-white/60">Broker account</p>
-                    <h2 className="bb-display mt-2 truncate text-2xl font-medium text-white">
-                      {userEmail}
-                    </h2>
-                  </div>
-                </div>
-                <Badge
-                  className={
-                    isConnected
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-amber-200 bg-amber-50 text-amber-700"
-                  }
-                >
-                  <CheckCircle2
-                    aria-hidden="true"
-                    className={`h-3 w-3 ${isConnected ? "text-emerald-500" : "text-amber-500"}`}
-                  />
-                  {isConnected ? "Signed in" : "Session unavailable"}
-                </Badge>
-              </div>
-            </div>
-
-            <dl className="grid gap-x-10 gap-y-5 px-6 py-6 sm:grid-cols-2">
-              <DetailRow icon={Mail} label="Email" value={user?.email ?? "Not available"} />
-              <DetailRow icon={KeyRound} label="User ID" mono value={user?.id ?? "—"} />
-              <DetailRow icon={Calendar} label="Account created" value={memberSince} />
-              <DetailRow icon={Clock} label="Last sign-in" value={lastSignIn} />
-            </dl>
-          </Card>
-
-          <Card className="xl:col-start-2 xl:row-start-1">
-            <CardHeader eyebrow="Session" title="Account actions" />
-            <div className="grid gap-5 px-6 py-5">
-              <div className="rounded-2xl bg-[#f7f7f9] p-4">
-                <p className="text-[14px] font-medium text-[#17171c]">Need to switch brokers?</p>
-                <p className="mt-2 text-[13px] leading-6 text-[#616161]">
-                  Signing out clears this device&apos;s account session cookie. Nothing is sent or
-                  deleted from your workspace.
-                </p>
-              </div>
-
-              {isConnected ? (
-                <form action={signOut}>
-                  <button
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32]"
-                    type="submit"
-                  >
-                    <LogOut aria-hidden="true" className="h-4 w-4" />
-                    Sign out
-                  </button>
-                </form>
-              ) : (
-                <Link
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32]"
-                  href="/login"
-                >
-                  Sign in
-                </Link>
-              )}
-            </div>
-          </Card>
-
-        </div>
       </div>
     </AppShell>
   );
@@ -162,13 +178,15 @@ function DetailRow({
   value: string;
 }) {
   return (
-    <div className="min-w-0">
-      <div className="flex items-center gap-2">
-        <Icon aria-hidden="true" className="h-3.5 w-3.5 text-[#003c33]" />
+    /* Horizontal row: icon + label hug the left; value occupies the rest and
+       truncates. Label uses whitespace-nowrap so "Last sign-in" never wraps. */
+    <div className="flex items-center gap-3 text-[13px]">
+      <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+        <Icon aria-hidden="true" className="h-3.5 w-3.5 text-[#003C33]" />
         <dt className="bb-mono-label">{label}</dt>
       </div>
       <dd
-        className={`mt-1.5 truncate text-[14px] text-[#17171c] ${mono ? "font-mono text-[13px]" : ""}`}
+        className={`min-w-0 flex-1 truncate text-right text-[#171719] ${mono ? "font-mono text-[12px]" : "text-[13px]"}`}
         title={value}
       >
         {value}

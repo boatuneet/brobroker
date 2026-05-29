@@ -99,7 +99,6 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        eyebrow="Verification trust gate"
         title="Buyer access review"
         description="Check risk signals and keep broker approval in control before sensitive sharing."
         metrics={[
@@ -113,7 +112,6 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
         {/* Inbox list */}
         <Card className="overflow-hidden">
           <CardHeader
-            eyebrow="Verification inbox"
             title="Inquiry cases"
             action={
               <CardHeaderIcon>
@@ -121,7 +119,7 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
               </CardHeaderIcon>
             }
           />
-          <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+          <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
             {inbox.map((item) => {
               const tone = getVerificationTone(item.caseFile.status);
               const active = selected.caseFile.id === item.caseFile.id;
@@ -129,18 +127,18 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
                 <li key={item.caseFile.id}>
                   <button
                     className={cn(
-                      "block w-full px-6 py-5 text-left transition-colors hover:bg-[#f7f7f9]",
-                      active && "bg-[#f7f7f9]",
+                      "block w-full px-6 py-5 text-left transition-colors hover:bg-[#F6F6F3]",
+                      active && "bg-[#F6F6F3]",
                     )}
                     onClick={() => setSelectedCaseId(item.caseFile.id)}
                     type="button"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[15px] font-medium text-[#17171c]">
+                        <p className="text-[15px] font-medium text-[#171719]">
                           {item.buyer?.name}
                         </p>
-                        <p className="mt-1 text-[13px] text-[#75758a]">
+                        <p className="mt-1 text-[13px] text-[#8E918B]">
                           {item.listing?.name} · {item.caseFile.requestedAccess}
                         </p>
                       </div>
@@ -150,8 +148,8 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
                       </Badge>
                     </div>
                     <div className="mt-4 flex items-center justify-between text-[13px]">
-                      <span className="text-[#75758a]">Score</span>
-                      <span className="font-mono font-medium text-[#17171c]">
+                      <span className="text-[#8E918B]">Score</span>
+                      <span className="font-mono font-medium text-[#171719]">
                         {item.caseFile.score}
                       </span>
                     </div>
@@ -167,7 +165,6 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
         <div className="grid content-start gap-8">
           <Card>
             <CardHeader
-              eyebrow="Selected case"
               title={`${selected.buyer?.name ?? "Buyer"} access review`}
               action={
                 <Badge className={selectedTone.className}>
@@ -180,40 +177,40 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 text-[15px] font-medium">
                   <Link
-                    className="text-[#17171c] hover:text-[#1863dc]"
+                    className="text-[#171719] hover:text-[#1863dc]"
                     href={`/buyers/${selected.caseFile.buyerId}`}
                   >
                     {selected.buyer?.name}
                   </Link>
-                  <span className="text-[#9b9ba6]">/</span>
+                  <span className="text-[#A9ABA5]">/</span>
                   <Link
-                    className="text-[#17171c] hover:text-[#1863dc]"
+                    className="text-[#171719] hover:text-[#1863dc]"
                     href={`/listings/${selected.caseFile.listingId}`}
                   >
                     {selected.listing?.name}
                   </Link>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-[#3f3f46]">
+                <p className="mt-3 text-sm leading-6 text-[#5F625E]">
                   {selected.caseFile.recommendedAction}
                 </p>
-                <p className="mt-2 text-[13px] leading-6 text-[#75758a]">
+                <p className="mt-2 text-[13px] leading-6 text-[#8E918B]">
                   Requested access: {selected.caseFile.requestedAccess}. Last updated{" "}
                   {formatDate(selected.caseFile.updatedAt)}.
                 </p>
               </div>
-              <div className="rounded-2xl bg-[#f7f7f9] p-5 text-right lg:text-left">
+              <div className="rounded-2xl bg-[#F6F6F3] p-5 text-right lg:text-left">
                 <p className="bb-mono-label">Risk score</p>
-                <p className="bb-display mt-2 text-3xl font-medium text-[#17171c]">
+                <p className="bb-display mt-2 text-3xl font-medium text-[#171719]">
                   {selected.caseFile.score}
                 </p>
                 <ProgressBar className="mt-3" value={selected.caseFile.score} />
-                <p className="mt-3 text-[13px] leading-6 text-[#616161]">
+                <p className="mt-3 text-[13px] leading-6 text-[#5F625E]">
                   Prototype scoring only. Broker approval remains required.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 border-t border-[#f2f2f2] px-6 py-5">
+            <div className="flex flex-wrap items-center gap-3 border-t border-[#E7E7E2] px-6 py-5">
               <Button
                 disabled={selected.caseFile.status !== "Verified"}
                 onClick={() =>
@@ -257,7 +254,6 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
           <div className="grid items-start gap-8">
             <Card className="overflow-hidden">
               <CardHeader
-                eyebrow="Signal scoring"
                 title="Verification signals"
                 description="Identity, company, funds, and inquiry quality."
                 action={
@@ -266,16 +262,16 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
                   </CardHeaderIcon>
                 }
               />
-              <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+              <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
                 {selected.caseFile.signals.map((signal) => (
                   <li key={signal.label} className="grid gap-3 px-6 py-4">
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                      <h2 className="text-[14px] font-medium leading-6 text-[#17171c]">
+                      <h2 className="text-[14px] font-medium leading-6 text-[#171719]">
                         {signal.label}
                       </h2>
                       <Badge tone={signalBadgeTone(signal.state)}>{signal.state}</Badge>
                     </div>
-                    <p className="text-[13px] leading-6 text-[#616161]">{signal.detail}</p>
+                    <p className="text-[13px] leading-6 text-[#5F625E]">{signal.detail}</p>
                   </li>
                 ))}
               </ul>
@@ -283,7 +279,6 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
 
             <Card className="overflow-hidden">
               <CardHeader
-                eyebrow="Access gates"
                 title="Access gates"
                 description="Warnings before sensitive actions."
                 action={
@@ -292,34 +287,34 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
                   </CardHeaderIcon>
                 }
               />
-              <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+              <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
                 {selected.accessGates.map((gate) => (
                   <li key={gate.label} className="grid gap-3 px-6 py-4">
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                       <div className="flex min-w-0 items-start gap-2">
                         {gate.status === "Ready" ? (
                           <CheckCircle2
-                            className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-600"
+                            className="mt-1 h-3.5 w-3.5 shrink-0 text-[#0F8F62]"
                             aria-hidden="true"
                           />
                         ) : gate.status === "Blocked" ? (
                           <LockKeyhole
-                            className="mt-1 h-3.5 w-3.5 shrink-0 text-rose-600"
+                            className="mt-1 h-3.5 w-3.5 shrink-0 text-[#A86642]"
                             aria-hidden="true"
                           />
                         ) : (
                           <AlertTriangle
-                            className="mt-1 h-3.5 w-3.5 shrink-0 text-amber-600"
+                            className="mt-1 h-3.5 w-3.5 shrink-0 text-[#A86642]"
                             aria-hidden="true"
                           />
                         )}
-                        <h2 className="text-[14px] font-medium leading-6 text-[#17171c]">
+                        <h2 className="text-[14px] font-medium leading-6 text-[#171719]">
                           {gate.label}
                         </h2>
                       </div>
                       <Badge tone={gateBadgeTone(gate.status)}>{gate.status}</Badge>
                     </div>
-                    <p className="text-[13px] leading-6 text-[#616161]">{gate.detail}</p>
+                    <p className="text-[13px] leading-6 text-[#5F625E]">{gate.detail}</p>
                   </li>
                 ))}
               </ul>
@@ -328,7 +323,6 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
 
           <Card>
             <CardHeader
-              eyebrow="Audit trail"
               title="Status and broker decisions"
               action={
                 <CardHeaderIcon>
@@ -336,10 +330,10 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
                 </CardHeaderIcon>
               }
             />
-            <ul className="grid gap-0 divide-y divide-[#f2f2f2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
               {auditTrail.map((event) => (
                 <li key={event.id} className="grid gap-3 px-6 py-5 sm:grid-cols-[28px_1fr]">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#17171c]">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#171719]">
                     {event.actor === "Broker" ? (
                       <UserCheck className="h-3.5 w-3.5" aria-hidden="true" />
                     ) : (
@@ -351,12 +345,12 @@ export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) 
                       <Badge tone={event.actor === "Broker" ? "coral" : "neutral"}>
                         {event.actor}
                       </Badge>
-                      <span className="text-[12px] uppercase tracking-[0.14em] text-[#75758a]">
+                      <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                         {formatDate(event.occurredAt)}
                       </span>
                     </div>
-                    <h3 className="mt-2 text-[14px] font-medium text-[#17171c]">{event.label}</h3>
-                    <p className="mt-1 text-[13px] leading-6 text-[#616161]">{event.detail}</p>
+                    <h3 className="mt-2 text-[14px] font-medium text-[#171719]">{event.label}</h3>
+                    <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{event.detail}</p>
                   </div>
                 </li>
               ))}

@@ -30,15 +30,15 @@ export function ToastViewport({
     <div className="bb-toast-enter fixed right-5 top-5 z-50 max-w-[360px]">
       <div
         className={cn(
-          "flex items-start gap-3 rounded-2xl border bg-white px-4 py-3 text-[13px] leading-6 text-[#17171c] shadow-[0_18px_55px_rgba(23,23,28,0.14)]",
-          tone === "error" ? "border-rose-200" : "border-[#dce9df]",
+          "flex items-start gap-3 rounded-2xl border bg-white px-4 py-3 text-[13px] leading-6 text-[#171719] shadow-[0_18px_55px_rgba(23,23,28,0.14)]",
+          tone === "error" ? "border-[#F0DDD0]" : "border-[#E7EFEA]",
         )}
         role="status"
       >
         <span
           className={cn(
             "mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-            tone === "error" ? "bg-rose-50 text-rose-700" : "bg-[#f4fbf5] text-[#003c33]",
+            tone === "error" ? "bg-[#F0DDD0] text-[#A86642]" : "bg-[#f4fbf5] text-[#003C33]",
           )}
         >
           <Icon className="h-4 w-4" aria-hidden="true" />
@@ -50,7 +50,7 @@ export function ToastViewport({
         {onDismiss ? (
           <button
             aria-label="Dismiss notification"
-            className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#75758a] transition hover:bg-[#f7f7f9] hover:text-[#17171c]"
+            className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#8E918B] transition hover:bg-[#F6F6F3] hover:text-[#171719]"
             onClick={onDismiss}
             type="button"
           >
@@ -88,29 +88,29 @@ export function ConfirmDialog({
   const isDestructive = confirmTone === "destructive";
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#17171c]/32 px-5 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#171719]/32 px-5 backdrop-blur-sm">
       <div
         aria-modal="true"
-        className="bb-toast-enter w-full max-w-md rounded-2xl border border-[#e5e7eb] bg-white p-6 shadow-[0_24px_80px_rgba(23,23,28,0.22)]"
+        className="bb-toast-enter w-full max-w-md rounded-2xl border border-[#E7E7E2] bg-white p-6 shadow-[0_24px_80px_rgba(23,23,28,0.22)]"
         role="dialog"
       >
         <div className="flex items-start gap-4">
           <span
             className={cn(
               "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-              isDestructive ? "bg-rose-50 text-rose-700" : "bg-[#fff7ed] text-[#b45309]",
+              isDestructive ? "bg-[#F0DDD0] text-[#A86642]" : "bg-[#fff7ed] text-[#b45309]",
             )}
           >
             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="bb-display text-xl font-medium text-[#17171c]">{title}</p>
-            <p className="mt-2 text-sm leading-6 text-[#616161]">{description}</p>
+            <p className="bb-display text-xl font-medium text-[#171719]">{title}</p>
+            <p className="mt-2 text-sm leading-6 text-[#5F625E]">{description}</p>
           </div>
         </div>
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <button
-            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d9d9dd] bg-white px-5 text-sm font-medium text-[#17171c] hover:border-[#17171c] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={confirmDisabled}
             onClick={onCancel}
             type="button"
@@ -121,8 +121,8 @@ export function ConfirmDialog({
             className={cn(
               "inline-flex min-h-10 items-center justify-center rounded-full px-5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60",
               isDestructive
-                ? "bg-rose-600 hover:bg-rose-700"
-                : "bg-[#17171c] hover:bg-[#2a2a32]",
+                ? "bg-[#A86642] hover:bg-[#A86642]"
+                : "bg-[#003C33] hover:bg-[#0B4A3F]",
             )}
             disabled={confirmDisabled}
             onClick={onConfirm}

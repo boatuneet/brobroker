@@ -101,7 +101,7 @@ export function AssetIntakePanel() {
       />
 
       {isOpen ? (
-        <div className="grid gap-4 border-b border-[#f2f2f2] px-6 py-5 lg:grid-cols-3">
+        <div className="grid gap-4 border-b border-[#E7E7E2] px-6 py-5 lg:grid-cols-3">
           <SelectMenu
             label="Asset type"
             onChange={(nextValue) => setAssetType(nextValue as SessionAsset["assetType"])}
@@ -127,20 +127,20 @@ export function AssetIntakePanel() {
       ) : null}
 
       {assets.length ? (
-        <ul className="divide-y divide-[#f2f2f2]">
+        <ul className="divide-y divide-[#E7E7E2]">
           {assets.slice(0, 4).map((asset) => (
             <li key={asset.id} className="grid gap-3 px-6 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[14px] font-medium text-[#17171c]">{asset.name}</p>
+                  <p className="text-[14px] font-medium text-[#171719]">{asset.name}</p>
                   <Badge tone="success">Saved draft</Badge>
                   <Badge tone="neutral">{asset.assetType}</Badge>
                 </div>
-                <p className="mt-1 text-[13px] leading-6 text-[#616161]">
+                <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">
                   {asset.builder} {asset.model} · {asset.location}
                 </p>
               </div>
-              <p className="font-mono text-[13px] font-medium text-[#17171c]">
+              <p className="font-mono text-[13px] font-medium text-[#171719]">
                 {formatCurrency(asset.priceEur)}
               </p>
             </li>
@@ -210,7 +210,7 @@ export function SessionBuyerQueue() {
           </CardHeaderIcon>
         }
       />
-      <ul className="divide-y divide-[#f2f2f2]">
+      <ul className="divide-y divide-[#E7E7E2]">
         {buyers.slice(0, 6).map((buyer) => {
           const isEditing = editingId === buyer.id && draft;
 
@@ -258,12 +258,12 @@ export function SessionBuyerQueue() {
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[14px] font-medium text-[#17171c]">{buyer.name}</p>
+                      <p className="text-[14px] font-medium text-[#171719]">{buyer.name}</p>
                       <Badge tone="success">Saved memory</Badge>
                       <Badge tone="neutral">{buyer.source}</Badge>
                     </div>
-                    <p className="mt-1 text-[13px] leading-6 text-[#616161]">{buyer.summary}</p>
-                    <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-[#75758a]">
+                    <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{buyer.summary}</p>
+                    <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                       {[buyer.budgetLabel, buyer.urgency].filter(Boolean).join(" · ")}
                     </p>
                   </div>

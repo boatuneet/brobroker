@@ -55,7 +55,7 @@ export function SelectMenu({
     <div className={cn("relative min-w-0", className)} ref={rootRef}>
       {label ? (
         <label
-          className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.12em] text-[#777888]"
+          className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]"
           id={`${id}-label`}
         >
           {label}
@@ -66,8 +66,8 @@ export function SelectMenu({
         aria-haspopup="listbox"
         aria-labelledby={label ? `${id}-label ${id}-button` : `${id}-button`}
         className={cn(
-          "inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-[#d8d8df] bg-white px-3.5 py-2.5 text-left text-[14px] font-medium text-[#17171c] transition-colors hover:border-[#bfc0c8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
-          open && "border-[#9b60aa] ring-2 ring-[#9b60aa]/15",
+          "inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-[#D9DAD4] bg-white px-3.5 py-2.5 text-left text-[14px] font-medium text-[#171719] transition-colors hover:border-[#A9ABA5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
+          open && "border-[#003C33] ring-2 ring-[#003C33]/15",
           buttonClassName,
         )}
         id={`${id}-button`}
@@ -77,7 +77,7 @@ export function SelectMenu({
         <span className="min-w-0 truncate">{selected?.label ?? "Select"}</span>
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-[#777888] transition-transform",
+            "h-4 w-4 shrink-0 text-[#8E918B] transition-transform",
             open && "rotate-180",
           )}
           aria-hidden="true"
@@ -95,8 +95,8 @@ export function SelectMenu({
             return (
               <button
                 className={cn(
-                  "flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[#3f3f46] transition-colors hover:bg-[#f5f5f7] focus:bg-[#f5f5f7] focus:outline-none",
-                  active && "bg-[#17171c] text-white hover:bg-[#17171c] focus:bg-[#17171c]",
+                  "flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[#5F625E] transition-colors hover:bg-[#f5f5f7] focus:bg-[#f5f5f7] focus:outline-none",
+                  active && "bg-[#171719] text-white hover:bg-[#171719] focus:bg-[#171719]",
                 )}
                 key={option.value}
                 onClick={() => {
@@ -115,7 +115,7 @@ export function SelectMenu({
                   {option.meta ? (
                     <span
                       className={cn(
-                        "mt-0.5 block truncate text-[12px] text-[#777888]",
+                        "mt-0.5 block truncate text-[12px] text-[#8E918B]",
                         active && "text-white/70",
                       )}
                     >

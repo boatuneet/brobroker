@@ -9,62 +9,177 @@
    ============================================================ */
 
 :root {
-  /* Surfaces */
-  --background: #f7f7f9;
-  --foreground: #17171c;
+  /* -----------------------------------------------------------------
+     BroBroker design tokens — luxury brokerage palette.
+     One brand-green family, one warm cream accent, copper for attention.
+     Numeric tokens align with the design brief:
+     bg-app #F6F6F3 / brand #003C33 / cream #F2EADC / warning #A86642
+     ----------------------------------------------------------------- */
 
-  --bb-canvas: #f7f7f9;          /* light cool grey workspace background, just off-white so cards pop */
-  --bb-surface: #ffffff;          /* primary card / panel surface */
-  --bb-surface-soft: #f7f7f9;     /* soft cool neutral, used sparingly inside white cards */
-  --bb-surface-stone: #eeece7;    /* warm card surface for product/quote blocks */
-  --bb-surface-pale-green: #edfce9;
-  --bb-surface-pale-blue: #f1f5ff;
+  /* App / surfaces */
+  --background: #F6F6F3;
+  --foreground: #171719;
 
-  /* Sidebar — Cohere deep-green editorial wall */
-  --bb-sidebar: #003c33;
-  --bb-sidebar-ink: #f6f2ea;
-  --bb-sidebar-mute: rgba(246, 242, 234, 0.62);
-  --bb-sidebar-hairline: rgba(246, 242, 234, 0.12);
+  --bg-app: #F6F6F3;
+  --surface: #FFFFFF;
+  --surface-muted: #F1F2EE;
+  --border-soft: #E7E7E2;
+  --border-strong: #D9DAD4;
 
-  /* Borders & rules */
-  --bb-hairline: #e5e7eb;
-  --bb-hairline-strong: #d9d9dd;
-  --bb-card-border: #f2f2f2;
-  --bb-divider-soft: #f2f2f2;
+  /* Brand family */
+  --brand: #003C33;
+  --brand-hover: #0B4A3F;
+  --brand-deep: #002E27;
+  --brand-soft: #6F8F83;
+  --brand-pale: #E7EFEA;
 
-  /* Ink */
-  --bb-ink: #17171c;
-  --bb-body: #212121;
-  --bb-charcoal: #3f3f46;
-  --bb-mute: #75758a;
-  --bb-ash: #93939f;
-  --bb-stone: #b4b4be;
+  /* Text */
+  --text-main: #171719;
+  --text-secondary: #5F625E;
+  --text-muted: #8E918B;
+  --text-faint: #A9ABA5;
+  --text-inverse: #FFFFFF;
 
-  /* Brand & accent */
-  --bb-deep-green: #003c33;
+  /* Warm accents */
+  --cream: #F2EADC;
+  --cream-light: #F8F3E8;
+  --sand: #E8DDC8;
+
+  /* Status */
+  --success: #0F8F62;
+  --success-soft: #E1F1EA;
+  --warning: #A86642;
+  --warning-soft: #F0DDD0;
+  --danger: #C94A5A;
+  --danger-soft: #F7DEE3;
+  --info: #3D6F8F;
+  --info-soft: #E0ECF2;
+
+  /* -----------------------------------------------------------------
+     Legacy aliases — kept so older bb-* references keep rendering
+     correctly while we migrate. Point them at the new system.
+     ----------------------------------------------------------------- */
+  --bb-canvas: var(--bg-app);
+  --bb-surface: var(--surface);
+  --bb-surface-soft: var(--surface-muted);
+  --bb-surface-stone: var(--cream);
+  --bb-surface-pale-green: var(--brand-pale);
+  --bb-surface-pale-blue: var(--info-soft);
+
+  --bb-sidebar: var(--brand);
+  --bb-sidebar-ink: #F4ECD8;
+  --bb-sidebar-mute: rgba(244, 236, 216, 0.62);
+  --bb-sidebar-hairline: rgba(244, 236, 216, 0.12);
+
+  --bb-hairline: var(--border-soft);
+  --bb-hairline-strong: var(--border-strong);
+  --bb-card-border: var(--border-soft);
+  --bb-divider-soft: var(--border-soft);
+
+  --bb-ink: var(--text-main);
+  --bb-body: var(--text-main);
+  --bb-charcoal: var(--text-secondary);
+  --bb-mute: var(--text-muted);
+  --bb-ash: var(--text-faint);
+  --bb-stone: var(--text-faint);
+
+  --bb-deep-green: var(--brand);
   --bb-dark-navy: #071829;
-  --bb-action-blue: #1863dc;
-  --bb-focus-blue: #4c6ee6;
-  --bb-coral: #ff7759;
-  --bb-coral-soft: #ffad9b;
+  --bb-action-blue: var(--brand);
+  --bb-focus-blue: var(--brand-hover);
+  --bb-coral: var(--warning);
+  --bb-coral-soft: var(--warning-soft);
 
-  /* Semantic */
-  --bb-success: #047857;
-  --bb-success-soft: #ecfdf5;
-  --bb-warning: #b45309;
-  --bb-warning-soft: #fffbeb;
-  --bb-error: #b30000;
-  --bb-error-soft: #fef2f2;
+  --bb-success: var(--success);
+  --bb-success-soft: var(--success-soft);
+  --bb-warning: var(--warning);
+  --bb-warning-soft: var(--warning-soft);
+  --bb-error: var(--danger);
+  --bb-error-soft: var(--danger-soft);
 
-  /* Primary CTA */
-  --bb-primary: #17171c;
-  --bb-primary-on: #ffffff;
+  --bb-primary: var(--brand);
+  --bb-primary-on: var(--text-inverse);
+
+  /* -----------------------------------------------------------------
+     Component tokens (section 11/12 of the design brief).
+     Layout, spacing, radius, shadow, motion, z-index — all in one place
+     so the rest of the system can reference them.
+     ----------------------------------------------------------------- */
+
+  /* Typography */
+  --font-display: var(--font-fraunces), "Fraunces", Georgia, serif;
+  --font-ui: var(--font-inter), "Inter", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 40px;
+  --text-4xl: 52px;
+
+  /* Layout */
+  --sidebar-width: 280px;
+  --content-max-width: 1440px;
+  --page-padding-x: 64px;
+  --page-padding-y: 48px;
+  --section-gap: 28px;
+  --card-gap: 24px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  /* Radius */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-pill: 999px;
+
+  /* Button heights */
+  --button-sm-height: 36px;
+  --button-md-height: 44px;
+  --button-lg-height: 52px;
+
+  /* Shadows */
+  --shadow-subtle: 0 1px 2px rgba(23, 23, 25, 0.04);
+  --shadow-soft: 0 18px 40px rgba(23, 23, 25, 0.055);
+  --shadow-card: 0 24px 70px rgba(23, 23, 25, 0.075);
+  --shadow-floating: 0 32px 90px rgba(23, 23, 25, 0.11);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 140ms;
+  --duration-normal: 220ms;
+
+  /* Z-index */
+  --z-base: 0;
+  --z-header: 20;
+  --z-sidebar: 30;
+  --z-dropdown: 50;
+  --z-popover: 60;
+  --z-modal: 80;
+  --z-toast: 100;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-ui);
+  --font-display: var(--font-display);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -74,9 +189,9 @@ html {
 }
 
 body {
-  background: var(--bb-canvas);
-  color: var(--bb-ink);
-  font-family: var(--font-geist-sans), "Inter", Arial, Helvetica, sans-serif;
+  background: var(--bg-app);
+  color: var(--text-main);
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

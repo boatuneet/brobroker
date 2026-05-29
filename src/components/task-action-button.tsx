@@ -84,8 +84,8 @@ export function TaskActionButton({
       {href ? (
         <Link
           className={cn(
-            "inline-flex min-h-10 items-center gap-2 rounded-full px-5 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]",
-            "bg-[#f4ead5] text-[#003c33] hover:bg-white",
+            "inline-flex min-h-10 items-center gap-2 rounded-full px-5 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2EADC]",
+            "bg-[#F2EADC] text-[#003C33] hover:bg-white",
           )}
           href={href}
         >
@@ -94,7 +94,7 @@ export function TaskActionButton({
         </Link>
       ) : (
         <button
-          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#f4ead5] px-5 text-[13px] font-medium text-[#003c33] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]"
+          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#F2EADC] px-5 text-[13px] font-medium text-[#003C33] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2EADC]"
           onClick={toggleDone}
           type="button"
         >
@@ -117,10 +117,10 @@ export function TaskActionButton({
           aria-label={isDone ? "Mark as not done" : "Mark as done"}
           aria-pressed={isDone}
           className={cn(
-            "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]",
+            "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2EADC]",
             isDone
-              ? "border-transparent bg-emerald-400/15 text-emerald-100 hover:bg-emerald-400/25"
-              : "border-white/15 bg-transparent text-[#f4ead5]/75 hover:border-white/30 hover:text-white",
+              ? "border-transparent bg-[#0F8F62]/15 text-[#E1F1EA] hover:bg-[#0F8F62]/25"
+              : "border-white/15 bg-transparent text-[#F2EADC]/75 hover:border-white/30 hover:text-white",
           )}
           onClick={toggleDone}
           type="button"

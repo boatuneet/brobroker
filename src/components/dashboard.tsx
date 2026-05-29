@@ -156,18 +156,18 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
       {/* Compact header strip — replaces the giant hero. */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#dedee3] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#3f3f46]">
+          <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F625E]">
             <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
             {segmentMeta.label} cockpit
           </span>
-          <h1 className="bb-display mt-3 text-[2rem] font-medium leading-[1.04] text-[#17171c] sm:text-[2.35rem]">
+          <h1 className="bb-display mt-3 text-[2rem] font-medium leading-[1.04] text-[#171719] sm:text-[2.35rem]">
             Today, before everything else.
           </h1>
         </div>
         <div className="flex flex-col items-end gap-2.5">
           {/* Date sits above the action buttons, tinted brand-green so it
               reads as the "today" marker rather than another label. */}
-          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#003c33]">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#003C33]">
             {new Date().toLocaleDateString("en-GB", {
               weekday: "long",
               day: "numeric",
@@ -176,17 +176,17 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
           </span>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Link
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-sm font-medium text-[#17171c] transition-colors hover:border-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-[14px] font-semibold text-[#171719] transition-colors hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
               href="/voice-crm"
             >
-              <Bot className="h-4 w-4" aria-hidden="true" />
+              <Bot className="h-[18px] w-[18px]" aria-hidden="true" />
               Voice note
             </Link>
             <Link
-              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#003C33] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
               href="/deal-rooms"
             >
-              <FileText className="h-4 w-4" aria-hidden="true" />
+              <FileText className="h-[18px] w-[18px]" aria-hidden="true" />
               New deal room
             </Link>
           </div>
@@ -201,7 +201,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
         {/* === ANCHOR TILE — dark, ink-green, single biggest urgency.
             Left rail anchors the focal task with buyer identity + actions.
             Right rail summarises the rest of today as a clean list. === */}
-        <article className="relative col-span-1 overflow-hidden rounded-[28px] bg-[#003c33] text-[#f4ead5] shadow-[0_30px_80px_-30px_rgba(0,60,51,0.5)] lg:col-span-2">
+        <article className="relative col-span-1 overflow-hidden rounded-[28px] bg-[#003C33] text-[#F2EADC] shadow-[0_30px_80px_-30px_rgba(0,60,51,0.5)] lg:col-span-2">
           {/* Segment image revealed through a circular mask anchored to the
               right edge. The image fills the whole card; the mask makes it
               visible only inside the circle (which reaches into the middle
@@ -230,9 +230,9 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
           <div className="relative grid gap-7 p-6 sm:p-8 lg:grid-cols-[1.2fr_1fr] lg:gap-10">
             {/* ---------- LEFT: focal task ---------- */}
             <div className="flex min-w-0 flex-col">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#ff7759]/12 px-2.5 py-1 ring-1 ring-[#ff7759]/30">
-                <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[#ff7759]" />
-                <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[#ffb5a1]">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#A86642]/12 px-2.5 py-1 ring-1 ring-[#A86642]/30">
+                <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[#A86642]" />
+                <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[#F0DDD0]">
                   Critical · {overdueCount} overdue
                 </p>
               </div>
@@ -242,7 +242,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                   <h2 className="bb-display mt-5 text-[1.75rem] font-medium leading-[1.06] text-white sm:text-[2.05rem]">
                     {topTask.title}
                   </h2>
-                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#f4ead5]/80">
+                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#F2EADC]/80">
                     {topTask.reason}
                   </p>
 
@@ -256,7 +256,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                       taskId={topTask.id}
                     />
                     <Link
-                      className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-[#f4ead5]/80 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]"
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-[#F2EADC]/80 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2EADC]"
                       href={deferHref}
                     >
                       Defer via voice note
@@ -269,7 +269,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                   <h2 className="bb-display mt-5 text-[1.75rem] font-medium leading-[1.06] text-white sm:text-[2.05rem]">
                     Inbox zero on urgency.
                   </h2>
-                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#f4ead5]/80">
+                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#F2EADC]/80">
                     No overdue items. Use the saved time to message a stale hot
                     buyer or refresh a listing.
                   </p>
@@ -283,10 +283,10 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                   on the right now so the left column reads as a clean focal
                   block: status → title → description → actions. */}
               {topTask && (topTaskBuyer || topTaskListing) ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 backdrop-blur-sm">
+                <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 backdrop-blur-sm">
                   <span
                     aria-hidden="true"
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4ead5] text-[12px] font-semibold uppercase tracking-[0.06em] text-[#003c33]"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F2EADC] text-[12px] font-semibold uppercase tracking-[0.06em] text-[#003C33]"
                   >
                     {topTaskBuyer ? initialsFor(topTaskBuyer.name) : "—"}
                   </span>
@@ -295,12 +295,12 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                       {topTaskBuyer?.name ?? "Unassigned"}
                     </p>
                     {topTaskListing ? (
-                      <p className="truncate text-[11.5px] text-[#f4ead5]/70">
+                      <p className="truncate text-[11.5px] text-[#F2EADC]/70">
                         {topTaskListing.name}
                       </p>
                     ) : null}
                   </div>
-                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#ff7759]/15 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#ffb5a1]">
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#A86642]/15 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#F0DDD0]">
                     <Clock className="h-3 w-3" aria-hidden="true" />
                     {dueLabel(topTask.dueAt)}
                   </span>
@@ -311,12 +311,12 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                   No longer forced to fill the column; sits below the identity
                   bar at its natural height. */}
               {model.overdueTasks.length > 1 ? (
-                <div className="flex min-w-0 flex-col rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-sm">
+                <div className="flex min-w-0 flex-col rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm">
                   <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
-                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#f4ead5]/70">
+                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#F2EADC]/70">
                       What else today
                     </p>
-                    <span className="text-[10.5px] font-semibold text-[#ffb5a1]">
+                    <span className="text-[10.5px] font-semibold text-[#F0DDD0]">
                       {model.overdueTasks.length - 1} more
                     </span>
                   </div>
@@ -326,12 +326,12 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                         <div className="flex items-center gap-3 px-4 py-2.5">
                           <span
                             aria-hidden="true"
-                            className="inline-block h-7 w-[3px] shrink-0 rounded-full bg-[#ff7759]"
+                            className="inline-block h-7 w-[3px] shrink-0 rounded-full bg-[#A86642]"
                           />
-                          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-[#f4ead5]/90">
+                          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-[#F2EADC]/90">
                             {task.title}
                           </span>
-                          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#ffb5a1]">
+                          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#F0DDD0]">
                             {dueLabel(task.dueAt)}
                           </span>
                         </div>
@@ -357,8 +357,8 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                 className={cn(
                   "inline-flex min-h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold",
                   overdueCount > 0
-                    ? "bg-rose-50 text-rose-700"
-                    : "bg-emerald-50 text-emerald-700",
+                    ? "bg-[#F0DDD0] text-[#A86642]"
+                    : "bg-[#E1F1EA] text-[#0F8F62]",
                 )}
               >
                 {overdueCount > 0 ? `${overdueCount} overdue` : "On schedule"}
@@ -366,14 +366,14 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
             </div>
             <div className="mt-3 flex items-center gap-4">
               <div className="min-w-0 flex-1">
-                <p className="bb-display text-[1.75rem] font-medium leading-none tabular-nums text-[#17171c]">
+                <p className="bb-display text-[1.75rem] font-medium leading-none tabular-nums text-[#171719]">
                   {openTaskCount}
                 </p>
-                <p className="mt-1 text-[11px] leading-4 text-[#75758a]">
+                <p className="mt-1 text-[11px] leading-4 text-[#8E918B]">
                   Open tasks total
                 </p>
                 <Link
-                  className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-[#17171c] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-[#171719] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
                   href="/matching"
                 >
                   Open matching <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
@@ -391,17 +391,17 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
 
           {/* Big-number tile — average fit */}
           <Tile tone="cream" className="!p-6">
-            <p className="bb-mono-label !text-[#3f3f46]">Avg buyer fit</p>
+            <p className="bb-mono-label !text-[#5F625E]">Avg buyer fit</p>
             <div className="mt-2 flex items-end gap-3">
-              <p className="bb-display text-[3rem] font-medium leading-[0.95] text-[#17171c]">
+              <p className="bb-display text-[3rem] font-medium leading-[0.95] text-[#171719]">
                 {avgFit}
-                <span className="text-[1.5rem] text-[#3f3f46]">%</span>
+                <span className="text-[1.5rem] text-[#5F625E]">%</span>
               </p>
-              <span className="mb-1.5 rounded-full bg-[#003c33] px-2.5 py-0.5 text-[11px] font-medium text-[#f4ead5]">
+              <span className="mb-1.5 rounded-full bg-[#003C33] px-2.5 py-0.5 text-[11px] font-medium text-[#F2EADC]">
                 {model.hotBuyers.length} hot
               </span>
             </div>
-            <p className="mt-3 text-[12.5px] leading-5 text-[#3f3f46]/80">
+            <p className="mt-3 text-[12.5px] leading-5 text-[#5F625E]/80">
               Across top-of-funnel buyers vs their best inventory match.
             </p>
           </Tile>
@@ -425,12 +425,12 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="bb-mono-label">Trust gate</p>
-              <p className="bb-display mt-1.5 text-lg font-medium text-[#17171c]">
+              <p className="bb-display mt-1.5 text-lg font-medium text-[#171719]">
                 Verification mix
               </p>
             </div>
             <ShieldCheck
-              className="h-4 w-4 text-[#003c33]"
+              className="h-4 w-4 text-[#003C33]"
               aria-hidden="true"
             />
           </div>
@@ -438,27 +438,27 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
             <Sparkbars data={verifBuckets} highlightIndex={highestRiskIdx} />
           </div>
           {topRiskCase ? (
-            <div className="mt-5 rounded-xl border border-[#ececef] bg-[#fafaf7] p-3.5">
+            <div className="mt-5 rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] p-3.5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[12.5px] font-medium text-[#17171c]">
+                <p className="text-[12.5px] font-medium text-[#171719]">
                   {topRiskBuyer?.name ?? "Unknown buyer"}
                 </p>
-                <span className="font-mono text-[12px] font-semibold text-[#9f4f2e]">
+                <span className="font-mono text-[12px] font-semibold text-[#A86642]">
                   {topRiskCase.score}
                 </span>
               </div>
-              <p className="mt-1 text-[11.5px] leading-5 text-[#616161]">
+              <p className="mt-1 text-[11.5px] leading-5 text-[#5F625E]">
                 {topRiskCase.recommendedAction}
               </p>
               <Link
-                className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[#17171c] hover:underline"
+                className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[#171719] hover:underline"
                 href="/verification"
               >
                 Open case <ArrowRight className="h-3 w-3" aria-hidden="true" />
               </Link>
             </div>
           ) : (
-            <p className="mt-5 text-[12.5px] text-[#75758a]">
+            <p className="mt-5 text-[12.5px] text-[#8E918B]">
               Verification inbox is clear.
             </p>
           )}
@@ -470,13 +470,13 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
           which lets us drop the standalone "Open buyers" link. */}
       <section aria-label="Pipeline composition" className="mt-5">
         <Tile className="!p-0">
-          <div className="flex items-center justify-between gap-3 border-b border-[#f2f2f2] px-5 py-3">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E7E7E2] px-5 py-3">
             <p className="bb-mono-label">Pipeline composition</p>
-            <p className="text-[11.5px] leading-5 text-[#75758a]">
+            <p className="text-[11.5px] leading-5 text-[#8E918B]">
               Where the broker’s capacity sits
             </p>
           </div>
-          <div className="grid grid-cols-3 divide-x divide-[#f2f2f2]">
+          <div className="grid grid-cols-3 divide-x divide-[#E7E7E2]">
             <PipelineCompositionStat
               detail={`${
                 model.buyers.filter((b) => b.currentStage !== "New Inquiry").length
@@ -513,12 +513,12 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="bb-mono-label">Broker memory</p>
-            <h2 className="bb-display mt-1.5 text-[1.4rem] font-medium text-[#17171c]">
+            <h2 className="bb-display mt-1.5 text-[1.4rem] font-medium text-[#171719]">
               Hot buyers
             </h2>
           </div>
           <Link
-            className="text-[12.5px] font-medium text-[#17171c] hover:underline"
+            className="text-[12.5px] font-medium text-[#171719] hover:underline"
             href="/buyers"
           >
             All buyers →
@@ -544,28 +544,28 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
               const fit = topMatch?.fitScore ?? 0;
               return (
                 <Link
-                  className="group relative flex flex-col gap-4 rounded-[20px] border border-[#ececef] bg-white p-5 transition-all hover:-translate-y-[2px] hover:border-[#17171c] hover:shadow-[0_18px_45px_-22px_rgba(23,23,28,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  className="group relative flex flex-col gap-4 rounded-[20px] border border-[#E7E7E2] bg-white p-5 transition-all hover:-translate-y-[2px] hover:border-[#003C33] hover:shadow-[0_18px_45px_-22px_rgba(23,23,28,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
                   href={`/buyers/${buyer.id}`}
                   key={buyer.id}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[14.5px] font-medium text-[#17171c] group-hover:text-[#003c33]">
+                      <p className="text-[14.5px] font-medium text-[#171719] group-hover:text-[#003C33]">
                         {buyer.name}
                       </p>
-                      <p className="mt-1 text-[12px] text-[#75758a]">
+                      <p className="mt-1 text-[12px] text-[#8E918B]">
                         {buyer.urgency} · {buyer.currentStage}
                       </p>
                     </div>
                     <FitRing size={48} stroke={4} tone="green" value={fit} />
                   </div>
 
-                  <div className="rounded-xl bg-[#fafaf7] p-3">
-                    <p className="text-[11.5px] font-medium text-[#3f3f46]">
+                  <div className="rounded-xl bg-[#F1F2EE] p-3">
+                    <p className="text-[11.5px] font-medium text-[#5F625E]">
                       {listing?.name ?? "No active match"}
                     </p>
                     {topMatch?.rationale ? (
-                      <p className="mt-1 line-clamp-2 text-[11.5px] leading-5 text-[#75758a]">
+                      <p className="mt-1 line-clamp-2 text-[11.5px] leading-5 text-[#8E918B]">
                         {topMatch.rationale}
                       </p>
                     ) : null}
@@ -576,7 +576,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                       <StatusDot className={tone.dotClassName} />
                       {verification?.status ?? "Needs Review"}
                     </Badge>
-                    <span className="text-[11px] text-[#75758a]">
+                    <span className="text-[11px] text-[#8E918B]">
                       {buyer.sizeRangeFt[0]}–{buyer.sizeRangeFt[1]}ft
                     </span>
                   </div>
@@ -592,7 +592,6 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
         {/* Matching condensed to top 2 */}
         <Card className="lg:col-span-2 flex flex-col overflow-hidden">
           <CardHeader
-            eyebrow="Matching"
             title="Hidden opportunities"
             action={
               <Link
@@ -609,7 +608,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
               description="Add buyers and listings, then run the matcher."
               action={
                 <Link
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-[13px] font-medium text-[#17171c] hover:border-[#17171c]"
+                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
                   href="/matching"
                 >
                   Open the matcher
@@ -618,7 +617,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
               }
             />
           ) : (
-            <ul className="divide-y divide-[#f2f2f2]">
+            <ul className="divide-y divide-[#E7E7E2]">
               {model.matchResults.slice(0, 3).map((match) => {
                 const buyer = getBuyerById(match.buyerId, segment);
                 const listing = getListingById(match.listingId, segment);
@@ -631,21 +630,21 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                       <FitRing size={52} stroke={5} tone="green" value={match.fitScore} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[14.5px] font-medium text-[#17171c] group-hover:text-[#003c33]">
+                          <span className="text-[14.5px] font-medium text-[#171719] group-hover:text-[#003C33]">
                             {buyer?.name}
                           </span>
                           <Badge tone="info">{match.category}</Badge>
                         </div>
-                        <p className="mt-1 text-[12.5px] text-[#75758a]">
+                        <p className="mt-1 text-[12.5px] text-[#8E918B]">
                           {listing?.builder} {listing?.model} ·{" "}
                           {listing ? getListingSpecSummary(listing) : ""}
                         </p>
-                        <p className="mt-2 line-clamp-1 text-[12.5px] leading-5 text-[#3f3f46]">
+                        <p className="mt-2 line-clamp-1 text-[12.5px] leading-5 text-[#5F625E]">
                           {match.talkingPoints[0]}
                         </p>
                       </div>
                       <ArrowRight
-                        className="h-3.5 w-3.5 shrink-0 text-[#75758a] transition-transform group-hover:translate-x-0.5"
+                        className="h-3.5 w-3.5 shrink-0 text-[#8E918B] transition-transform group-hover:translate-x-0.5"
                         aria-hidden="true"
                       />
                     </Link>
@@ -659,7 +658,6 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
         {/* Owner reporting — condensed */}
         <Card className="flex flex-col overflow-hidden">
           <CardHeader
-            eyebrow="Owner reporting"
             title={model.sellerReport?.title ?? "Owner reports"}
             action={
               <Link
@@ -672,14 +670,14 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
           />
           {model.sellerReport ? (
             <div className="min-h-0 overflow-y-auto px-6 py-5">
-              <p className="text-[13px] leading-6 text-[#3f3f46]">
+              <p className="text-[13px] leading-6 text-[#5F625E]">
                 {model.sellerReport.summary}
               </p>
               <dl className="mt-4 grid gap-3">
                 {model.sellerReport.sections.slice(0, 3).map((section) => (
-                  <div className="border-l-2 border-[#003c33] pl-3" key={section.label}>
+                  <div className="border-l-2 border-[#003C33] pl-3" key={section.label}>
                     <dt className="bb-mono-label">{section.label}</dt>
-                    <dd className="mt-1 text-[12.5px] leading-5 text-[#3f3f46]">
+                    <dd className="mt-1 text-[12.5px] leading-5 text-[#5F625E]">
                       {section.value}
                     </dd>
                   </div>
@@ -699,7 +697,6 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
       <section className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
         <Card className="flex max-h-[420px] flex-col overflow-hidden">
           <CardHeader
-            eyebrow="Asset intelligence"
             title="Listings needing attention"
             action={
               <Link
@@ -716,26 +713,26 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
               description="Add a listing to surface missing docs, comps, and outreach angles."
             />
           ) : (
-            <ul className="min-h-0 divide-y divide-[#f2f2f2] overflow-y-auto">
+            <ul className="min-h-0 divide-y divide-[#E7E7E2] overflow-y-auto">
               {model.listings.slice(0, 4).map((listing) => (
                 <li className="px-6 py-4" key={listing.id}>
                   <div className="flex flex-wrap items-baseline justify-between gap-3">
                     <Link
-                      className="text-[14px] font-medium text-[#17171c] hover:text-[#1863dc]"
+                      className="text-[14px] font-medium text-[#171719] hover:text-[#1863dc]"
                       href={`/listings/${listing.id}`}
                     >
                       {listing.name}
                     </Link>
-                    <p className="font-mono text-[12.5px] font-medium text-[#17171c]">
+                    <p className="font-mono text-[12.5px] font-medium text-[#171719]">
                       {formatCurrency(listing.priceEur)}
                     </p>
                   </div>
-                  <p className="mt-1 text-[12px] leading-5 text-[#75758a]">
+                  <p className="mt-1 text-[12px] leading-5 text-[#8E918B]">
                     {listing.builder} {listing.model} ·{" "}
                     {getListingSpecSummary(listing)}
                   </p>
                   {listing.missingInfo.length ? (
-                    <p className="mt-2 text-[11.5px] font-medium text-[#9f4f2e]">
+                    <p className="mt-2 text-[11.5px] font-medium text-[#A86642]">
                       Missing: {listing.missingInfo.join(", ")}
                     </p>
                   ) : null}
@@ -747,7 +744,6 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
 
         <Card className="flex max-h-[420px] flex-col overflow-hidden">
           <CardHeader
-            eyebrow="Deal rooms"
             title="Buyer-safe rooms"
             action={
               <Link
@@ -764,7 +760,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
               description="Create a private room after buyer verification."
             />
           ) : (
-            <ul className="min-h-0 divide-y divide-[#f2f2f2] overflow-y-auto">
+            <ul className="min-h-0 divide-y divide-[#E7E7E2] overflow-y-auto">
               {model.dealRooms.slice(0, 4).map((room) => {
                 const buyer = getBuyerById(room.buyerId, segment);
                 const tone = getVerificationTone(room.verificationStatus);
@@ -772,10 +768,10 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                   <li className="px-6 py-4" key={room.id}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[14px] font-medium text-[#17171c]">
+                        <p className="text-[14px] font-medium text-[#171719]">
                           {room.title}
                         </p>
-                        <p className="mt-1 text-[12px] text-[#75758a]">
+                        <p className="mt-1 text-[12px] text-[#8E918B]">
                           {buyer?.name} · {room.status}
                         </p>
                       </div>
@@ -783,7 +779,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                         {room.verificationStatus}
                       </Badge>
                     </div>
-                    <p className="mt-2 text-[12px] leading-5 text-[#616161]">
+                    <p className="mt-2 text-[12px] leading-5 text-[#5F625E]">
                       {room.listingIds.length} listings ·{" "}
                       {room.approvedDocumentIds.length} approved docs ·{" "}
                       {room.brokerApprovalStatus.toLowerCase()} approval
@@ -799,16 +795,16 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
       {/* === Workflow signals — single thin strip, not 4 boxes === */}
       <section className="mt-8">
         <Tile className="!p-0">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ececef] px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E7E7E2] px-6 py-4">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-[#9f4f2e]" aria-hidden="true" />
+              <AlertTriangle className="h-4 w-4 text-[#A86642]" aria-hidden="true" />
               <p className="bb-mono-label">Workflow signals</p>
             </div>
-            <p className="text-[12px] text-[#75758a]">
+            <p className="text-[12px] text-[#8E918B]">
               Quiet check before you close the laptop.
             </p>
           </div>
-          <ul className="grid divide-y divide-[#ececef] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
+          <ul className="grid divide-y divide-[#E7E7E2] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">
             <SignalPill
               detail={
                 model.missingDocuments.length
@@ -868,7 +864,6 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
         <section className="mt-8">
           <Card>
             <CardHeader
-              eyebrow="Full urgency queue"
               title="Every overdue item"
               action={
                 <Badge tone="coral">
@@ -876,7 +871,7 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                 </Badge>
               }
             />
-            <ul className="divide-y divide-[#f2f2f2]">
+            <ul className="divide-y divide-[#E7E7E2]">
               {model.overdueTasks.map((task) => {
                 const buyer = task.buyerId
                   ? getBuyerById(task.buyerId, segment)
@@ -892,18 +887,18 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge className={getTaskTone(task)}>{task.priority}</Badge>
-                        <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#75758a]">
+                        <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
                           {dueLabel(task.dueAt)}
                         </span>
                       </div>
-                      <h3 className="mt-1.5 text-[14.5px] font-medium text-[#17171c]">
+                      <h3 className="mt-1.5 text-[14.5px] font-medium text-[#171719]">
                         {task.title}
                       </h3>
-                      <p className="mt-1 text-[12.5px] leading-5 text-[#616161]">
+                      <p className="mt-1 text-[12.5px] leading-5 text-[#5F625E]">
                         {task.reason}
                       </p>
                       {(buyer || listing) && (
-                        <p className="mt-1.5 text-[12px] text-[#75758a]">
+                        <p className="mt-1.5 text-[12px] text-[#8E918B]">
                           {[buyer?.name, listing?.name]
                             .filter(Boolean)
                             .join(" / ")}
@@ -983,28 +978,28 @@ function PipelineCompositionStat({
 }) {
   const dotClass =
     tone === "green"
-      ? "bg-[#003c33]"
+      ? "bg-[#003C33]"
       : tone === "ink"
-        ? "bg-[#17171c]"
-        : "bg-[#9f4f2e]";
+        ? "bg-[#171719]"
+        : "bg-[#A86642]";
   return (
     <Link
-      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[#fafaf7]"
+      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[#F1F2EE]"
       href={href}
     >
       <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
-      <span className="bb-display text-[1.6rem] font-medium tabular-nums leading-none text-[#17171c]">
+      <span className="bb-display text-[1.6rem] font-medium tabular-nums leading-none text-[#171719]">
         {value}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block bb-mono-label">{label}</span>
-        <span className="mt-1 block truncate text-[11.5px] leading-4 text-[#75758a]">
+        <span className="mt-1 block truncate text-[11.5px] leading-4 text-[#8E918B]">
           {detail}
         </span>
       </span>
       <ArrowUpRight
         aria-hidden="true"
-        className="h-3.5 w-3.5 shrink-0 text-[#9b9ba6] transition-colors group-hover:text-[#003c33]"
+        className="h-3.5 w-3.5 shrink-0 text-[#A9ABA5] transition-colors group-hover:text-[#003C33]"
       />
     </Link>
   );
@@ -1025,14 +1020,14 @@ function SignalPill({
     <li className="px-6 py-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Icon className="h-3.5 w-3.5 text-[#17171c]" aria-hidden="true" />
+          <Icon className="h-3.5 w-3.5 text-[#171719]" aria-hidden="true" />
           <p className="bb-mono-label">{label}</p>
         </div>
-        <p className="bb-display text-lg font-medium tabular-nums text-[#17171c]">
+        <p className="bb-display text-lg font-medium tabular-nums text-[#171719]">
           {value}
         </p>
       </div>
-      <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-[#616161]">
+      <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-[#5F625E]">
         {detail}
       </p>
     </li>
@@ -1045,12 +1040,11 @@ function FirstRunDashboard() {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        eyebrow="Welcome to BroBroker"
         title="Start with your first signal"
         description="Add a call, buyer, or listing to build memory, matches, and follow-ups."
         actions={
           <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white hover:bg-[#2a2a32]"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
             href="/voice-crm"
           >
             <Sparkles className="h-4 w-4" aria-hidden="true" />
@@ -1064,13 +1058,13 @@ function FirstRunDashboard() {
           <div>
             <p className="bb-mono-label">Quick start</p>
             <h2
-              className="bb-display mt-2 text-xl font-medium text-[#17171c]"
+              className="bb-display mt-2 text-xl font-medium text-[#171719]"
               id="quick-start-heading"
             >
               Three ways to seed the brain
             </h2>
           </div>
-          <p className="hidden text-[13px] text-[#75758a] sm:block">
+          <p className="hidden text-[13px] text-[#8E918B] sm:block">
             Each action takes under a minute.
           </p>
         </div>
@@ -1102,7 +1096,7 @@ function FirstRunDashboard() {
 
       <Card className="mt-12">
         <CardHeader eyebrow="How the brain works" title="Core workflow" />
-        <ul className="divide-y divide-[#f2f2f2]">
+        <ul className="divide-y divide-[#E7E7E2]">
           <ExplainerRow
             icon={Radio}
             title="Memory grows from voice"
@@ -1144,20 +1138,20 @@ function ActionCard({
 }) {
   return (
     <Link
-      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#e5e7eb] bg-white p-6 transition-colors hover:border-[#17171c]"
+      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#E7E7E2] bg-white p-6 transition-colors hover:border-[#003C33]"
       href={href}
     >
       <div>
         <div className="flex items-center justify-between">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#003c33] text-[#f4ead5]">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#003C33] text-[#F2EADC]">
             <Icon className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="bb-mono-label">{step}</span>
         </div>
-        <h3 className="bb-display mt-5 text-lg font-medium text-[#17171c]">{title}</h3>
-        <p className="mt-2 text-[13px] leading-6 text-[#616161]">{description}</p>
+        <h3 className="bb-display mt-5 text-lg font-medium text-[#171719]">{title}</h3>
+        <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{description}</p>
       </div>
-      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#17171c]">
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#171719]">
         Get started
         <ArrowRight
           className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
@@ -1179,12 +1173,12 @@ function ExplainerRow({
 }) {
   return (
     <li className="grid gap-4 px-6 py-5 sm:grid-cols-[36px_1fr]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#003c33]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0">
-        <p className="text-[14px] font-medium text-[#17171c]">{title}</p>
-        <p className="mt-1 text-[13px] leading-6 text-[#616161]">{description}</p>
+        <p className="text-[14px] font-medium text-[#171719]">{title}</p>
+        <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{description}</p>
       </div>
     </li>
   );
