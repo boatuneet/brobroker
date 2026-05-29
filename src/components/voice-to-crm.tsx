@@ -111,9 +111,11 @@ function taskPriorityTone(priority: string): "error" | "warning" | "info" | "neu
 }
 
 export function VoiceToCrmWorkspace({
+  prefillBuyerId,
   segment,
   storedBuyers = [],
 }: {
+  prefillBuyerId?: string;
   segment?: BrokerSegment;
   storedBuyers?: BuyerProfile[];
 }) {
@@ -136,9 +138,15 @@ export function VoiceToCrmWorkspace({
   const [captureMode, setCaptureMode] = useState<CaptureMode>(
     storedBuyers.length ? "existing" : "new",
   );
-  const [selectedBuyerId, setSelectedBuyerId] = useState<string>(
-    storedBuyers[0]?.id ?? "",
-  );
+  // Pre-select via URL param (?buyer=<id>) when present — used by dashboard's
+  // "Defer via voice note" link to deep-link into a specific buyer. Falls back
+  // to the first saved buyer when the requested id isn't on file.
+  const [selectedBuyerId, setSelectedBuyerId] = useState<string>(() => {
+    if (prefillBuyerId && storedBuyers.some((buyer) => buyer.id === prefillBuyerId)) {
+      return prefillBuyerId;
+    }
+    return storedBuyers[0]?.id ?? "";
+  });
 
   const selectedBuyer = useMemo(
     () => storedBuyers.find((buyer) => buyer.id === selectedBuyerId),

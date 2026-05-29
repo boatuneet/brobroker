@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
   BarChart3,
   Boxes,
   BriefcaseBusiness,
@@ -39,6 +40,7 @@ const navItems: Array<{
   { label: "Knowledge", href: "/knowledge", icon: LibraryBig },
   { label: "Listings", href: "/listings", icon: BriefcaseBusiness },
   { label: "Buyers", href: "/buyers", icon: Users },
+  { label: "Pulse", href: "/pulse", icon: Activity },
   { label: "Voice CRM", href: "/voice-crm", icon: Radio },
   { label: "Matching", href: "/matching", icon: Boxes },
   { label: "Verification", href: "/verification", icon: ShieldCheck },

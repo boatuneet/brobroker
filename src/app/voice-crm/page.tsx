@@ -8,13 +8,24 @@ export const metadata = {
   description: "Turn call notes into memory, tasks, and follow-ups.",
 };
 
-export default async function VoiceCrmPage() {
+export default async function VoiceCrmPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ buyer?: string | string[] }>;
+}) {
   const segment = await getActiveBrokerSegment();
   const storedBuyers = await getStoredBuyersForSegment(segment);
+  const params = await searchParams;
+  const prefillBuyerId = Array.isArray(params.buyer) ? params.buyer[0] : params.buyer;
 
   return (
     <AppShell active="Voice CRM">
-      <VoiceToCrmWorkspace key={segment} segment={segment} storedBuyers={storedBuyers} />
+      <VoiceToCrmWorkspace
+        key={segment}
+        prefillBuyerId={prefillBuyerId}
+        segment={segment}
+        storedBuyers={storedBuyers}
+      />
     </AppShell>
   );
 }

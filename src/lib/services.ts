@@ -1782,6 +1782,7 @@ export function getDashboardModel(segment?: BrokerSegment) {
     buyers: segmentBuyers,
     listings: segmentListings,
     matchResults: segmentMatches,
+    tasks: segmentTasks,
     overdueTasks,
     missingDocuments,
     ownerUpdates,

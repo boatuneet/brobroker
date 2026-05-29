@@ -12,7 +12,6 @@ import {
   FileText,
   Gauge,
   Radio,
-  Search,
   ShieldCheck,
   Ship,
   Sparkles,
@@ -29,7 +28,7 @@ import {
   getTaskTone,
   getVerificationTone,
 } from "@/lib/services";
-import { daysUntil, formatCurrency } from "@/lib/utils";
+import { cn, daysUntil, formatCurrency } from "@/lib/utils";
 import {
   Badge,
   Card,
@@ -40,12 +39,12 @@ import {
 } from "./ui";
 import { TaskActionButton } from "./task-action-button";
 import {
-  BubbleCluster,
   FitRing,
+  HalfGauge,
   Sparkbars,
-  StatBadge,
   Tile,
 } from "./dashboard/visuals";
+import { DashboardPulsePreview } from "./pulse/dashboard-pulse-preview";
 
 const segmentIcons = {
   Yacht: Ship,
@@ -97,6 +96,22 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
   const topTaskListing = topTask?.listingId
     ? getListingById(topTask.listingId, segment)
     : undefined;
+  /* Where the primary "action" button on the focal task should navigate to,
+     based on the task kind + linked IDs. Keeps the button label honest:
+     "Open matcher" → /matching, "Approve update" → owner page, etc. */
+  const topTaskHref = topTask
+    ? taskActionHref(
+        topTask.kind,
+        topTask.buyerId,
+        topTask.listingId,
+        topTask.sellerId,
+      )
+    : undefined;
+  /* Defer link points back into Voice CRM with the buyer pre-selected when
+     the task is buyer-linked. */
+  const deferHref = topTask?.buyerId
+    ? `/voice-crm?buyer=${encodeURIComponent(topTask.buyerId)}`
+    : "/voice-crm";
 
   // Verification sparkbars — count by status across the segment.
   const verifBuckets: Array<{ label: string; value: number }> = [
@@ -141,38 +156,40 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
       {/* Compact header strip — replaces the giant hero. */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#dedee3] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#3f3f46]">
-              <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              {segmentMeta.label} cockpit
-            </span>
-            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#75758a]">
-              {new Date().toLocaleDateString("en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </span>
-          </div>
+          <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#dedee3] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#3f3f46]">
+            <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            {segmentMeta.label} cockpit
+          </span>
           <h1 className="bb-display mt-3 text-[2rem] font-medium leading-[1.04] text-[#17171c] sm:text-[2.35rem]">
             Today, before everything else.
           </h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-sm font-medium text-[#17171c] transition-colors hover:border-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
-            href="/voice-crm"
-          >
-            <Bot className="h-4 w-4" aria-hidden="true" />
-            Voice note
-          </Link>
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
-            href="/deal-rooms"
-          >
-            <FileText className="h-4 w-4" aria-hidden="true" />
-            New deal room
-          </Link>
+        <div className="flex flex-col items-end gap-2.5">
+          {/* Date sits above the action buttons, tinted brand-green so it
+              reads as the "today" marker rather than another label. */}
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#003c33]">
+            {new Date().toLocaleDateString("en-GB", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d9d9dd] bg-white px-4 text-sm font-medium text-[#17171c] transition-colors hover:border-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+              href="/voice-crm"
+            >
+              <Bot className="h-4 w-4" aria-hidden="true" />
+              Voice note
+            </Link>
+            <Link
+              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#17171c] px-5 text-sm font-medium text-white transition-colors hover:bg-[#2a2a32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+              href="/deal-rooms"
+            >
+              <FileText className="h-4 w-4" aria-hidden="true" />
+              New deal room
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -181,59 +198,66 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
         aria-label="Today’s priorities"
         className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-3"
       >
-        {/* === ANCHOR TILE — dark, ink-green, single biggest urgency === */}
+        {/* === ANCHOR TILE — dark, ink-green, single biggest urgency.
+            Left rail anchors the focal task with buyer identity + actions.
+            Right rail summarises the rest of today as a clean list. === */}
         <article className="relative col-span-1 overflow-hidden rounded-[28px] bg-[#003c33] text-[#f4ead5] shadow-[0_30px_80px_-30px_rgba(0,60,51,0.5)] lg:col-span-2">
-          {/* segment image reduced to a side chip */}
-          <div className="pointer-events-none absolute right-0 top-0 hidden h-full w-[34%] overflow-hidden sm:block">
+          {/* Segment image revealed through a circular mask anchored to the
+              right edge. The image fills the whole card; the mask makes it
+              visible only inside the circle (which reaches into the middle
+              of the card), so the dark green base shows through on the left
+              where the copy lives. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 hidden overflow-hidden sm:block"
+            style={{
+              WebkitMaskImage:
+                "radial-gradient(circle at 100% 50%, #000 0%, #000 32%, rgba(0,0,0,0.4) 55%, transparent 75%)",
+              maskImage:
+                "radial-gradient(circle at 100% 50%, #000 0%, #000 32%, rgba(0,0,0,0.4) 55%, transparent 75%)",
+            }}
+          >
             <Image
               alt=""
-              className="scale-x-[-1] object-cover object-center opacity-[0.32] mix-blend-luminosity"
+              className="object-cover object-right opacity-[0.55] mix-blend-luminosity"
               fill
               priority
-              sizes="380px"
+              sizes="1280px"
               src={segmentMeta.imageSrc}
             />
-            <div className="absolute inset-0 bg-[linear-gradient(270deg,rgba(0,60,51,0)_0%,rgba(0,60,51,0.35)_28%,rgba(0,60,51,0.78)_62%,#003c33_92%)]" />
           </div>
 
-          <div className="relative grid gap-7 p-6 sm:p-8 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#ff7759]" />
-                <p className="bb-mono-label !text-[#f4ead5]/80">
+          <div className="relative grid gap-7 p-6 sm:p-8 lg:grid-cols-[1.2fr_1fr] lg:gap-10">
+            {/* ---------- LEFT: focal task ---------- */}
+            <div className="flex min-w-0 flex-col">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#ff7759]/12 px-2.5 py-1 ring-1 ring-[#ff7759]/30">
+                <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[#ff7759]" />
+                <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[#ffb5a1]">
                   Critical · {overdueCount} overdue
                 </p>
               </div>
 
               {topTask ? (
                 <>
-                  <h2 className="bb-display mt-4 text-[1.7rem] font-medium leading-[1.08] text-white sm:text-[2rem]">
+                  <h2 className="bb-display mt-5 text-[1.75rem] font-medium leading-[1.06] text-white sm:text-[2.05rem]">
                     {topTask.title}
                   </h2>
-                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#f4ead5]/85">
+                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#f4ead5]/80">
                     {topTask.reason}
                   </p>
-                  <div className="mt-5 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ff7759]/15 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-[#ffb5a1]">
-                      <Clock className="h-3 w-3" aria-hidden="true" />
-                      {dueLabel(topTask.dueAt)}
-                    </span>
-                    {(topTaskBuyer || topTaskListing) && (
-                      <span className="text-[12px] text-[#f4ead5]/65">
-                        {[topTaskBuyer?.name, topTaskListing?.name]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-7 flex flex-wrap items-center gap-2">
+
+                  {/* mt-auto pushes the action row to the bottom of the
+                      flex column so it lines up consistently regardless of
+                      title/description length. */}
+                  <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-3 pt-6">
                     <TaskActionButton
+                      href={topTaskHref}
                       label={topTask.actionLabel}
                       taskId={topTask.id}
                     />
                     <Link
                       className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-[#f4ead5]/80 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]"
-                      href="/voice-crm"
+                      href={deferHref}
                     >
                       Defer via voice note
                       <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -242,10 +266,10 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
                 </>
               ) : (
                 <>
-                  <h2 className="bb-display mt-4 text-[1.7rem] font-medium leading-[1.08] text-white sm:text-[2rem]">
+                  <h2 className="bb-display mt-5 text-[1.75rem] font-medium leading-[1.06] text-white sm:text-[2.05rem]">
                     Inbox zero on urgency.
                   </h2>
-                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#f4ead5]/85">
+                  <p className="mt-3 max-w-md text-[13.5px] leading-7 text-[#f4ead5]/80">
                     No overdue items. Use the saved time to message a stale hot
                     buyer or refresh a listing.
                   </p>
@@ -253,39 +277,68 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
               )}
             </div>
 
-            {/* Inline stat chips — give the anchor numerical density */}
-            <div className="flex min-w-0 flex-col gap-3 lg:items-end lg:justify-end">
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                <StatBadge
-                  label="Pipeline"
-                  tone="ivory"
-                  value={`${pipelineCount}`}
-                />
-                <StatBadge
-                  label="Inventory"
-                  tone="ivory"
-                  value={`${listingCount}`}
-                />
-                <StatBadge label="Hot" tone="outline" value={`${model.hotBuyers.length}`} />
-              </div>
+            {/* ---------- RIGHT: client identity + the rest of today ---------- */}
+            <div className="flex min-w-0 flex-col gap-4">
+              {/* Client identity bar — avatar + name + asset + due pill. Lives
+                  on the right now so the left column reads as a clean focal
+                  block: status → title → description → actions. */}
+              {topTask && (topTaskBuyer || topTaskListing) ? (
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 backdrop-blur-sm">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4ead5] text-[12px] font-semibold uppercase tracking-[0.06em] text-[#003c33]"
+                  >
+                    {topTaskBuyer ? initialsFor(topTaskBuyer.name) : "—"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold text-white">
+                      {topTaskBuyer?.name ?? "Unassigned"}
+                    </p>
+                    {topTaskListing ? (
+                      <p className="truncate text-[11.5px] text-[#f4ead5]/70">
+                        {topTaskListing.name}
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#ff7759]/15 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#ffb5a1]">
+                    <Clock className="h-3 w-3" aria-hidden="true" />
+                    {dueLabel(topTask.dueAt)}
+                  </span>
+                </div>
+              ) : null}
 
-              {/* Ticker of remaining urgent tasks */}
+              {/* What else today — compact list of up to 3 next overdue tasks.
+                  No longer forced to fill the column; sits below the identity
+                  bar at its natural height. */}
               {model.overdueTasks.length > 1 ? (
-                <ul className="mt-2 max-h-[140px] w-full divide-y divide-white/10 overflow-y-auto rounded-2xl bg-white/[0.04] backdrop-blur-sm lg:max-w-[320px]">
-                  {model.overdueTasks.slice(1, 5).map((task) => (
-                    <li
-                      className="flex items-center justify-between gap-3 px-3.5 py-2.5"
-                      key={task.id}
-                    >
-                      <span className="min-w-0 truncate text-[12.5px] text-[#f4ead5]/85">
-                        {task.title}
-                      </span>
-                      <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.1em] text-[#ffb5a1]">
-                        {dueLabel(task.dueAt)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="flex min-w-0 flex-col rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-sm">
+                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#f4ead5]/70">
+                      What else today
+                    </p>
+                    <span className="text-[10.5px] font-semibold text-[#ffb5a1]">
+                      {model.overdueTasks.length - 1} more
+                    </span>
+                  </div>
+                  <ul className="divide-y divide-white/8">
+                    {model.overdueTasks.slice(1, 4).map((task) => (
+                      <li key={task.id}>
+                        <div className="flex items-center gap-3 px-4 py-2.5">
+                          <span
+                            aria-hidden="true"
+                            className="inline-block h-7 w-[3px] shrink-0 rounded-full bg-[#ff7759]"
+                          />
+                          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-[#f4ead5]/90">
+                            {task.title}
+                          </span>
+                          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#ffb5a1]">
+                            {dueLabel(task.dueAt)}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : null}
             </div>
           </div>
@@ -293,34 +346,47 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
 
         {/* === RIGHT RAIL — Ring + Big-number === */}
         <div className="col-span-1 grid gap-5">
-          {/* Task momentum ring */}
-          <Tile className="!p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="bb-mono-label">Open tasks</p>
-                <p className="bb-display mt-2 text-[2.25rem] font-medium leading-none text-[#17171c]">
+          {/* Task momentum — segmented half-gauge. Coral when there's overdue
+              pressure, green when the broker is on top of the queue. Laid out
+              side-by-side (gauge left, big number + link right) so the card
+              keeps the same height as the cockpit panel next to it. */}
+          <Tile className="!p-5">
+            <div className="flex items-start justify-between gap-3">
+              <p className="bb-mono-label">Open tasks</p>
+              <span
+                className={cn(
+                  "inline-flex min-h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold",
+                  overdueCount > 0
+                    ? "bg-rose-50 text-rose-700"
+                    : "bg-emerald-50 text-emerald-700",
+                )}
+              >
+                {overdueCount > 0 ? `${overdueCount} overdue` : "On schedule"}
+              </span>
+            </div>
+            <div className="mt-3 flex items-center gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="bb-display text-[1.75rem] font-medium leading-none tabular-nums text-[#17171c]">
                   {openTaskCount}
                 </p>
-                <p className="mt-2 text-[12.5px] leading-5 text-[#616161]">
-                  {overdueCount > 0
-                    ? `${overdueCount} bleeding through (${overduePct}%)`
-                    : "All within deadline."}
+                <p className="mt-1 text-[11px] leading-4 text-[#75758a]">
+                  Open tasks total
                 </p>
+                <Link
+                  className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-[#17171c] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  href="/matching"
+                >
+                  Open matching <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                </Link>
               </div>
-              <FitRing
-                size={84}
-                stroke={7}
-                tone="coral"
-                value={overduePct}
+              <HalfGauge
                 label={`${overduePct}%`}
+                size={128}
+                sublabel="Overdue"
+                tone={overdueCount > 0 ? "coral" : "green"}
+                value={overduePct}
               />
             </div>
-            <Link
-              className="mt-5 inline-flex items-center gap-1 text-[12.5px] font-medium text-[#17171c] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
-              href="/matching"
-            >
-              Open matching workspace <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
-            </Link>
           </Tile>
 
           {/* Big-number tile — average fit */}
@@ -342,61 +408,18 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
         </div>
       </section>
 
-      {/* === KPI BAND — bubble cluster + verification sparkbars === */}
+      {/* === Pulse preview + Trust gate === */}
       <section
-        aria-label="Pipeline composition"
+        aria-label="Pulse preview"
         className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3"
       >
-        <Tile className="md:col-span-2">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="bb-mono-label">Pipeline composition</p>
-              <p className="bb-display mt-1.5 text-lg font-medium text-[#17171c]">
-                Where the broker’s capacity sits
-              </p>
-            </div>
-            <Link
-              className="text-[12.5px] font-medium text-[#17171c] hover:underline"
-              href="/buyers"
-            >
-              Open buyers →
-            </Link>
-          </div>
-          <div className="mt-6">
-            <BubbleCluster
-              items={[
-                {
-                  label: "Buyers",
-                  value: pipelineCount,
-                  detail: `${
-                    model.buyers.filter(
-                      (b) => b.currentStage !== "New Inquiry",
-                    ).length
-                  } past intake`,
-                  tone: "green",
-                },
-                {
-                  label: "Listings",
-                  value: listingCount,
-                  detail: `${
-                    model.listings.filter((l) => l.status === "Active").length
-                  } marketable`,
-                  tone: "ink",
-                },
-                {
-                  label: "Verifications",
-                  value: verificationCount,
-                  detail: `${
-                    model.verificationCases.filter(
-                      (v) => v.status === "High Risk",
-                    ).length
-                  } high risk`,
-                  tone: "coral",
-                },
-              ]}
-            />
-          </div>
-        </Tile>
+        <DashboardPulsePreview
+          buyers={model.buyers}
+          className="md:col-span-2"
+          conversations={model.conversations}
+          drafts={model.followUpDrafts}
+          tasks={model.tasks}
+        />
 
         <Tile>
           <div className="flex items-start justify-between gap-3">
@@ -439,6 +462,49 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
               Verification inbox is clear.
             </p>
           )}
+        </Tile>
+      </section>
+
+      {/* === Slim pipeline composition strip — full width below ===
+          Each column is itself a click target into the relevant workspace,
+          which lets us drop the standalone "Open buyers" link. */}
+      <section aria-label="Pipeline composition" className="mt-5">
+        <Tile className="!p-0">
+          <div className="flex items-center justify-between gap-3 border-b border-[#f2f2f2] px-5 py-3">
+            <p className="bb-mono-label">Pipeline composition</p>
+            <p className="text-[11.5px] leading-5 text-[#75758a]">
+              Where the broker’s capacity sits
+            </p>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-[#f2f2f2]">
+            <PipelineCompositionStat
+              detail={`${
+                model.buyers.filter((b) => b.currentStage !== "New Inquiry").length
+              } past intake`}
+              href="/buyers"
+              label="Buyers"
+              tone="green"
+              value={pipelineCount}
+            />
+            <PipelineCompositionStat
+              detail={`${
+                model.listings.filter((l) => l.status === "Active").length
+              } marketable`}
+              href="/listings"
+              label="Listings"
+              tone="ink"
+              value={listingCount}
+            />
+            <PipelineCompositionStat
+              detail={`${
+                model.verificationCases.filter((v) => v.status === "High Risk").length
+              } high risk`}
+              href="/verification"
+              label="Verifications"
+              tone="coral"
+              value={verificationCount}
+            />
+          </div>
         </Tile>
       </section>
 
@@ -627,53 +693,6 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
             />
           )}
         </Card>
-      </section>
-
-      {/* === Search — full-width with inline submit === */}
-      <section aria-label="Search" className="mt-8">
-        <Tile tone="paper" className="!p-5 sm:!p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="bb-mono-label">Search everything</p>
-            <p className="text-[11.5px] text-[#75758a]">
-              Buyers · listings · owner notes · tasks · documents
-            </p>
-          </div>
-          <form action="/search" className="mt-4">
-            <label className="relative block">
-              <span className="sr-only">Search buyers, listings, or tasks</span>
-              <Search
-                className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#75758a]"
-                aria-hidden="true"
-              />
-              <input
-                className="h-14 w-full rounded-2xl border border-[#d9d9dd] bg-white pl-14 pr-36 text-[15px] text-[#17171c] outline-none placeholder:text-[#9b9ba6] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
-                name="q"
-                placeholder="Search buyer memory, listing facts, owner notes..."
-                type="search"
-              />
-              <button
-                className="absolute right-2 top-1/2 inline-flex h-10 -translate-y-1/2 items-center gap-1.5 rounded-xl bg-[#17171c] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#2a2a32] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
-                type="submit"
-              >
-                Search
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </label>
-          </form>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {["Monaco", "VAT", "Ferrari", "owner update", "verification"].map(
-              (term) => (
-                <Link
-                  key={term}
-                  className="inline-flex h-7 items-center rounded-full border border-[#e5e7eb] bg-white px-3 text-[11.5px] font-medium text-[#3f3f46] transition-colors hover:border-[#17171c] hover:text-[#17171c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
-                  href={`/search?q=${encodeURIComponent(term)}`}
-                >
-                  {term}
-                </Link>
-              ),
-            )}
-          </div>
-        </Tile>
       </section>
 
       {/* === Listings + Deal rooms — quiet tertiary === */}
@@ -900,6 +919,94 @@ export function Dashboard({ segment }: { segment?: BrokerSegment }) {
         </section>
       ) : null}
     </div>
+  );
+}
+
+/* Map a task to the page where the broker would actually work on it. The
+   primary action button on the focal card uses this so its label ("Open
+   matcher", "Review verification", "Approve update") leads to the right
+   workspace instead of just toggling a done flag. */
+function taskActionHref(
+  kind:
+    | "Follow-Up"
+    | "Owner Update"
+    | "Verification"
+    | "Document"
+    | "Matching"
+    | "Viewing"
+    | "CRM",
+  buyerId?: string,
+  listingId?: string,
+  sellerId?: string,
+): string {
+  switch (kind) {
+    case "Matching":
+      return buyerId ? `/buyers/${buyerId}` : "/matching";
+    case "Verification":
+      return "/verification";
+    case "Document":
+      return listingId ? `/listings/${listingId}` : "/listings";
+    case "Owner Update":
+      return sellerId ? `/sellers/${sellerId}` : "/listings";
+    case "Viewing":
+      return buyerId ? `/buyers/${buyerId}` : "/buyers";
+    case "Follow-Up":
+      return buyerId ? `/buyers/${buyerId}` : "/buyers";
+    case "CRM":
+      return buyerId
+        ? `/voice-crm?buyer=${encodeURIComponent(buyerId)}`
+        : "/voice-crm";
+    default:
+      return "/dashboard";
+  }
+}
+
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function PipelineCompositionStat({
+  detail,
+  href,
+  label,
+  tone,
+  value,
+}: {
+  detail: string;
+  href: string;
+  label: string;
+  tone: "green" | "ink" | "coral";
+  value: number;
+}) {
+  const dotClass =
+    tone === "green"
+      ? "bg-[#003c33]"
+      : tone === "ink"
+        ? "bg-[#17171c]"
+        : "bg-[#9f4f2e]";
+  return (
+    <Link
+      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[#fafaf7]"
+      href={href}
+    >
+      <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
+      <span className="bb-display text-[1.6rem] font-medium tabular-nums leading-none text-[#17171c]">
+        {value}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block bb-mono-label">{label}</span>
+        <span className="mt-1 block truncate text-[11.5px] leading-4 text-[#75758a]">
+          {detail}
+        </span>
+      </span>
+      <ArrowUpRight
+        aria-hidden="true"
+        className="h-3.5 w-3.5 shrink-0 text-[#9b9ba6] transition-colors group-hover:text-[#003c33]"
+      />
+    </Link>
   );
 }
 

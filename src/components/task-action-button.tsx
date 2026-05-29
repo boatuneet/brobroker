@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useSyncExternalStore } from "react";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import { mirrorWorkflowEvent, readPersisted, writePersisted } from "@/lib/browser-persistence";
-import { Button } from "./ui";
+import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "brobroker:dashboard:completed-tasks";
 const COMPLETED_CHANGED = "brobroker:dashboard:completed-tasks:changed";
@@ -13,8 +14,7 @@ const COMPLETED_CHANGED = "brobroker:dashboard:completed-tasks:changed";
 const EMPTY_IDS: string[] = [];
 
 // Cache the parsed snapshot so getClientSnapshot returns a stable reference
-// until the underlying localStorage payload actually changes. Without this,
-// useSyncExternalStore would see a new array each render and warn.
+// until the underlying localStorage payload actually changes.
 let cachedRaw: string | null = null;
 let cachedSnapshot: string[] = EMPTY_IDS;
 
@@ -41,17 +41,22 @@ function getServerSnapshot(): string[] {
   return EMPTY_IDS;
 }
 
+/* The primary "action" button on the focal task card.
+   - When `href` is provided, the button navigates to the relevant workspace
+     (matcher, verification, voice-crm, etc.) — actually doing what its label
+     says, e.g. "Open matcher". A small mark-done toggle sits beside it so the
+     broker can flag completion without conflating the two intents.
+   - When no href is provided, the button falls back to a pure mark-done
+     toggle (legacy behaviour). */
 export function TaskActionButton({
-  taskId,
+  href,
   label,
+  taskId,
 }: {
-  taskId: string;
+  href?: string;
   label: string;
+  taskId: string;
 }) {
-  // useSyncExternalStore renders the server snapshot during SSR + first
-  // client render, then switches to the live localStorage snapshot. This
-  // keeps SSR and the first client paint identical (no hydration mismatch)
-  // while still reflecting persisted state.
   const completedIds = useSyncExternalStore(
     subscribe,
     getClientSnapshot,
@@ -59,35 +64,75 @@ export function TaskActionButton({
   );
   const isDone = completedIds.includes(taskId);
 
-  const completeTask = useCallback(() => {
-    const next = [...new Set([taskId, ...completedIds])];
+  const toggleDone = useCallback(() => {
+    const next = isDone
+      ? completedIds.filter((id) => id !== taskId)
+      : [...new Set([taskId, ...completedIds])];
     writePersisted(STORAGE_KEY, next);
-    mirrorWorkflowEvent("dashboard_task_completed", taskId, { taskId });
+    mirrorWorkflowEvent(
+      isDone ? "dashboard_task_reopened" : "dashboard_task_completed",
+      taskId,
+      { taskId },
+    );
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event(COMPLETED_CHANGED));
     }
-  }, [taskId, completedIds]);
+  }, [completedIds, isDone, taskId]);
 
   return (
-    <Button
-      className="self-start md:self-auto"
-      disabled={isDone}
-      onClick={completeTask}
-      size="sm"
-      type="button"
-      variant="secondary"
-    >
-      {isDone ? (
-        <>
-          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-          Done
-        </>
-      ) : (
-        <>
+    <div className="flex flex-wrap items-center gap-2">
+      {href ? (
+        <Link
+          className={cn(
+            "inline-flex min-h-10 items-center gap-2 rounded-full px-5 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]",
+            "bg-[#f4ead5] text-[#003c33] hover:bg-white",
+          )}
+          href={href}
+        >
           {label}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </>
+        </Link>
+      ) : (
+        <button
+          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#f4ead5] px-5 text-[13px] font-medium text-[#003c33] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]"
+          onClick={toggleDone}
+          type="button"
+        >
+          {isDone ? (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Done
+            </>
+          ) : (
+            <>
+              {label}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </>
+          )}
+        </button>
       )}
-    </Button>
+
+      {href ? (
+        <button
+          aria-label={isDone ? "Mark as not done" : "Mark as done"}
+          aria-pressed={isDone}
+          className={cn(
+            "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4ead5]",
+            isDone
+              ? "border-transparent bg-emerald-400/15 text-emerald-100 hover:bg-emerald-400/25"
+              : "border-white/15 bg-transparent text-[#f4ead5]/75 hover:border-white/30 hover:text-white",
+          )}
+          onClick={toggleDone}
+          type="button"
+        >
+          {isDone ? (
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <Circle className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          {isDone ? "Done" : "Mark done"}
+        </button>
+      ) : null}
+    </div>
   );
 }
