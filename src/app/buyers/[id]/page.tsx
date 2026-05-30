@@ -43,6 +43,20 @@ export async function generateMetadata({
 const VALID_TABS = new Set(["memory", "matches", "drafts"] as const);
 type ProfileTab = "memory" | "matches" | "drafts";
 
+/* Each Supabase helper is internally guarded (returns [] / undefined on
+   error), but a single unexpected throw — e.g. a network blip during
+   getStoredListingsForSegment — would 500 the entire page. Wrapping each
+   call lets one bad query degrade gracefully instead of taking the page
+   down. */
+async function safeAwait<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await promise;
+  } catch (error) {
+    console.warn("buyer detail: a data fetch threw, using fallback", error);
+    return fallback;
+  }
+}
+
 export default async function BuyerMemoryPage({
   params,
   searchParams,
@@ -59,10 +73,12 @@ export default async function BuyerMemoryPage({
   const includeDemo = await isDemoModeEnabled();
   const profile = includeDemo ? getBuyerMemoryProfile(id, segment) : undefined;
   const [storedBuyer, storedListings, storedConversations, storedDrafts] = await Promise.all([
-    profile ? Promise.resolve(undefined) : getStoredBuyerById(id),
-    getStoredListingsForSegment(segment),
-    getStoredConversationsForBuyer(id),
-    getStoredFollowUpDraftsForBuyer(id),
+    profile
+      ? Promise.resolve(undefined)
+      : safeAwait(getStoredBuyerById(id), undefined),
+    safeAwait(getStoredListingsForSegment(segment), []),
+    safeAwait(getStoredConversationsForBuyer(id), []),
+    safeAwait(getStoredFollowUpDraftsForBuyer(id), []),
   ]);
 
   if (!profile && !storedBuyer) {

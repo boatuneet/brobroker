@@ -104,13 +104,21 @@ export function Dashboard({
     : undefined;
   /* Where the primary "action" button on the focal task should navigate to,
      based on the task kind + linked IDs. Keeps the button label honest:
-     "Open matcher" → /matching, "Approve update" → owner page, etc. */
+     "Open matcher" → /matching, "Approve update" → owner page, etc.
+
+     We also defensively drop the href when the target buyer/listing/seller
+     can't be resolved (which would otherwise produce a dead link or a 500 in
+     production where demo IDs aren't backed by Supabase rows). Without an
+     href, TaskActionButton falls back to a pure mark-done toggle so the
+     broker isn't sent to a broken page. */
   const topTaskHref = topTask
-    ? taskActionHref(
+    ? resolveTaskHref(
         topTask.kind,
         topTask.buyerId,
         topTask.listingId,
         topTask.sellerId,
+        Boolean(topTaskBuyer),
+        Boolean(topTaskListing),
       )
     : undefined;
   /* Defer link points back into Voice CRM with the buyer pre-selected when
@@ -927,38 +935,51 @@ export function Dashboard({
    primary action button on the focal card uses this so its label ("Open
    matcher", "Review verification", "Approve update") leads to the right
    workspace instead of just toggling a done flag. */
-function taskActionHref(
-  kind:
-    | "Follow-Up"
-    | "Owner Update"
-    | "Verification"
-    | "Document"
-    | "Matching"
-    | "Viewing"
-    | "CRM",
-  buyerId?: string,
-  listingId?: string,
-  sellerId?: string,
-): string {
+type TaskKind =
+  | "Follow-Up"
+  | "Owner Update"
+  | "Verification"
+  | "Document"
+  | "Matching"
+  | "Viewing"
+  | "CRM";
+
+/* Pick the destination for the focal task button.
+   - When `buyerResolved` / `listingResolved` are false we know the target
+     detail page would either 404 or 500 (e.g. demo task referencing an ID
+     that isn't in Supabase). In that case we return undefined so the
+     TaskActionButton falls back to a pure mark-done toggle — no dead link. */
+function resolveTaskHref(
+  kind: TaskKind,
+  buyerId: string | undefined,
+  listingId: string | undefined,
+  sellerId: string | undefined,
+  buyerResolved: boolean,
+  listingResolved: boolean,
+): string | undefined {
   switch (kind) {
     case "Matching":
-      return buyerId ? `/buyers/${buyerId}?tab=matches` : "/matching";
+      if (buyerId) return buyerResolved ? `/buyers/${buyerId}?tab=matches` : undefined;
+      return "/matching";
+    case "Document":
+      if (listingId) return listingResolved ? `/listings/${listingId}` : undefined;
+      return "/listings";
+    case "Owner Update":
+      // Sellers are demo-only today, so we only link out when we have one and
+      // it would actually resolve. With no sellerId we fall back to listings.
+      return sellerId ? undefined : "/listings";
+    case "Viewing":
+    case "Follow-Up":
+      if (buyerId) return buyerResolved ? `/buyers/${buyerId}` : undefined;
+      return "/buyers";
     case "Verification":
       return "/verification";
-    case "Document":
-      return listingId ? `/listings/${listingId}` : "/listings";
-    case "Owner Update":
-      return sellerId ? `/sellers/${sellerId}` : "/listings";
-    case "Viewing":
-      return buyerId ? `/buyers/${buyerId}` : "/buyers";
-    case "Follow-Up":
-      return buyerId ? `/buyers/${buyerId}` : "/buyers";
     case "CRM":
       return buyerId
         ? `/voice-crm?buyer=${encodeURIComponent(buyerId)}`
         : "/voice-crm";
     default:
-      return "/dashboard";
+      return undefined;
   }
 }
 
