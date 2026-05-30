@@ -40,12 +40,21 @@ export async function generateMetadata({
   };
 }
 
+const VALID_TABS = new Set(["memory", "matches", "drafts"] as const);
+type ProfileTab = "memory" | "matches" | "drafts";
+
 export default async function BuyerMemoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
+  const rawTab = Array.isArray(query.tab) ? query.tab[0] : query.tab;
+  const initialTab: ProfileTab | undefined =
+    rawTab && VALID_TABS.has(rawTab as ProfileTab) ? (rawTab as ProfileTab) : undefined;
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
   const profile = includeDemo ? getBuyerMemoryProfile(id, segment) : undefined;
@@ -66,6 +75,7 @@ export default async function BuyerMemoryPage({
         buyerId={id}
         buyerOverride={storedBuyer}
         includeDemo={includeDemo}
+        initialTab={initialTab}
         segment={segment}
         storedListings={storedListings}
         storedConversations={storedConversations}

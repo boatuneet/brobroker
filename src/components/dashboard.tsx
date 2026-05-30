@@ -942,7 +942,7 @@ function taskActionHref(
 ): string {
   switch (kind) {
     case "Matching":
-      return buyerId ? `/buyers/${buyerId}` : "/matching";
+      return buyerId ? `/buyers/${buyerId}?tab=matches` : "/matching";
     case "Verification":
       return "/verification";
     case "Document":

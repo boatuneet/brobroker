@@ -891,6 +891,7 @@ export function BuyerMemoryProfile({
   buyerId,
   buyerOverride,
   includeDemo = true,
+  initialTab,
   segment,
   storedListings = [],
   storedConversations = [],
@@ -899,6 +900,7 @@ export function BuyerMemoryProfile({
   buyerId: string;
   buyerOverride?: BuyerProfile;
   includeDemo?: boolean;
+  initialTab?: "memory" | "matches" | "drafts";
   segment?: BrokerSegment;
   storedListings?: YachtListing[];
   storedConversations?: Conversation[];
@@ -914,7 +916,7 @@ export function BuyerMemoryProfile({
     : staticProfile
       ? buildBuyerMemoryModel(staticProfile.buyer, segment, inventory)
       : undefined;
-  const [tab, setTab] = useState<"memory" | "matches" | "drafts">("memory");
+  const [tab, setTab] = useState<"memory" | "matches" | "drafts">(initialTab ?? "memory");
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
