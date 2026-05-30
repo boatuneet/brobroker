@@ -249,23 +249,27 @@ const STAGE_OPTIONS: BuyerProfile["currentStage"][] = [
 ];
 
 export function BuyerIndex({
+  includeDemo = true,
   query: initialQuery,
   segment,
   storedBuyers = [],
   storedListings = [],
 }: {
+  includeDemo?: boolean;
   query?: string;
   segment?: BrokerSegment;
   storedBuyers?: BuyerProfile[];
   storedListings?: YachtListing[];
 }) {
+  /* When demo mode is off, drop the seed dataset entirely — the broker sees
+     only their Supabase-backed buyers and listings. */
   const allBuyers = useMemo(
-    () => mergeBuyers(getBuyersForSegment(segment), storedBuyers),
-    [storedBuyers, segment],
+    () => mergeBuyers(includeDemo ? getBuyersForSegment(segment) : [], storedBuyers),
+    [includeDemo, storedBuyers, segment],
   );
   const inventory = useMemo(
-    () => mergeListings(storedListings, getListingsForSegment(segment)),
-    [storedListings, segment],
+    () => mergeListings(storedListings, includeDemo ? getListingsForSegment(segment) : []),
+    [includeDemo, storedListings, segment],
   );
 
   const [query, setQuery] = useState(initialQuery ?? "");
@@ -886,6 +890,7 @@ function BuyersExplainerRow({
 export function BuyerMemoryProfile({
   buyerId,
   buyerOverride,
+  includeDemo = true,
   segment,
   storedListings = [],
   storedConversations = [],
@@ -893,13 +898,17 @@ export function BuyerMemoryProfile({
 }: {
   buyerId: string;
   buyerOverride?: BuyerProfile;
+  includeDemo?: boolean;
   segment?: BrokerSegment;
   storedListings?: YachtListing[];
   storedConversations?: Conversation[];
   storedDrafts?: FollowUpDraft[];
 }) {
-  const inventory = mergeListings(storedListings, getListingsForSegment(segment));
-  const staticProfile = getBuyerMemoryProfile(buyerId, segment);
+  const inventory = mergeListings(
+    storedListings,
+    includeDemo ? getListingsForSegment(segment) : [],
+  );
+  const staticProfile = includeDemo ? getBuyerMemoryProfile(buyerId, segment) : undefined;
   const profile = buyerOverride
     ? getBuyerMemoryModel(buyerOverride, segment, inventory)
     : staticProfile

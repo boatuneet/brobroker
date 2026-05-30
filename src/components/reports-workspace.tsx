@@ -11,8 +11,17 @@ import { formatDate } from "@/lib/utils";
 import { Badge, Button, Card, CardHeader, CardHeaderIcon, PageHeader, WorkflowState } from "./ui";
 import { cn } from "@/lib/utils";
 
-export function ReportsWorkspace({ segment }: { segment?: BrokerSegment }) {
-  const reports = useMemo(() => getEditableSellerReports(segment), [segment]);
+export function ReportsWorkspace({
+  includeDemo = true,
+  segment,
+}: {
+  includeDemo?: boolean;
+  segment?: BrokerSegment;
+}) {
+  const reports = useMemo(
+    () => getEditableSellerReports(segment, { includeDemo }),
+    [segment, includeDemo],
+  );
   const [selectedReportId, setSelectedReportId] = useState(reports[0]?.input.id ?? "");
   const selected = reports.find((report) => report.input.id === selectedReportId) ?? reports[0];
   const [approvedReportIds, setApprovedReportIds] = useState<string[]>(() =>

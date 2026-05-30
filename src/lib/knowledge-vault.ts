@@ -129,6 +129,8 @@ export interface KnowledgeVaultModel {
 export interface KnowledgeVaultInput {
   storedListings?: YachtListing[];
   storedBuyers?: BuyerProfile[];
+  /* When false, the seed demo dataset is omitted; only stored items show. */
+  includeDemo?: boolean;
 }
 
 function mergeById<T extends { id: string }>(primary: T[], secondary: T[]) {
@@ -239,12 +241,13 @@ function getWorkspaceRecords(segment: BrokerSegment, input: KnowledgeVaultInput)
   const storedBuyers = (input.storedBuyers ?? []).filter((buyer) =>
     buyer.assetTypes?.length ? buyer.assetTypes.includes(segment) : segment === "Yacht",
   );
-  const listings = mergeById(storedListings, getListingsForSegment(segment));
-  const buyers = mergeById(storedBuyers, getBuyersForSegment(segment));
+  const includeDemo = input.includeDemo !== false;
+  const listings = mergeById(storedListings, includeDemo ? getListingsForSegment(segment) : []);
+  const buyers = mergeById(storedBuyers, includeDemo ? getBuyersForSegment(segment) : []);
   const storedOwners = listings
     .map((listing) => listing.ownerProfile)
     .filter((owner): owner is SellerProfile => Boolean(owner));
-  const owners = mergeById(storedOwners, getSellersForSegment(segment));
+  const owners = mergeById(storedOwners, includeDemo ? getSellersForSegment(segment) : []);
 
   return {
     listings,

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { SellerMemoryProfile } from "@/components/client-memory";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getSellerMemoryProfile } from "@/lib/services";
 
 // Same as the buyer page: render dynamically rather than precompute a static
@@ -18,7 +19,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const profile = getSellerMemoryProfile(id);
+  const includeDemo = await isDemoModeEnabled();
+  const profile = includeDemo ? getSellerMemoryProfile(id) : undefined;
 
   if (!profile) {
     return {
@@ -39,8 +41,9 @@ export default async function SellerMemoryPage({
 }) {
   const { id } = await params;
   const segment = await getActiveBrokerSegment();
+  const includeDemo = await isDemoModeEnabled();
 
-  if (!getSellerMemoryProfile(id, segment)) {
+  if (!includeDemo || !getSellerMemoryProfile(id, segment)) {
     notFound();
   }
 

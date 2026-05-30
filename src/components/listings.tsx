@@ -24,6 +24,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  UploadCloud,
   X,
 } from "lucide-react";
 import { yachtListings } from "@/lib/demo-data";
@@ -126,30 +127,33 @@ function isListingStatus(value: string): value is ListingStatus {
 }
 
 export function ListingIndex({
+  includeDemo = true,
   query: initialQuery,
   segment,
   status: initialStatus,
   storedListings = [],
 }: {
+  includeDemo?: boolean;
   query?: string;
   segment?: BrokerSegment;
   status?: string;
   storedListings?: YachtListing[];
 }) {
   const segmentListings = useMemo(
-    () => mergeListings(storedListings, getListingsForSegment(segment)),
-    [storedListings, segment],
+    () => mergeListings(storedListings, includeDemo ? getListingsForSegment(segment) : []),
+    [includeDemo, storedListings, segment],
   );
 
   // Tasks resolved once for the whole list — keeps row work O(1).
   const openTaskCounts = useMemo(() => {
     const map = new Map<string, number>();
-    for (const task of getTasksForSegment(segment)) {
+    const segmentTasks = includeDemo ? getTasksForSegment(segment) : [];
+    for (const task of segmentTasks) {
       if (task.status === "Done" || !task.listingId) continue;
       map.set(task.listingId, (map.get(task.listingId) ?? 0) + 1);
     }
     return map;
-  }, [segment]);
+  }, [includeDemo, segment]);
 
   const [query, setQuery] = useState(initialQuery ?? "");
   const [statusFilter, setStatusFilter] = useState<ListingStatus | "All">(() => {
@@ -237,13 +241,22 @@ export function ListingIndex({
         title="Listing intelligence"
         description="Search inventory by fit, owner, location, documents, and missing facts."
         actions={
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
-            href="/listings/new"
-          >
-            <PlusCircle className="h-4 w-4" aria-hidden="true" />
-            New listing
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]"
+              href="/listings/import"
+            >
+              <UploadCloud className="h-4 w-4" aria-hidden="true" />
+              Bulk import
+            </Link>
+            <Link
+              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
+              href="/listings/new"
+            >
+              <PlusCircle className="h-4 w-4" aria-hidden="true" />
+              New listing
+            </Link>
+          </div>
         }
       />
 
@@ -1004,18 +1017,22 @@ function ListingMiniStat({
 
 export function ListingBrain({
   activeTab,
+  includeDemo = true,
   listingId,
   listingOverride,
   segment,
 }: {
   activeTab?: string;
+  includeDemo?: boolean;
   listingId: string;
   listingOverride?: YachtListing;
   segment?: BrokerSegment;
 }) {
   const brain = listingOverride
     ? buildListingBrain(listingOverride, segment)
-    : getListingBrain(listingId, segment);
+    : includeDemo
+      ? getListingBrain(listingId, segment)
+      : undefined;
 
   if (!brain) {
     return null;
@@ -1028,7 +1045,7 @@ export function ListingBrain({
     "Which documents are missing?",
     "Can I promise the owner motivation?",
   ];
-  const buyerOptions: BuyerOption[] = getBuyersForSegment(segment).map((buyer) => ({
+  const buyerOptions: BuyerOption[] = (includeDemo ? getBuyersForSegment(segment) : []).map((buyer) => ({
     id: buyer.id,
     name: buyer.name,
     memoryNote: [

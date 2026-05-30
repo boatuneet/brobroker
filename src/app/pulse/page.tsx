@@ -9,6 +9,7 @@ import {
   getListingsForSegment,
   getTasksForSegment,
 } from "@/lib/broker-segments";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 
 export const metadata: Metadata = {
@@ -18,12 +19,15 @@ export const metadata: Metadata = {
 
 export default async function PulsePage() {
   const segment = await getActiveBrokerSegment();
+  const includeDemo = await isDemoModeEnabled();
   const [storedBuyers] = await Promise.all([getStoredBuyersForSegment(segment)]);
-  const demoBuyers = getBuyersForSegment(segment);
-  const tasks = getTasksForSegment(segment);
-  const conversations = getConversationsForSegment(segment);
-  const drafts = getFollowUpDraftsForSegment(segment);
-  const listings = getListingsForSegment(segment);
+  /* When demo mode is off, the broker sees only their Supabase-backed
+     pipeline — no Daniel Brenner / Helena Rossi seeds. */
+  const demoBuyers = includeDemo ? getBuyersForSegment(segment) : [];
+  const tasks = includeDemo ? getTasksForSegment(segment) : [];
+  const conversations = includeDemo ? getConversationsForSegment(segment) : [];
+  const drafts = includeDemo ? getFollowUpDraftsForSegment(segment) : [];
+  const listings = includeDemo ? getListingsForSegment(segment) : [];
 
   return (
     <AppShell active="Pulse">

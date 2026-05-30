@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { BuyerMemoryProfile } from "@/components/client-memory";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getBuyerMemoryProfile } from "@/lib/services";
 import { getStoredBuyerById } from "@/lib/supabase/buyers";
 import { getStoredConversationsForBuyer } from "@/lib/supabase/conversations";
@@ -23,7 +24,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const profile = getBuyerMemoryProfile(id);
+  const includeDemo = await isDemoModeEnabled();
+  const profile = includeDemo ? getBuyerMemoryProfile(id) : undefined;
   const storedBuyer = profile ? undefined : await getStoredBuyerById(id);
 
   if (!profile && !storedBuyer) {
@@ -45,7 +47,8 @@ export default async function BuyerMemoryPage({
 }) {
   const { id } = await params;
   const segment = await getActiveBrokerSegment();
-  const profile = getBuyerMemoryProfile(id, segment);
+  const includeDemo = await isDemoModeEnabled();
+  const profile = includeDemo ? getBuyerMemoryProfile(id, segment) : undefined;
   const [storedBuyer, storedListings, storedConversations, storedDrafts] = await Promise.all([
     profile ? Promise.resolve(undefined) : getStoredBuyerById(id),
     getStoredListingsForSegment(segment),
@@ -62,6 +65,7 @@ export default async function BuyerMemoryPage({
       <BuyerMemoryProfile
         buyerId={id}
         buyerOverride={storedBuyer}
+        includeDemo={includeDemo}
         segment={segment}
         storedListings={storedListings}
         storedConversations={storedConversations}

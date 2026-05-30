@@ -42,37 +42,62 @@ import {
 } from "./ui";
 import { SelectMenu } from "./select-menu";
 
-export function DealRoomsWorkspace({ segment }: { segment?: BrokerSegment }) {
-  const buyers = useMemo(() => getBuyersForSegment(segment), [segment]);
+export function DealRoomsWorkspace({
+  includeDemo = true,
+  segment,
+}: {
+  includeDemo?: boolean;
+  segment?: BrokerSegment;
+}) {
+  const buyers = useMemo(
+    () => (includeDemo ? getBuyersForSegment(segment) : []),
+    [includeDemo, segment],
+  );
   const [savedRooms, setSavedRooms] = useState<DealRoom[]>(() =>
     readPersisted<DealRoom[]>("brobroker:deal-rooms:saved", []),
   );
   const existingRooms = useMemo(
-    () => getBrokerDealRoomWorkspace(savedRooms, segment),
-    [savedRooms, segment],
+    () => (includeDemo ? getBrokerDealRoomWorkspace(savedRooms, segment) : []),
+    [includeDemo, savedRooms, segment],
   );
 
   if (buyers.length === 0 && existingRooms.length === 0) {
     return <FirstRunDealRooms />;
   }
 
-  return <DealRoomsOperational existingRooms={existingRooms} savedRooms={savedRooms} segment={segment} setSavedRooms={setSavedRooms} />;
+  return (
+    <DealRoomsOperational
+      existingRooms={existingRooms}
+      includeDemo={includeDemo}
+      savedRooms={savedRooms}
+      segment={segment}
+      setSavedRooms={setSavedRooms}
+    />
+  );
 }
 
 /* Operational workspace — assumes at least one buyer or existing room exists. */
 function DealRoomsOperational({
   existingRooms,
+  includeDemo = true,
   savedRooms,
   segment,
   setSavedRooms,
 }: {
   existingRooms: ReturnType<typeof getBrokerDealRoomWorkspace>;
+  includeDemo?: boolean;
   savedRooms: DealRoom[];
   segment?: BrokerSegment;
   setSavedRooms: (rooms: DealRoom[]) => void;
 }) {
-  const buyers = useMemo(() => getBuyersForSegment(segment), [segment]);
-  const listings = useMemo(() => getListingsForSegment(segment), [segment]);
+  const buyers = useMemo(
+    () => (includeDemo ? getBuyersForSegment(segment) : []),
+    [includeDemo, segment],
+  );
+  const listings = useMemo(
+    () => (includeDemo ? getListingsForSegment(segment) : []),
+    [includeDemo, segment],
+  );
   const [buyerId, setBuyerId] = useState(buyers[0]?.id ?? "");
   const selectedBuyer = buyers.find((buyer) => buyer.id === buyerId);
 

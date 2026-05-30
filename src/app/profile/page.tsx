@@ -10,9 +10,11 @@ import {
 import { signOut } from "@/app/auth/actions";
 import { AppShell } from "@/components/app-shell";
 import { BrokerSegmentSelector } from "@/components/broker-segment-selector";
+import { DemoModeToggle } from "@/components/profile/demo-mode-toggle";
 import { ProfileEditor } from "@/components/profile/profile-editor";
 import { Badge, Card, CardHeader, PageHeader } from "@/components/ui";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { fetchOwnProfile } from "@/lib/supabase/profiles";
 import { createClient } from "@/lib/supabase/server";
@@ -35,6 +37,7 @@ function formatTimestamp(value: string | null | undefined): string {
 
 export default async function ProfilePage() {
   const segment = await getActiveBrokerSegment();
+  const demoModeEnabled = await isDemoModeEnabled();
   let user:
     | Awaited<ReturnType<Awaited<ReturnType<typeof createClient>>["auth"]["getUser"]>>["data"]["user"]
     | null = null;
@@ -127,6 +130,12 @@ export default async function ProfilePage() {
               <DetailRow icon={Calendar} label="Created" value={memberSince} />
               <DetailRow icon={Clock} label="Last sign-in" value={lastSignIn} />
             </dl>
+
+            {/* Demo data toggle — when off the workspace shows only the
+                broker's Supabase-backed buyers / listings / tasks. */}
+            <div className="mt-5 border-t border-[#E7E7E2] pt-5">
+              <DemoModeToggle initialEnabled={demoModeEnabled} />
+            </div>
 
             {isConnected ? (
               <form action={signOut} className="mt-auto pt-5">

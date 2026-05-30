@@ -29,9 +29,11 @@ function includesQuery(parts: Array<string | number | undefined>, query: string)
 }
 
 export function GlobalSearch({
+  includeDemo = true,
   query,
   segment,
 }: {
+  includeDemo?: boolean;
   query?: string;
   segment?: BrokerSegment;
 }) {
@@ -59,10 +61,22 @@ export function GlobalSearch({
 
   const normalized = value.trim().toLowerCase();
 
-  const listings = useMemo(() => getListingsForSegment(segment), [segment]);
-  const buyers = useMemo(() => getBuyersForSegment(segment), [segment]);
-  const sellers = useMemo(() => getSellersForSegment(segment), [segment]);
-  const tasks = useMemo(() => getTasksForSegment(segment), [segment]);
+  const listings = useMemo(
+    () => (includeDemo ? getListingsForSegment(segment) : []),
+    [includeDemo, segment],
+  );
+  const buyers = useMemo(
+    () => (includeDemo ? getBuyersForSegment(segment) : []),
+    [includeDemo, segment],
+  );
+  const sellers = useMemo(
+    () => (includeDemo ? getSellersForSegment(segment) : []),
+    [includeDemo, segment],
+  );
+  const tasks = useMemo(
+    () => (includeDemo ? getTasksForSegment(segment) : []),
+    [includeDemo, segment],
+  );
 
   const listingResults = normalized
     ? listings.filter((listing) =>

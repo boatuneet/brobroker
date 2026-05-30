@@ -60,8 +60,14 @@ function dueLabel(date: string) {
   return `Due in ${delta}d`;
 }
 
-export function Dashboard({ segment }: { segment?: BrokerSegment }) {
-  const model = getDashboardModel(segment);
+export function Dashboard({
+  includeDemo = true,
+  segment,
+}: {
+  includeDemo?: boolean;
+  segment?: BrokerSegment;
+}) {
+  const model = getDashboardModel(segment, { includeDemo });
   const segmentMeta = getBrokerSegmentMeta(segment);
   const SegmentIcon = segmentIcons[segmentMeta.id];
   const approvedDrafts = model.followUpDrafts.filter(

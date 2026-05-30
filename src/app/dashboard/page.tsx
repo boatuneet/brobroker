@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { Dashboard } from "@/components/dashboard";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 
 export const metadata = {
   title: "Dashboard · BroBroker",
@@ -9,10 +10,11 @@ export const metadata = {
 
 export default async function DashboardPage() {
   const segment = await getActiveBrokerSegment();
+  const includeDemo = await isDemoModeEnabled();
 
   return (
     <AppShell active="Dashboard">
-      <Dashboard segment={segment} />
+      <Dashboard includeDemo={includeDemo} segment={segment} />
     </AppShell>
   );
 }

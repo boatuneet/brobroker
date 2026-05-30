@@ -396,7 +396,11 @@ export function getVerificationAuditTrail(caseFile: VerificationCase, segment?: 
   ];
 }
 
-export function getVerificationInbox(segment?: BrokerSegment) {
+export function getVerificationInbox(
+  segment?: BrokerSegment,
+  options: { includeDemo?: boolean } = {},
+) {
+  if (options.includeDemo === false) return [];
   return getVerificationCasesForSegment(segment)
     .map((caseFile) => {
       const scored = scoreVerification(caseFile);
@@ -1324,16 +1328,27 @@ export function generateVoiceToCrmDraftsFromExtracted(
   ];
 }
 
-export function getVoiceToCrmWorkflow(raw: string, segment?: BrokerSegment) {
+export function getVoiceToCrmWorkflow(
+  raw: string,
+  segment?: BrokerSegment,
+  options?: { includeDemo?: boolean },
+) {
+  const includeDemo = options?.includeDemo !== false;
   const trimmed = raw.trim();
   const extracted = extractCallSummary(raw);
-  const buyer = getBuyersForSegment(segment).find((candidate) =>
-    candidate.name.toLowerCase().includes(extracted.buyerName.toLowerCase().split(" ")[0]),
-  );
-  const matches = buyer ? generateMatchesForBuyer(buyer, getListingsForSegment(segment)) : [];
-  const linkedListings = extracted.linkedListingIds
-    .map((id) => getListingById(id, segment))
-    .filter((listing): listing is YachtListing => Boolean(listing));
+  const buyer = includeDemo
+    ? getBuyersForSegment(segment).find((candidate) =>
+        candidate.name.toLowerCase().includes(extracted.buyerName.toLowerCase().split(" ")[0]),
+      )
+    : undefined;
+  const matches = buyer && includeDemo
+    ? generateMatchesForBuyer(buyer, getListingsForSegment(segment))
+    : [];
+  const linkedListings = includeDemo
+    ? extracted.linkedListingIds
+        .map((id) => getListingById(id, segment))
+        .filter((listing): listing is YachtListing => Boolean(listing))
+    : [];
 
   const tasks: BrokerTask[] = extracted.tasks.map((task, index) => {
     const kind: BrokerTask["kind"] = task.toLowerCase().includes("viewing")
@@ -1443,7 +1458,11 @@ export function generateSellerReport(input: SellerReportInput, segment?: BrokerS
   };
 }
 
-export function getEditableSellerReports(segment?: BrokerSegment) {
+export function getEditableSellerReports(
+  segment?: BrokerSegment,
+  options: { includeDemo?: boolean } = {},
+) {
+  if (options.includeDemo === false) return [];
   return getSellerReportInputsForSegment(segment).map((input) => {
     const seller = getSellerById(input.sellerId, segment);
     const listing = getListingById(input.listingId, segment);
@@ -1670,17 +1689,32 @@ export function answerDealRoomQuestion(question: string, listing: YachtListing) 
   return `I can answer from approved listing material only. The broker should confirm this detail for ${listing.name}.`;
 }
 
-export function getDashboardModel(segment?: BrokerSegment) {
-  const segmentBuyers = getBuyersForSegment(segment);
-  const segmentListings = getListingsForSegment(segment);
-  const segmentSellers = getSellersForSegment(segment);
-  const segmentTasks = getTasksForSegment(segment);
-  const segmentVerificationCases = getVerificationCasesForSegment(segment);
-  const segmentConversations = getConversationsForSegment(segment);
-  const segmentFollowUpDrafts = getFollowUpDraftsForSegment(segment);
-  const segmentDealRooms = getDealRoomsForSegment(segment);
-  const segmentSellerReports = getSellerReportInputsForSegment(segment);
-  const segmentMatches = getMatchResultsForSegment(segment);
+export function getDashboardModel(
+  segment?: BrokerSegment,
+  options: { includeDemo?: boolean } = {},
+) {
+  /* When demo mode is off, return empty arrays from the segment helpers so
+     the dashboard renders only the broker's Supabase-backed data. Stored
+     listings/buyers/etc. are passed in separately by the page. */
+  const includeDemo = options.includeDemo !== false;
+  const segmentBuyers = includeDemo ? getBuyersForSegment(segment) : [];
+  const segmentListings = includeDemo ? getListingsForSegment(segment) : [];
+  const segmentSellers = includeDemo ? getSellersForSegment(segment) : [];
+  const segmentTasks = includeDemo ? getTasksForSegment(segment) : [];
+  const segmentVerificationCases = includeDemo
+    ? getVerificationCasesForSegment(segment)
+    : [];
+  const segmentConversations = includeDemo
+    ? getConversationsForSegment(segment)
+    : [];
+  const segmentFollowUpDrafts = includeDemo
+    ? getFollowUpDraftsForSegment(segment)
+    : [];
+  const segmentDealRooms = includeDemo ? getDealRoomsForSegment(segment) : [];
+  const segmentSellerReports = includeDemo
+    ? getSellerReportInputsForSegment(segment)
+    : [];
+  const segmentMatches = includeDemo ? getMatchResultsForSegment(segment) : [];
 
   const hotBuyers = segmentBuyers
     .map((buyer) => ({

@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { KnowledgeVaultWorkspace } from "@/components/knowledge-vault";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { buildKnowledgeVault } from "@/lib/knowledge-vault";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 import { getStoredListingsForSegment } from "@/lib/supabase/listings";
@@ -12,11 +13,16 @@ export const metadata = {
 
 export default async function KnowledgePage() {
   const segment = await getActiveBrokerSegment();
+  const includeDemo = await isDemoModeEnabled();
   const [storedListings, storedBuyers] = await Promise.all([
     getStoredListingsForSegment(segment),
     getStoredBuyersForSegment(segment),
   ]);
-  const model = buildKnowledgeVault(segment, { storedListings, storedBuyers });
+  const model = buildKnowledgeVault(segment, {
+    storedListings,
+    storedBuyers,
+    includeDemo,
+  });
 
   return (
     <AppShell active="Knowledge">

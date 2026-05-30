@@ -81,16 +81,18 @@ function categoryTone(category: string): "success" | "info" | "warning" {
 }
 
 export function MatchingWorkspace({
+  includeDemo = true,
   segment = "Yacht",
   storedBuyers = [],
   storedListings = [],
 }: {
+  includeDemo?: boolean;
   segment?: BrokerSegment;
   storedBuyers?: BuyerProfile[];
   storedListings?: YachtListing[];
 }) {
-  const listings = mergeListings(storedListings, getListingsForSegment(segment));
-  const buyers = mergeBuyers(storedBuyers, getBuyersForSegment(segment));
+  const listings = mergeListings(storedListings, includeDemo ? getListingsForSegment(segment) : []);
+  const buyers = mergeBuyers(storedBuyers, includeDemo ? getBuyersForSegment(segment) : []);
   const exampleBrief = exampleBriefs[segment];
   const [brief, setBrief] = useState("");
   const [parsedBrief, setParsedBrief] = useState("");

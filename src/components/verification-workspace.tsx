@@ -42,8 +42,17 @@ function signalBadgeTone(state: string): "success" | "warning" | "error" {
   return "warning";
 }
 
-export function VerificationWorkspace({ segment }: { segment?: BrokerSegment }) {
-  const inbox = useMemo(() => getVerificationInbox(segment), [segment]);
+export function VerificationWorkspace({
+  includeDemo = true,
+  segment,
+}: {
+  includeDemo?: boolean;
+  segment?: BrokerSegment;
+}) {
+  const inbox = useMemo(
+    () => getVerificationInbox(segment, { includeDemo }),
+    [segment, includeDemo],
+  );
   const [selectedCaseId, setSelectedCaseId] = useState(inbox[0]?.caseFile.id ?? "");
   const [decisionEvents, setDecisionEvents] = useState<AuditEvent[]>(() =>
     readPersisted<AuditEvent[]>("brobroker:verification:decisions", []),

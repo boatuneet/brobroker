@@ -102,10 +102,12 @@ function taskPriorityTone(priority: string): "error" | "warning" | "info" | "neu
 }
 
 export function VoiceToCrmWorkspace({
+  includeDemo = true,
   prefillBuyerId,
   segment,
   storedBuyers = [],
 }: {
+  includeDemo?: boolean;
   prefillBuyerId?: string;
   segment?: BrokerSegment;
   storedBuyers?: BuyerProfile[];
@@ -113,7 +115,10 @@ export function VoiceToCrmWorkspace({
   const persistedWorkspace = readPersisted<PersistedVoiceWorkspace | null>(activeVoiceKey, null);
   const [callSummary, setCallSummary] = useState(persistedWorkspace?.callSummary ?? "");
   const [parsedSummary, setParsedSummary] = useState(persistedWorkspace?.parsedSummary ?? "");
-  const workflow = useMemo(() => getVoiceToCrmWorkflow(parsedSummary, segment), [parsedSummary, segment]);
+  const workflow = useMemo(
+    () => getVoiceToCrmWorkflow(parsedSummary, segment, { includeDemo }),
+    [parsedSummary, segment, includeDemo],
+  );
   const [drafts, setDrafts] = useState<FollowUpDraft[]>(persistedWorkspace?.drafts ?? []);
   const [auditLog, setAuditLog] = useState<AuditEvent[]>(persistedWorkspace?.auditLog ?? []);
   const [activeRunId, setActiveRunId] = useState(persistedWorkspace?.activeRunId ?? "");
@@ -149,7 +154,7 @@ export function VoiceToCrmWorkspace({
   async function parseCurrentSummary() {
     const trimmed = callSummary.trim();
     if (!trimmed) return;
-    const nextWorkflow = getVoiceToCrmWorkflow(callSummary, segment);
+    const nextWorkflow = getVoiceToCrmWorkflow(callSummary, segment, { includeDemo });
     const runId = `voice-run-${Date.now()}`;
     const runDrafts = nextWorkflow.drafts.map((draft) => ({
       ...draft,

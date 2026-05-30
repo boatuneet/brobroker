@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { ListingIndex } from "@/components/listings";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getStoredListingsForSegment } from "@/lib/supabase/listings";
 
 export const metadata = {
@@ -17,11 +18,18 @@ export default async function ListingsPage({
   const query = Array.isArray(params.q) ? params.q[0] : params.q;
   const status = Array.isArray(params.status) ? params.status[0] : params.status;
   const segment = await getActiveBrokerSegment();
+  const includeDemo = await isDemoModeEnabled();
   const storedListings = await getStoredListingsForSegment(segment);
 
   return (
     <AppShell active="Listings">
-      <ListingIndex query={query} segment={segment} status={status} storedListings={storedListings} />
+      <ListingIndex
+        includeDemo={includeDemo}
+        query={query}
+        segment={segment}
+        status={status}
+        storedListings={storedListings}
+      />
     </AppShell>
   );
 }

@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { GlobalSearch } from "@/components/global-search";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 
 export const metadata = {
   title: "Search · BroBroker",
@@ -15,10 +16,11 @@ export default async function SearchPage({
   const params = await searchParams;
   const query = Array.isArray(params.q) ? params.q[0] : params.q;
   const segment = await getActiveBrokerSegment();
+  const includeDemo = await isDemoModeEnabled();
 
   return (
     <AppShell active="Dashboard">
-      <GlobalSearch query={query} segment={segment} />
+      <GlobalSearch includeDemo={includeDemo} query={query} segment={segment} />
     </AppShell>
   );
 }
