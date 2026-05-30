@@ -13,6 +13,10 @@ export function generateStaticParams() {
   return [];
 }
 
+/* See /buyers/[id]/page.tsx for rationale — force dynamic rendering so Vercel
+   doesn't statically prerender a page that needs cookies + Supabase. */
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: {

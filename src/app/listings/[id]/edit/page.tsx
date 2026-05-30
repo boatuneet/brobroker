@@ -10,6 +10,8 @@ export const metadata = {
   description: "Edit a broker listing record.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function EditListingPage({
   params,
 }: {

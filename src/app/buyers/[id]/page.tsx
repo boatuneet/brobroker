@@ -18,6 +18,14 @@ export function generateStaticParams() {
   return [];
 }
 
+/* Force dynamic rendering. Without this, Vercel's build pipeline has been
+   observed to mis-classify this route as static (because generateStaticParams
+   returned no params), which leads to a 500 on every request — the page tries
+   to read cookies and Supabase data at request time, but the runtime treats
+   it as a static page that should already be rendered. Setting force-dynamic
+   tells Next to always render at request time. */
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: {
