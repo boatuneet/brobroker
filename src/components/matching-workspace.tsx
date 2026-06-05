@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   CircleAlert,
+  Info,
   Lightbulb,
   MessageSquareText,
   Search,
@@ -365,8 +366,9 @@ export function MatchingWorkspace({
         ]}
       />
 
-      {/* Mode switch — the screen does two opposite jobs; let the broker pick one. */}
-      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+      {/* Mode switch in its own full-width card — tabs + a blue info callout,
+          mirroring the Voice CRM capture card. */}
+      <div className="mt-8 rounded-[12px] border border-[#E7E7E7] bg-white p-4 sm:p-5">
         <div
           aria-label="Matching mode"
           className="inline-flex w-fit shrink-0 items-center gap-1 rounded-[8px] border border-[#D9DAD4] bg-white p-1 text-[13px] font-medium"
@@ -399,11 +401,14 @@ export function MatchingWorkspace({
             Find buyers for a listing
           </button>
         </div>
-        <p className="text-[13px] leading-6 text-[#5F625E]">
-          {mode === "buyer"
-            ? "Turn a buyer brief into a ranked, explainable shortlist."
-            : "Pick a listing and see which saved buyers it fits — with the reasons why."}
-        </p>
+        <div className="mt-3 flex items-start gap-2.5 rounded-[10px] border border-[#CBDDEB] bg-[#E0ECF2] px-4 py-2.5 text-[13px] leading-6 text-[#3D6F8F]">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0">
+            {mode === "buyer"
+              ? "Turn a buyer brief into a ranked, explainable shortlist."
+              : "Pick a listing and see which saved buyers it fits — with the reasons why."}
+          </span>
+        </div>
       </div>
 
       {mode === "buyer" ? (

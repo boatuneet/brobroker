@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import {
   ActivityLogIcon,
   ArchiveIcon,
@@ -16,6 +16,7 @@ import {
   MixIcon,
   PersonIcon,
   SpeakerLoudIcon,
+  UpdateIcon,
   ViewVerticalIcon,
 } from "@radix-ui/react-icons";
 import { BrokerSegmentBridge } from "@/components/broker-segment-bridge";
@@ -48,6 +49,28 @@ const navItems: Array<{
   { label: "Reports", href: "/reports", icon: BarChartIcon },
   { label: "Deal Rooms", href: "/deal-rooms", icon: FileTextIcon },
 ];
+
+/* Swaps a nav item's icon for a spinning indicator the moment its link is
+   clicked, using Next's useLinkStatus(). Server navigation can take a beat
+   on Vercel, so this gives the broker instant "it's loading" feedback on the
+   exact item they tapped instead of a frozen-looking sidebar. Must live as a
+   descendant of <Link> for the hook to read that link's pending state. */
+function NavLinkIcon({
+  Icon,
+  idleClassName,
+  spinnerClassName,
+}: {
+  Icon: SidebarIcon;
+  idleClassName: string;
+  spinnerClassName: string;
+}) {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <UpdateIcon aria-hidden="true" className={spinnerClassName} />
+  ) : (
+    <Icon aria-hidden="true" className={idleClassName} />
+  );
+}
 
 export function CompactSidebarShell({
   active,
@@ -198,11 +221,15 @@ export function CompactSidebarShell({
                       href={item.href}
                       title={!isOpen ? item.label : undefined}
                     >
-                      <Icon
-                        aria-hidden="true"
-                        className={cn(
+                      <NavLinkIcon
+                        Icon={Icon}
+                        idleClassName={cn(
                           "size-[15px] shrink-0",
                           isActive ? "text-white" : "text-[#8E918B] group-hover:text-[#003C33]",
+                        )}
+                        spinnerClassName={cn(
+                          "size-[15px] shrink-0 animate-spin",
+                          isActive ? "text-white" : "text-[#003C33]",
                         )}
                       />
                       {isOpen ? <span className="min-w-0 truncate">{item.label}</span> : null}
@@ -301,7 +328,11 @@ export function CompactSidebarShell({
                 )}
                 href={item.href}
               >
-                <Icon className="size-[15px]" aria-hidden="true" />
+                <NavLinkIcon
+                  Icon={Icon}
+                  idleClassName="size-[15px]"
+                  spinnerClassName="size-[15px] animate-spin"
+                />
                 {item.label}
               </Link>
             );

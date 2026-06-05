@@ -27,10 +27,13 @@ export async function AppShell({
   let userEmail: string | null = null;
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    userEmail = user?.email ?? null;
+    // getClaims() verifies the JWT locally (no Supabase Auth round-trip),
+    // unlike getUser() which adds a network hop to every navigation. The
+    // email rides along in the verified claims, so we read it straight from
+    // there to keep the shell render off the network on each page load.
+    const { data } = await supabase.auth.getClaims();
+    const email = data?.claims?.email;
+    userEmail = typeof email === "string" ? email : null;
   }
   const userInitial = userEmail?.charAt(0).toUpperCase() ?? "?";
   const segment = await getActiveBrokerSegment();
