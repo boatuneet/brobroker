@@ -27,10 +27,10 @@ export function ToastViewport({
   if (!message) return null;
 
   return (
-    <div className="bb-toast-enter fixed right-5 top-5 z-50 max-w-[360px]">
+    <div className="bb-toast-enter-br fixed bottom-5 right-5 z-[90] max-w-[360px]">
       <div
         className={cn(
-          "flex items-start gap-3 rounded-[12px] border bg-white px-4 py-3 text-[13px] leading-6 text-[#171719]",
+          "flex items-start gap-3 rounded-[12px] border bg-white px-4 py-3 text-[13px] leading-6 text-[#171719] shadow-[0_12px_32px_rgba(23,31,25,0.14)]",
           tone === "error" ? "border-[#F0DDD0]" : "border-[#E7E7E7]",
         )}
         role="status"

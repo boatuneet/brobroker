@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -39,6 +39,16 @@ import { Badge } from "../ui";
 import { FitRing } from "../dashboard/visuals";
 import { IMPORT_EVENT } from "./import-knowledge-button";
 import { ImportKnowledgePanel, type ImportCandidate } from "./import-knowledge-panel";
+
+/* White surface with the same static dotted texture used across the app — the
+   right pane (vault health + pages, and the page detail) sits on this so the
+   pattern shows behind its cards instead of a flat grey fill. */
+const DOTTED_SURFACE: CSSProperties = {
+  backgroundColor: "#ffffff",
+  backgroundImage: "radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.35) 1px, transparent 0)",
+  backgroundSize: "20px 20px",
+  backgroundAttachment: "fixed",
+};
 
 /* A user-imported note attached to a vault page (subset of the
    server-side KnowledgeNote — only the fields the UI renders). */
@@ -278,7 +288,7 @@ export function KnowledgePagesPane({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#FBFBFB]">
+    <div className="flex h-full min-h-0 flex-col" style={DOTTED_SURFACE}>
       {/* @container so the panel reflows to the pane width, not the viewport. */}
       <div className="@container min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
         <VaultHealthCard avg={avgConfidence} model={model} />
@@ -646,7 +656,7 @@ function PageDetail({
 }) {
   const Icon = CATEGORY_ICON[page.category];
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#FBFBFB]">
+    <div className="flex h-full min-h-0 flex-col" style={DOTTED_SURFACE}>
       {/* Detail top bar */}
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#E7E7E7] bg-white px-5 py-3">
         <button
@@ -726,7 +736,7 @@ function PageDetail({
 
           {/* Open gaps */}
           {page.openGaps.length ? (
-            <div className="rounded-[12px] border border-[#F0DDD0] bg-[#F0DDD0]/50 p-4">
+            <div className="rounded-[12px] border border-[#F0DDD0] bg-[#F8EEE8] p-4">
               <p className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-[#A86642]">
                 <ExclamationTriangleIcon className="h-4 w-4" aria-hidden="true" />
                 {page.openGaps.length} open {page.openGaps.length === 1 ? "gap" : "gaps"} to close

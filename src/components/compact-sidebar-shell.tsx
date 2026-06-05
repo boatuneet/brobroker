@@ -20,6 +20,7 @@ import {
 } from "@radix-ui/react-icons";
 import { BrokerSegmentBridge } from "@/components/broker-segment-bridge";
 import { GoProButton } from "@/components/go-pro-button";
+import { AnimatedTitle } from "@/components/animated-title";
 import type { BrokerSegment } from "@/lib/broker-segments";
 import { cn } from "@/lib/utils";
 
@@ -116,7 +117,19 @@ export function CompactSidebarShell({
   const desktopSidebarWidth = isOpen ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
 
   return (
-    <div className="min-h-dvh bg-white text-[#171719]">
+    <div
+      className="min-h-dvh text-[#171719]"
+      style={{
+        backgroundColor: "#ffffff",
+        backgroundImage:
+          "radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.35) 1px, transparent 0)",
+        backgroundSize: "20px 20px",
+        // Pin the texture to the viewport so it stays put while content scrolls.
+        // The sidebar + sticky top bar have solid backgrounds, so the dots only
+        // ever show behind page content — never under the chrome.
+        backgroundAttachment: "fixed",
+      }}
+    >
       <BrokerSegmentBridge currentSegment={segment} />
 
       <aside
@@ -149,7 +162,13 @@ export function CompactSidebarShell({
                     isOpen ? "text-[1.65rem] text-[#171719]" : "text-[1rem] text-[#171719]",
                   )}
                 >
-                  {isOpen ? "Brobroker." : "BB"}
+                  {isOpen ? (
+                    <>
+                      Brobroker<span className="text-[#A86642]">.</span>
+                    </>
+                  ) : (
+                    "BB"
+                  )}
                 </span>
               </Link>
             </div>
@@ -245,7 +264,7 @@ export function CompactSidebarShell({
         <div className="flex items-center justify-between gap-3">
           <Link aria-label="BroBroker dashboard" className="inline-flex" href="/dashboard">
             <span className={cn(fraunces.className, "text-2xl font-bold tracking-tight text-[#171719]")}>
-              Brobroker.
+              Brobroker<span className="text-[#A86642]">.</span>
             </span>
           </Link>
           {userEmail ? (
@@ -313,9 +332,7 @@ export function CompactSidebarShell({
             {breadcrumb ? (
               breadcrumb
             ) : pageTitle ? (
-              <h1 className="truncate text-[18px] font-semibold leading-none text-[#171719]">
-                {pageTitle}
-              </h1>
+              <AnimatedTitle key={pageTitle} text={pageTitle} />
             ) : null}
           </div>
           {pageActions ? (

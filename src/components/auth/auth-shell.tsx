@@ -26,7 +26,7 @@ export function AuthShell({
           {/* Logotype matches the sidebar Brobroker. wordmark — Fraunces
               display font, period included. */}
           <span className="font-display text-[2rem] font-bold tracking-tight text-white">
-            Brobroker.
+            Brobroker<span className="text-[#D89B6A]">.</span>
           </span>
         </Link>
 
@@ -58,7 +58,7 @@ export function AuthShell({
             href="/dashboard"
           >
             <span className="font-display text-[1.75rem] font-bold tracking-tight text-[#171719]">
-              Brobroker.
+              Brobroker<span className="text-[#A86642]">.</span>
             </span>
           </Link>
 

@@ -10,14 +10,12 @@ import { cn, formatCurrency } from "@/lib/utils";
 const FUNNEL_STAGES: ReadonlyArray<{
   key: BuyerProfile["currentStage"];
   label: string;
-  /* Brand-aligned accent color for the stage indicator bar. */
-  accent: string;
 }> = [
-  { key: "New Inquiry", label: "Initial contact", accent: "#3D6F8F" },
-  { key: "Qualified", label: "Qualified", accent: "#8ABDA6" },
-  { key: "Shortlist Sent", label: "Shortlist sent", accent: "#A86642" },
-  { key: "Viewing Planned", label: "Viewing planned", accent: "#0F8F62" },
-  { key: "Negotiation", label: "Negotiation", accent: "#003C33" },
+  { key: "New Inquiry", label: "Initial contact" },
+  { key: "Qualified", label: "Qualified" },
+  { key: "Shortlist Sent", label: "Shortlist sent" },
+  { key: "Viewing Planned", label: "Viewing planned" },
+  { key: "Negotiation", label: "Negotiation" },
 ];
 
 /* Sums a buyer's "deal value" using their budget max — that's the most
@@ -79,20 +77,23 @@ export function PipelineFunnel({
           return (
             <li key={stage.key}>
               <Link
-                className="group flex h-full flex-col rounded-[10px] border border-[#E7E7E7] bg-[#FBFBFB] p-3.5 transition-colors hover:border-[#003C33] hover:bg-white"
+                aria-label={`View ${stage.label} buyers`}
+                className="group flex h-full flex-col rounded-[10px] border border-[#E7E7E7] bg-[#FBFBFB] p-3.5 transition-all duration-150 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_8px_20px_rgba(23,31,25,0.07)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
                 href={`/buyers?stage=${encodeURIComponent(stage.key)}`}
+                title={`View ${stage.label} buyers`}
               >
-                {/* Stage accent ribbon — same colour language as the funnel
-                    we're replicating, kept thin so the tile stays calm. */}
-                <span
-                  aria-hidden="true"
-                  className="h-1 w-10 rounded-full"
-                  style={{ backgroundColor: stage.accent }}
-                />
-                <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
-                  {stage.label}
-                </p>
-                <p className="mt-2 text-[1.75rem] font-semibold leading-none tabular-nums text-[#171719]">
+                {/* Label + a persistent navigate arrow so it's clear the tile
+                    is a link into the (stage-filtered) buyers list. */}
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
+                    {stage.label}
+                  </p>
+                  <ArrowUpRight
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 shrink-0 text-[#A9ABA5] transition-colors group-hover:text-[#003C33]"
+                  />
+                </div>
+                <p className="mt-3 text-[1.75rem] font-semibold leading-none tabular-nums text-[#171719]">
                   {list.length}
                 </p>
                 <p className="mt-1 text-[12px] text-[#5F625E]">
@@ -100,6 +101,9 @@ export function PipelineFunnel({
                     ? formatCurrency(total)
                     : <span className="text-[#A9ABA5]">No deals yet</span>}
                 </p>
+                <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#003C33] opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                  View buyers
+                </span>
               </Link>
             </li>
           );

@@ -283,6 +283,22 @@ td {
     animation: bb-toast-in 220ms ease-out both;
   }
 
+  /* Bottom-anchored toast — rises up into place from below. */
+  @keyframes bb-toast-in-br {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .bb-toast-enter-br {
+    animation: bb-toast-in-br 220ms ease-out both;
+  }
+
   .bb-tab-panel-enter {
     animation: bb-tab-panel-in 220ms ease-out both;
   }
@@ -363,5 +379,28 @@ td {
   .bb-band-navy {
     background: var(--bb-dark-navy);
     color: #ffffff;
+  }
+}
+
+/* Letter-by-letter fade-in-up for page titles. Kept at top level (outside the
+   cascade layer) so the keyframe is always emitted; the animation itself is
+   applied via inline styles per letter (see AnimatedTitle) with a staggered
+   delay. This override disables it for reduced-motion users. */
+@keyframes bb-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.5em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-fade-up-letter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

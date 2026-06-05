@@ -238,6 +238,9 @@ export interface MatchResult {
   criteriaMet: string[];
   missingCriteria: string[];
   talkingPoints: string[];
+  /* Per-factor points that sum toward the fit score — powers the "why this
+     score?" tooltip. Optional: only the deterministic matcher populates it. */
+  scoreBreakdown?: { label: string; points: number; met: boolean }[];
 }
 
 export interface FollowUpDraft {

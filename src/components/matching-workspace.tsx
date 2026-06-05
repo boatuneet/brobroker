@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   Check,
@@ -27,10 +27,15 @@ import {
 } from "@/lib/browser-persistence";
 import { readRerankConfig } from "@/lib/rerank-config";
 import {
-  discoverHiddenOpportunities,
+  generateBuyerShortlist,
   generateClientBriefShortlist,
   generateMatchesForBuyer,
 } from "@/lib/services";
+import {
+  loadAllRequirementSets,
+  mergeRequirementSet,
+  type RequirementSet,
+} from "@/lib/buyer-requirement-sets";
 import type { BuyerProfile, YachtListing } from "@/lib/types";
 import { cn, formatCurrency, percentage } from "@/lib/utils";
 import {
@@ -92,26 +97,6 @@ function categoryTone(category: string): "success" | "info" | "warning" {
   return "warning";
 }
 
-/* Compose an editable, parser-friendly brief from a saved buyer profile so the
-   broker can start matching from CRM memory rather than retyping. */
-function briefFromBuyer(buyer: BuyerProfile): string {
-  const head: string[] = [];
-  if (buyer.preferredBrands.length) head.push(buyer.preferredBrands.join(" or "));
-  // Only mention length when the buyer actually set one ([0,0] = left empty).
-  if (buyer.sizeRangeFt && buyer.sizeRangeFt[1] > 0) {
-    const [lo, hi] = buyer.sizeRangeFt;
-    head.push(lo > 0 ? `${lo} to ${hi} ft` : `up to ${hi} ft`);
-  }
-  if (buyer.budgetMaxEur) head.push(`under EUR ${buyer.budgetMaxEur.toLocaleString("en-GB")}`);
-  if (buyer.mustHaves.length) head.push(buyer.mustHaves.join(", "));
-  const sentence = head.length ? `${head.join(", ")}.` : "";
-  const location = buyer.preferredLocations.length
-    ? ` Prefer ${buyer.preferredLocations.join(" or ")}.`
-    : "";
-  const breakers = buyer.dealBreakers.length ? ` No ${buyer.dealBreakers.join(", no ")}.` : "";
-  return `${sentence}${location}${breakers}`.trim();
-}
-
 export function MatchingWorkspace({
   includeDemo = true,
   segment = "Yacht",
@@ -131,6 +116,10 @@ export function MatchingWorkspace({
   const [brief, setBrief] = useState("");
   const [parsedBrief, setParsedBrief] = useState("");
   const [sourceBuyerId, setSourceBuyerId] = useState("");
+  const [briefSetId, setBriefSetId] = useState("primary");
+  // When a shortlist is generated from a saved buyer (structured ask), this
+  // records which buyer + requirement set so the new weighted engine runs.
+  const [parsedBuyer, setParsedBuyer] = useState<{ buyerId: string; setId: string } | null>(null);
   const [opportunityListingId, setOpportunityListingId] = useState(listings[0]?.id ?? "");
   const [listingDrawerOpen, setListingDrawerOpen] = useState(false);
   const [listingSearch, setListingSearch] = useState("");
@@ -164,18 +153,62 @@ export function MatchingWorkspace({
     if (stored.length) setSavedBriefs(stored);
   }
 
-  const shortlist = useMemo(
-    () => generateClientBriefShortlist(parsedBrief, segment, listings),
-    [listings, parsedBrief, segment],
-  );
-  const opportunities = useMemo(
-    () =>
-      opportunityListingId
-        ? discoverHiddenOpportunities(opportunityListingId, segment, listings, buyers)
-        : [],
-    [buyers, listings, opportunityListingId, segment],
-  );
+  // All buyers' requirement sets (Supabase or device): powers both the
+  // saved-buyer shortlist and the listing → buyers cross-set matching.
+  const [setsByBuyer, setSetsByBuyer] = useState<Record<string, RequirementSet[]>>({});
+  useEffect(() => {
+    let cancelled = false;
+    void loadAllRequirementSets().then((map) => {
+      if (!cancelled) setSetsByBuyer(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // One engine for both paths: a saved buyer scores its structured ask (+ the
+  // chosen requirement set) directly; free text is parsed into an ask. Both run
+  // generateMatchesForBuyer, so the Matching screen matches the Buyers tab.
+  const shortlist = useMemo(() => {
+    if (parsedBuyer) {
+      const buyer = buyers.find((candidate) => candidate.id === parsedBuyer.buyerId);
+      if (buyer) {
+        const set = (setsByBuyer[parsedBuyer.buyerId] ?? []).find((entry) => entry.id === parsedBuyer.setId);
+        return generateBuyerShortlist(set ? mergeRequirementSet(buyer, set) : buyer, segment, listings);
+      }
+    }
+    return generateClientBriefShortlist(parsedBrief, segment, listings);
+  }, [parsedBuyer, parsedBrief, buyers, setsByBuyer, listings, segment]);
+
   const selectedListing = listings.find((listing) => listing.id === opportunityListingId);
+
+  // For the selected listing, score each buyer against their Primary ask plus
+  // every requirement set, keep the best, and remember which ask won so the UI
+  // can badge "via <set>".
+  const opportunities = useMemo(() => {
+    if (!selectedListing) return [];
+    return buyers
+      .map((buyer) => {
+        const asks: { label: string | null; ask: BuyerProfile }[] = [
+          { label: null, ask: buyer },
+          ...(setsByBuyer[buyer.id] ?? []).map((set) => ({
+            label: set.label,
+            ask: mergeRequirementSet(buyer, set),
+          })),
+        ];
+        let best: { label: string | null; match: ReturnType<typeof generateMatchesForBuyer>[number] } | null = null;
+        for (const candidate of asks) {
+          const match = generateMatchesForBuyer(candidate.ask, [selectedListing])[0];
+          if (match && (!best || match.fitScore > best.match.fitScore)) {
+            best = { label: candidate.label, match };
+          }
+        }
+        return best ? { buyer, matchedLabel: best.label, match: best.match } : null;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry) && entry!.match.fitScore >= 58)
+      .sort((a, b) => b.match.fitScore - a.match.fitScore)
+      .slice(0, 6);
+  }, [buyers, selectedListing, setsByBuyer]);
 
   const filteredListings = useMemo(() => {
     const query = listingSearch.trim().toLowerCase();
@@ -187,21 +220,66 @@ export function MatchingWorkspace({
     );
   }, [listings, listingSearch]);
 
-  const hasBrief = parsedBrief.trim().length > 0;
+  const hasBrief = parsedBuyer != null || parsedBrief.trim().length > 0;
   const exactCount = shortlist.matches.filter((match) => match.category === "Exact Match").length;
 
   function loadBuyerIntoBrief(value: string) {
     setSourceBuyerId(value);
-    const buyer = buyers.find((candidate) => candidate.id === value);
-    if (buyer) setBrief(briefFromBuyer(buyer));
+    setBriefSetId("primary");
+  }
+
+  function recordShortlist(
+    nextShortlist: ReturnType<typeof generateClientBriefShortlist>,
+    raw: string,
+  ) {
+    setSavedBriefs((current) => {
+      const savedBrief = {
+        id: `brief-${Date.now()}`,
+        raw,
+        topListing: nextShortlist.matches[0]?.listing.name,
+        matchCount: nextShortlist.matches.length,
+        createdAt: new Date().toISOString(),
+      };
+      const next = [savedBrief, ...current].slice(0, 8);
+      writePersisted(SAVED_BRIEFS_KEY, next);
+      mirrorWorkflowEvent("matching_brief_generated", savedBrief.id, {
+        brief: raw,
+        criteria: nextShortlist.criteria,
+        matches: nextShortlist.matches.map((match) => ({
+          listingId: match.listing.id,
+          fitScore: match.fitScore,
+          category: match.category,
+        })),
+      });
+      return next;
+    });
   }
 
   function parseBrief() {
-    const trimmed = brief.trim();
-    if (!trimmed) return;
-    setParsedBrief(brief);
     setAiMatches(null);
     setAiError(null);
+
+    // Saved buyer → match the structured ask (+ chosen set) with the new engine.
+    if (sourceBuyerId) {
+      const buyer = buyers.find((candidate) => candidate.id === sourceBuyerId);
+      if (!buyer) return;
+      const set = (setsByBuyer[sourceBuyerId] ?? []).find((entry) => entry.id === briefSetId);
+      setParsedBuyer({ buyerId: sourceBuyerId, setId: briefSetId });
+      setParsedBrief("");
+      const nextShortlist = generateBuyerShortlist(
+        set ? mergeRequirementSet(buyer, set) : buyer,
+        segment,
+        listings,
+      );
+      recordShortlist(nextShortlist, set ? `${buyer.name} · ${set.label}` : buyer.name);
+      return;
+    }
+
+    // Free text → parse into an ask and run the same engine.
+    const trimmed = brief.trim();
+    if (!trimmed) return;
+    setParsedBuyer(null);
+    setParsedBrief(brief);
     const nextShortlist = generateClientBriefShortlist(brief, segment, listings);
     saveSessionBuyer({
       id: `brief-buyer-${Date.now()}`,
@@ -214,39 +292,33 @@ export function MatchingWorkspace({
       urgency: nextShortlist.criteria.urgency,
       createdAt: new Date().toISOString(),
     });
-    setSavedBriefs((current) => {
-      const savedBrief = {
-        id: `brief-${Date.now()}`,
-        raw: brief,
-        topListing: nextShortlist.matches[0]?.listing.name,
-        matchCount: nextShortlist.matches.length,
-        createdAt: new Date().toISOString(),
-      };
-      const next = [savedBrief, ...current].slice(0, 8);
-      writePersisted(SAVED_BRIEFS_KEY, next);
-      mirrorWorkflowEvent("matching_brief_generated", savedBrief.id, {
-        brief,
-        criteria: nextShortlist.criteria,
-        matches: nextShortlist.matches.map((match) => ({
-          listingId: match.listing.id,
-          fitScore: match.fitScore,
-          category: match.category,
-        })),
-      });
-      return next;
-    });
+    recordShortlist(nextShortlist, brief);
   }
 
   async function runAiMatch() {
-    if (aiLoading || !parsedBrief.trim()) return;
+    if (aiLoading) return;
+    if (!parsedBuyer && !parsedBrief.trim()) return;
     setAiLoading(true);
     setAiError(null);
     try {
-      const res = await fetch("/api/brief-match", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brief: parsedBrief, config: readRerankConfig() }),
-      });
+      // Saved buyer → the structured buyer-match agent (+ requirement set);
+      // free text → the brief-match agent. Both use the broker's rerank config.
+      const res = parsedBuyer
+        ? await fetch("/api/buyer-match", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              buyerId: parsedBuyer.buyerId,
+              config: readRerankConfig(),
+              requirementSet:
+                (setsByBuyer[parsedBuyer.buyerId] ?? []).find((entry) => entry.id === parsedBuyer.setId) ?? null,
+            }),
+          })
+        : await fetch("/api/brief-match", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ brief: parsedBrief, config: readRerankConfig() }),
+          });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Could not run the AI match.");
       setAiMatches(Array.isArray(data.ranked) ? data.ranked : []);
@@ -367,28 +439,60 @@ export function MatchingWorkspace({
                   />
                 ) : null}
 
-                <div className="grid gap-1.5">
-                  <span className="block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
-                    Buyer brief
-                  </span>
-                  <textarea
-                    aria-label="Client brief"
-                    className="min-h-40 w-full rounded-[12px] border border-[#D9DAD4] bg-white p-4 text-[15px] leading-7 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
-                    onChange={(event) => setBrief(event.target.value)}
-                    placeholder="Describe the buyer in your own words — asset type, model, year, size, budget, geography, urgency."
-                    value={brief}
-                  />
-                </div>
+                {sourceBuyerId ? (
+                  /* Saved buyer → match its structured ask. Pick which set. */
+                  <div className="grid gap-2">
+                    <span className="block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+                      Requirement set
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[{ id: "primary", label: "Primary" }, ...(setsByBuyer[sourceBuyerId] ?? [])].map((set) => (
+                        <button
+                          className={cn(
+                            "inline-flex min-h-8 items-center rounded-[8px] border px-3 text-[12.5px] font-medium transition-colors",
+                            briefSetId === set.id
+                              ? "border-[#003C33] bg-[#003C33] text-white"
+                              : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]/40 hover:bg-[#F1F2EE]",
+                          )}
+                          key={set.id}
+                          onClick={() => setBriefSetId(set.id)}
+                          type="button"
+                        >
+                          {set.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[12.5px] leading-5 text-[#8E918B]">
+                      Matches this buyer&apos;s saved requirements with the weighted engine. Manage sets on
+                      the buyer&apos;s page.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-1.5">
+                    <span className="block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+                      Buyer brief
+                    </span>
+                    <textarea
+                      aria-label="Client brief"
+                      className="min-h-40 w-full rounded-[12px] border border-[#D9DAD4] bg-white p-4 text-[15px] leading-7 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+                      onChange={(event) => setBrief(event.target.value)}
+                      placeholder="Describe the buyer in your own words — asset type, model, year, size, budget, geography, urgency."
+                      value={brief}
+                    />
+                  </div>
+                )}
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <Button disabled={!brief.trim()} onClick={parseBrief} type="button">
+                  <Button disabled={!sourceBuyerId && !brief.trim()} onClick={parseBrief} type="button">
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
                     Generate shortlist
                   </Button>
-                  <Button onClick={() => setBrief(exampleBrief)} type="button" variant="link">
-                    Load example
-                  </Button>
-                  {brief && brief !== parsedBrief ? (
+                  {!sourceBuyerId ? (
+                    <Button onClick={() => setBrief(exampleBrief)} type="button" variant="link">
+                      Load example
+                    </Button>
+                  ) : null}
+                  {!sourceBuyerId && brief && brief !== parsedBrief ? (
                     <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
                       Unparsed changes
                     </span>
@@ -959,30 +1063,37 @@ export function MatchingWorkspace({
                       <li key={opportunity.buyer.id} className="px-4 py-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <Link
-                              className="text-[15px] font-medium text-[#171719] hover:text-[#1863dc]"
-                              href={`/buyers/${opportunity.buyer.id}`}
-                            >
-                              {opportunity.buyer.name}
-                            </Link>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Link
+                                className="text-[15px] font-medium text-[#171719] hover:text-[#1863dc]"
+                                href={`/buyers/${opportunity.buyer.id}`}
+                              >
+                                {opportunity.buyer.name}
+                              </Link>
+                              <span className="inline-flex items-center rounded-[8px] bg-[#F1F2EE] px-2 py-0.5 text-[11px] font-medium text-[#5F625E]">
+                                via {opportunity.matchedLabel ?? "Primary ask"}
+                              </span>
+                            </div>
                             <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">
-                              {opportunity.recommendedAction}
+                              {opportunity.match.rationale}
                             </p>
                           </div>
                           <Badge tone={categoryTone(opportunity.match.category)}>
-                            {percentage(opportunity.score)}
+                            {percentage(opportunity.match.fitScore)}
                           </Badge>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-1.5">
-                          {opportunity.memorySignals.map((signal) => (
+                          {opportunity.match.criteriaMet.slice(0, 4).map((signal) => (
                             <Badge key={signal} tone="neutral">
                               {signal}
                             </Badge>
                           ))}
                         </div>
-                        <p className="mt-2 text-[13px] text-[#8E918B]">
-                          Watch: {opportunity.blocker ?? "No blocker currently flagged"}
-                        </p>
+                        {opportunity.match.missingCriteria.length ? (
+                          <p className="mt-2 text-[13px] text-[#8E918B]">
+                            Watch: {opportunity.match.missingCriteria[0]}
+                          </p>
+                        ) : null}
                       </li>
                     ))}
                   </ul>

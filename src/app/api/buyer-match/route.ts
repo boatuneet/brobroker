@@ -19,8 +19,38 @@ interface RankedMatch {
   reason: string;
 }
 
+/* Merge an optional client-supplied requirement set onto the buyer's ask
+   fields (validated loosely). Person-level fields are untouched. */
+function applyRequirementSet(buyer: BuyerProfile, raw: unknown): BuyerProfile {
+  if (!raw || typeof raw !== "object") return buyer;
+  const set = raw as Record<string, unknown>;
+  const num = (value: unknown, fallback: number) =>
+    typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  const list = (value: unknown, fallback: string[]) =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : fallback;
+  const sizeRangeFt: [number, number] =
+    Array.isArray(set.sizeRangeFt) && set.sizeRangeFt.length === 2
+      ? [num(set.sizeRangeFt[0], buyer.sizeRangeFt[0]), num(set.sizeRangeFt[1], buyer.sizeRangeFt[1])]
+      : buyer.sizeRangeFt;
+  return {
+    ...buyer,
+    budgetMinEur: num(set.budgetMinEur, buyer.budgetMinEur),
+    budgetMaxEur: num(set.budgetMaxEur, buyer.budgetMaxEur),
+    sizeRangeFt,
+    preferredBrands: list(set.preferredBrands, buyer.preferredBrands),
+    preferredLocations: list(set.preferredLocations, buyer.preferredLocations),
+    mustHaves: list(set.mustHaves, buyer.mustHaves),
+    dealBreakers: list(set.dealBreakers, buyer.dealBreakers),
+    urgency: (set.urgency as BuyerProfile["urgency"]) ?? buyer.urgency,
+  };
+}
+
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as { buyerId?: string; config?: unknown };
+  const body = (await request.json().catch(() => ({}))) as {
+    buyerId?: string;
+    config?: unknown;
+    requirementSet?: unknown;
+  };
   const buyerId = body.buyerId?.trim();
   const rerankConfig = normalizeRerankConfig(body.config);
   if (!buyerId) {
@@ -45,7 +75,11 @@ export async function POST(request: Request) {
       ? getListingsForSegment(segment)
       : await getStoredListingsForSegment(segment);
 
-  const candidates = generateMatchesForBuyer(buyer, inventory, CANDIDATE_LIMIT);
+  // Optional requirement-set override: matches the selected set's ask while
+  // keeping the buyer's person-level memory (taste, relationship notes).
+  const effectiveBuyer = applyRequirementSet(buyer, body.requirementSet);
+
+  const candidates = generateMatchesForBuyer(effectiveBuyer, inventory, CANDIDATE_LIMIT);
   const byId = new Map(inventory.map((listing) => [listing.id, listing]));
 
   if (!candidates.length) {
@@ -64,15 +98,15 @@ export async function POST(request: Request) {
   }
 
   const buyerBlock = [
-    `Budget: EUR ${buyer.budgetMinEur.toLocaleString("en-GB")} – ${buyer.budgetMaxEur.toLocaleString("en-GB")}`,
-    `Size range: ${buyer.sizeRangeFt[0]}-${buyer.sizeRangeFt[1]} ft`,
-    `Preferred brands: ${buyer.preferredBrands.join(", ") || "—"}`,
-    `Preferred locations: ${buyer.preferredLocations.join(", ") || "—"}`,
-    `Must-haves: ${buyer.mustHaves.join("; ") || "—"}`,
-    `Deal-breakers: ${buyer.dealBreakers.join("; ") || "—"}`,
-    `Lifestyle / taste: ${buyer.lifestylePreferences.join("; ") || "—"}`,
-    `Relationship notes: ${buyer.relationshipNotes.join("; ") || "—"}`,
-    `Urgency: ${buyer.urgency} · Timeline: ${buyer.decisionTimeline}`,
+    `Budget: EUR ${effectiveBuyer.budgetMinEur.toLocaleString("en-GB")} – ${effectiveBuyer.budgetMaxEur.toLocaleString("en-GB")}`,
+    `Size range: ${effectiveBuyer.sizeRangeFt[0]}-${effectiveBuyer.sizeRangeFt[1]} ft`,
+    `Preferred brands: ${effectiveBuyer.preferredBrands.join(", ") || "—"}`,
+    `Preferred locations: ${effectiveBuyer.preferredLocations.join(", ") || "—"}`,
+    `Must-haves: ${effectiveBuyer.mustHaves.join("; ") || "—"}`,
+    `Deal-breakers: ${effectiveBuyer.dealBreakers.join("; ") || "—"}`,
+    `Lifestyle / taste: ${effectiveBuyer.lifestylePreferences.join("; ") || "—"}`,
+    `Relationship notes: ${effectiveBuyer.relationshipNotes.join("; ") || "—"}`,
+    `Urgency: ${effectiveBuyer.urgency} · Timeline: ${effectiveBuyer.decisionTimeline}`,
   ].join("\n");
 
   const candidateBlock = candidates

@@ -23,6 +23,7 @@ import {
   MessageSquareText,
   MoreVertical,
   Pencil,
+  Plus,
   Radio,
   Search,
   ShieldCheck,
@@ -72,8 +73,14 @@ import {
   StatusDot,
 } from "./ui";
 import { ConfirmDialog, ToastViewport } from "./app-feedback";
+import { RequirementSetDrawer } from "./buyer-requirement-set-drawer";
 import { FitRing, Tile } from "./dashboard/visuals";
 import { deleteSessionBuyer } from "@/lib/browser-persistence";
+import {
+  mergeRequirementSet,
+  useRequirementSets,
+  type RequirementSet,
+} from "@/lib/buyer-requirement-sets";
 import { readRerankConfig } from "@/lib/rerank-config";
 import { deleteBuyerCascade } from "@/lib/supabase/delete-buyer";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -897,6 +904,42 @@ export function BuyerMemoryProfile({
   const [aiError, setAiError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Requirement sets: the buyer's on-record ask is "Primary"; brokers can add
+  // more so matching isn't locked to one brief. The active set drives both the
+  // deterministic matches and the AI re-rank below. Persisted via the hook
+  // (Supabase when signed in, else device).
+  const {
+    sets: requirementSets,
+    activeSetId,
+    selectActive,
+    saveSet,
+    removeSet,
+  } = useRequirementSets(buyerId);
+  const [setDrawerOpen, setSetDrawerOpen] = useState(false);
+  const [editingSet, setEditingSet] = useState<RequirementSet | null>(null);
+  const [pendingDeleteSet, setPendingDeleteSet] = useState<RequirementSet | null>(null);
+  const activeSet = useMemo(
+    () => requirementSets.find((set) => set.id === activeSetId),
+    [requirementSets, activeSetId],
+  );
+  const activeMatches = useMemo(
+    () =>
+      profile
+        ? generateMatchesForBuyer(
+            activeSet ? mergeRequirementSet(profile.buyer, activeSet) : profile.buyer,
+            inventory,
+            12,
+          )
+        : [],
+    [profile, activeSet, inventory],
+  );
+
+  function selectRequirementSet(nextId: string) {
+    selectActive(nextId);
+    setAiMatches(null);
+    setAiError(null);
+  }
+
   async function runAiMatch() {
     if (aiLoading) return;
     setAiLoading(true);
@@ -905,7 +948,7 @@ export function BuyerMemoryProfile({
       const res = await fetch("/api/buyer-match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ buyerId, config: readRerankConfig() }),
+        body: JSON.stringify({ buyerId, config: readRerankConfig(), requirementSet: activeSet ?? null }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Could not run the AI match.");
@@ -987,7 +1030,19 @@ export function BuyerMemoryProfile({
     return true;
   });
   const topMatch = matches[0];
-  const sortedMatches = [...matches].sort((a, b) => b.fitScore - a.fitScore);
+  // Matches tab reflects the active requirement set (Primary === the buyer's
+  // own ask, so this matches `matches` when no custom set is selected).
+  const sortedMatches = [...activeMatches].sort((a, b) => b.fitScore - a.fitScore);
+  const requirementDefaults = {
+    budgetMinEur: buyer.budgetMinEur,
+    budgetMaxEur: buyer.budgetMaxEur,
+    sizeRangeFt: buyer.sizeRangeFt,
+    preferredBrands: buyer.preferredBrands,
+    preferredLocations: buyer.preferredLocations,
+    mustHaves: buyer.mustHaves,
+    dealBreakers: buyer.dealBreakers,
+    urgency: buyer.urgency,
+  };
 
   const handleConfirmDelete = () => {
     startDeleteTransition(async () => {
@@ -1065,7 +1120,7 @@ export function BuyerMemoryProfile({
               <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
               {eyebrowDetail || `${segmentMeta.label} buyer`}
             </span>
-            <span className="bb-mono-label text-[#8E918B]">
+            <span className="inline-flex min-h-7 items-center rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#8E918B]">
               Last contacted · {formatDate(buyer.lastContactedAt)}
             </span>
           </div>
@@ -1073,7 +1128,7 @@ export function BuyerMemoryProfile({
             {buyer.name}
           </h1>
           {headerSummary ? (
-            <p className="mt-3 max-w-xl text-[13.5px] leading-7 text-[#5F625E]">
+            <p className="mt-3 max-w-xl rounded-[10px] border border-[#E7E7E7] bg-white px-3.5 py-2.5 text-[13.5px] leading-7 text-[#5F625E]">
               {headerSummary}
             </p>
           ) : null}
@@ -1087,7 +1142,7 @@ export function BuyerMemoryProfile({
           </div>
           {metaLineItems.length ? (
             <p
-              className="bb-mono-label mt-3 truncate whitespace-nowrap text-[#8E918B]"
+              className="bb-mono-label mt-3 inline-block max-w-full truncate whitespace-nowrap rounded-[8px] border border-[#E7E7E7] bg-white px-3 py-1.5 text-[#8E918B]"
               title={metaLineItems.join("  ·  ")}
             >
               {metaLineItems.join("  ·  ")}
@@ -1281,12 +1336,60 @@ export function BuyerMemoryProfile({
         ) : null}
 
         {tab === "matches" ? (
-          sortedMatches.length ? (
-            <div className="px-6 py-5">
+          <div className="px-6 py-5">
+            {/* Requirement set switcher — its own panel above the matches.
+                Header row carries the label + Edit; chips sit on their own line. */}
+            <div className="rounded-[12px] border border-[#E7E7E7] bg-white px-4 py-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="bb-mono-label">Requirement set</span>
+                <button
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] disabled:cursor-not-allowed disabled:border-[#E7E7E7] disabled:text-[#C2C4BE] disabled:hover:border-[#E7E7E7]"
+                  disabled={!activeSet}
+                  onClick={() => {
+                    if (!activeSet) return;
+                    setEditingSet(activeSet);
+                    setSetDrawerOpen(true);
+                  }}
+                  type="button"
+                >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                  Edit set
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <RequirementChip
+                  active={activeSetId === "primary"}
+                  label="Primary"
+                  onClick={() => selectRequirementSet("primary")}
+                />
+                {requirementSets.map((set) => (
+                  <RequirementChip
+                    active={activeSetId === set.id}
+                    key={set.id}
+                    label={set.label}
+                    onClick={() => selectRequirementSet(set.id)}
+                    onRemove={() => setPendingDeleteSet(set)}
+                  />
+                ))}
+                <button
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-dashed border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33]"
+                  onClick={() => {
+                    setEditingSet(null);
+                    setSetDrawerOpen(true);
+                  }}
+                  type="button"
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Add set
+                </button>
+              </div>
+            </div>
+
+            {sortedMatches.length ? (
+              <div className="mt-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="bb-mono-label">
-                  Top {Math.min(sortedMatches.length, 3)} of {sortedMatches.length} match
-                  {sortedMatches.length === 1 ? "" : "es"}
+                  Top matches · {sortedMatches.length}
                 </p>
                 <button
                   className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] disabled:cursor-not-allowed disabled:opacity-50"
@@ -1319,7 +1422,7 @@ export function BuyerMemoryProfile({
                     </button>
                   </div>
                   {aiMatches.length ? (
-                    <ul className="divide-y divide-[#E7EFEA]">
+                    <ul className="max-h-[280px] divide-y divide-[#E7EFEA] overflow-y-auto">
                       {aiMatches.map((item) => {
                         const listing =
                           inventory.find((entry) => entry.id === item.listingId) ??
@@ -1350,7 +1453,7 @@ export function BuyerMemoryProfile({
                 </div>
               ) : null}
 
-              <ul className="mt-3 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white divide-y divide-[#E7E7E7]">
+              <ul className="mt-3 max-h-[600px] overflow-y-auto rounded-[12px] border border-[#E7E7E7] bg-white divide-y divide-[#E7E7E7] [&>li:first-child]:rounded-t-[12px] [&>li:last-child]:rounded-b-[12px]">
                 {sortedMatches.map((match) => (
                   <MatchPanel
                     key={match.id}
@@ -1360,15 +1463,33 @@ export function BuyerMemoryProfile({
                   />
                 ))}
               </ul>
-            </div>
-          ) : (
-            <div className="px-6 py-5">
-              <EmptyState
-                title="No matches surfaced yet"
-                description="Once the matching engine identifies candidates for this buyer, they will appear here ranked by fit score."
-              />
-            </div>
-          )
+              </div>
+            ) : (
+              <div className="mt-4">
+                <EmptyState
+                  title="No matches for this requirement set"
+                  description="Try a different requirement set, widen the budget or size, or add inventory. Primary uses the buyer's saved ask."
+                />
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {setDrawerOpen ? (
+          <RequirementSetDrawer
+            defaults={requirementDefaults}
+            editing={editingSet ?? undefined}
+            onClose={() => {
+              setSetDrawerOpen(false);
+              setEditingSet(null);
+            }}
+            onSave={(set) => {
+              saveSet(set);
+              selectRequirementSet(set.id);
+              setSetDrawerOpen(false);
+              setEditingSet(null);
+            }}
+          />
         ) : null}
 
         {tab === "drafts" ? (
@@ -1498,7 +1619,7 @@ export function BuyerMemoryProfile({
                 </CardHeaderIcon>
               }
             />
-            <div className="border-t border-[#E7E7E7] px-6 py-5 bg-white">
+            <div className="border-t border-[#E7E7E7] px-6 py-5">
               <div className="flex flex-wrap gap-2">
                 {buyerSafeBrief.removedInternalFields.map((field, index) => (
                   <span
@@ -1532,7 +1653,7 @@ export function BuyerMemoryProfile({
             <div className="p-6 bg-white border-t border-[#E7E7E7]">
               <div className="bg-[#FBFBFB] border border-[#E7E7E7] rounded-[12px] p-5">
                 <h3 className="text-[14px] font-semibold text-[#171719] leading-snug">
-                  "{buyerSafeBrief.headline}"
+                  &ldquo;{buyerSafeBrief.headline}&rdquo;
                 </h3>
                 <ul className="mt-4 space-y-2.5 border-l-2 border-[#E2ECE9] pl-4">
                   {buyerSafeBrief.body.map((line, index) => (
@@ -1609,6 +1730,27 @@ export function BuyerMemoryProfile({
         open={deleteOpen}
         title="Delete this buyer?"
       />
+      <ConfirmDialog
+        cancelLabel="Keep set"
+        confirmLabel="Delete set"
+        confirmTone="destructive"
+        description={
+          pendingDeleteSet
+            ? `Removes the "${pendingDeleteSet.label}" requirement set for ${buyer.name}. This cannot be undone.`
+            : ""
+        }
+        onCancel={() => setPendingDeleteSet(null)}
+        onConfirm={() => {
+          if (pendingDeleteSet) {
+            removeSet(pendingDeleteSet.id);
+            setAiMatches(null);
+            setAiError(null);
+          }
+          setPendingDeleteSet(null);
+        }}
+        open={Boolean(pendingDeleteSet)}
+        title="Delete requirement set?"
+      />
       <ToastViewport
         message={toast?.message ?? null}
         onDismiss={() => setToast(null)}
@@ -1648,6 +1790,47 @@ function InsightSubtile({
         <p className="mt-3 text-[12.5px] leading-[1.5] text-[#8E918B]">None recorded</p>
       )}
     </div>
+  );
+}
+
+function RequirementChip({
+  active,
+  label,
+  onClick,
+  onRemove,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  onRemove?: () => void;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex min-h-8 items-center gap-1 rounded-[8px] border pl-3 text-[12.5px] font-medium transition-colors",
+        onRemove ? "pr-1.5" : "pr-3",
+        active
+          ? "border-[#003C33] bg-[#003C33] text-white"
+          : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]/40 hover:bg-[#F1F2EE]",
+      )}
+    >
+      <button className="inline-flex items-center" onClick={onClick} type="button">
+        {label}
+      </button>
+      {onRemove ? (
+        <button
+          aria-label={`Remove ${label}`}
+          className={cn(
+            "inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors",
+            active ? "text-white/70 hover:bg-white/15 hover:text-white" : "text-[#A9ABA5] hover:text-[#A4361C]",
+          )}
+          onClick={onRemove}
+          type="button"
+        >
+          <X className="h-3 w-3" aria-hidden="true" />
+        </button>
+      ) : null}
+    </span>
   );
 }
 
@@ -1881,9 +2064,54 @@ function MatchPanel({
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
-        {/* Left side: Dynamic circular fit indicator */}
-        <div className="flex shrink-0 items-center justify-start sm:mt-1">
+        {/* Left side: Dynamic circular fit indicator + "why this score?" tooltip */}
+        <div className="group/ring relative flex shrink-0 items-center justify-start sm:mt-1">
           <CompactFitRing value={match.fitScore} size={48} stroke={4.5} />
+          {match.scoreBreakdown?.length ? (
+            <div className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-[260px] rounded-[10px] border border-[#E7E7E7] bg-white p-3 opacity-0 shadow-[0_12px_32px_rgba(23,31,25,0.14)] transition-opacity duration-150 group-hover/ring:opacity-100">
+              <p className="bb-mono-label">Why {match.fitScore}%</p>
+              <ul className="mt-2 grid gap-1">
+                {match.scoreBreakdown.map((row, index) => (
+                  <li
+                    className="flex items-center justify-between gap-3 text-[12.5px] leading-5"
+                    key={`${row.label}-${index}`}
+                  >
+                    <span
+                      className={cn(
+                        "flex items-center gap-1.5",
+                        row.points > 0 ? "text-[#171719]" : "text-[#8E918B]",
+                      )}
+                    >
+                      {row.points > 0 ? (
+                        <CheckCircle2 className="h-3 w-3 shrink-0 text-[#0F8F62]" aria-hidden="true" />
+                      ) : row.points < 0 ? (
+                        <CircleAlert className="h-3 w-3 shrink-0 text-[#A4361C]" aria-hidden="true" />
+                      ) : (
+                        <span className="inline-block h-3 w-3 shrink-0 text-center text-[#C2C4BE]">·</span>
+                      )}
+                      {row.label}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 font-mono tabular-nums",
+                        row.points > 0
+                          ? "text-[#0F8F62]"
+                          : row.points < 0
+                            ? "text-[#A4361C]"
+                            : "text-[#A9ABA5]",
+                      )}
+                    >
+                      {row.points > 0 ? `+${row.points}` : row.points < 0 ? `${row.points}` : "0"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 flex items-center justify-between border-t border-[#E7E7E7] pt-2 text-[12.5px] font-semibold text-[#171719]">
+                <span>Fit score</span>
+                <span className="font-mono tabular-nums">{match.fitScore}%</span>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Details & Criteria */}

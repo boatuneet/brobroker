@@ -646,122 +646,110 @@ export function parseClientBrief(raw: string): ParsedClientBrief {
   };
 }
 
-export function generateClientBriefShortlist(
-  raw: string,
-  segment?: BrokerSegment,
-  inventoryOverride?: YachtListing[],
-) {
-  const criteria = parseClientBrief(raw);
-  const normalizedModel = criteria.model?.toLowerCase();
-  const inventory = inventoryOverride ?? getListingsForSegment(segment);
-  const scored = inventory.map((listing) => {
-    const criteriaMet: string[] = [];
-    const missingCriteria: string[] = [];
-    const tradeOffs: string[] = [];
-    let score = 36;
+/* A blank buyer profile used as the base for a synthetic "ask" — only the
+   scored fields (budget, size, brands, locations, must-haves, deal-breakers,
+   taste) need to be accurate; the rest are placeholders. */
+function emptyAsk(): BuyerProfile {
+  return {
+    id: "ask",
+    name: "Buyer brief",
+    country: "",
+    budgetMinEur: 0,
+    budgetMaxEur: 0,
+    sizeRangeFt: [0, 0],
+    preferredBrands: [],
+    preferredLocations: [],
+    lifestylePreferences: [],
+    mustHaves: [],
+    dealBreakers: [],
+    objections: [],
+    rejectedAssets: [],
+    urgency: "Exploratory",
+    decisionTimeline: "",
+    communicationStyle: "",
+    relationshipNotes: [],
+    currentStage: "New Inquiry",
+    lastContactedAt: "",
+    nextActionDueAt: "",
+    verificationCaseId: "",
+    tags: [],
+  };
+}
 
-    if (!criteria.budgetMaxEur || listing.priceEur <= criteria.budgetMaxEur) {
-      score += criteria.budgetMaxEur ? 14 : 4;
-      criteriaMet.push(criteria.budgetMaxEur ? "Inside max budget" : "Budget not specified");
-    } else {
-      missingCriteria.push("Budget ceiling");
-      tradeOffs.push(`EUR ${(listing.priceEur - criteria.budgetMaxEur).toLocaleString("en-GB")} above stated cap`);
-      score -= 8;
-    }
+/* All known builders mentioned in the brief → preferred brands. Captures
+   multi-brand briefs ("XO or Azimut or Sunseeker") that parseModel leaves as
+   "flexible". */
+function extractBrands(raw: string): string[] {
+  return KNOWN_BUILDERS.filter((builder) => new RegExp(`\\b${builder}\\b`, "i").test(raw));
+}
 
-    if (!criteria.model || `${listing.builder} ${listing.model}`.toLowerCase().includes(normalizedModel ?? "")) {
-      score += criteria.model ? 16 : 4;
-      criteriaMet.push(criteria.model ? "Requested model" : "Model flexible");
-    } else if (criteria.model.split(" ")[0]?.toLowerCase() === listing.builder.toLowerCase()) {
-      score += 8;
-      criteriaMet.push("Requested builder");
-      tradeOffs.push(`Different ${listing.builder} model than requested`);
-    } else {
-      missingCriteria.push("Requested model");
-    }
+/* Turn parsed brief criteria into a synthetic ask the weighted matcher scores. */
+function buildAskFromBrief(criteria: ParsedClientBrief, raw: string): BuyerProfile {
+  const mustHaves = [
+    ...(criteria.mustHaves ?? []),
+    criteria.cabins ? `${criteria.cabins} cabins` : undefined,
+    criteria.vatStatus === "EU VAT Paid" ? "EU VAT paid" : undefined,
+  ].filter((item): item is string => Boolean(item));
+  return {
+    ...emptyAsk(),
+    budgetMaxEur: criteria.budgetMaxEur ?? 0,
+    sizeRangeFt: criteria.sizeRangeFt ?? [0, 0],
+    preferredBrands: extractBrands(raw),
+    preferredLocations: criteria.preferredLocations ?? [],
+    mustHaves,
+    dealBreakers: criteria.dealBreakers ?? [],
+    lifestylePreferences: criteria.interiorStyle ? [criteria.interiorStyle] : [],
+  };
+}
 
-    if (!criteria.minYear || listing.year >= criteria.minYear) {
-      score += criteria.minYear ? 10 : 3;
-      criteriaMet.push(criteria.minYear ? `${criteria.minYear}+ model year` : "Year flexible");
-    } else {
-      missingCriteria.push(`${criteria.minYear}+ model year`);
-      tradeOffs.push(`${listing.year} build is older than brief`);
-    }
+/* Present a saved buyer's structured ask as brief criteria for the Step 2
+   "extracted criteria" display. */
+function criteriaFromBuyer(buyer: BuyerProfile): ParsedClientBrief {
+  return {
+    raw: "",
+    model: buyer.preferredBrands.length ? buyer.preferredBrands.join(" or ") : undefined,
+    budgetMaxEur: buyer.budgetMaxEur > 0 ? buyer.budgetMaxEur : undefined,
+    minYear: undefined,
+    cabins: parseRequiredCabins(buyer.mustHaves) ?? undefined,
+    interiorStyle: buyer.lifestylePreferences[0],
+    vatStatus: requiresEuVat(buyer.mustHaves) ? "EU VAT Paid" : undefined,
+    sizeRangeFt: buyer.sizeRangeFt[0] > 0 || buyer.sizeRangeFt[1] > 0 ? buyer.sizeRangeFt : undefined,
+    preferredLocations: buyer.preferredLocations,
+    availability: undefined,
+    mustHaves: buyer.mustHaves,
+    dealBreakers: buyer.dealBreakers,
+    urgency: buyer.urgency,
+  };
+}
 
-    if (!criteria.cabins || listing.cabins >= criteria.cabins) {
-      score += criteria.cabins ? 8 : 2;
-      criteriaMet.push(criteria.cabins ? `${criteria.cabins}+ cabins` : "Cabin count flexible");
-    } else {
-      missingCriteria.push(`${criteria.cabins} cabins`);
-      tradeOffs.push(`${listing.cabins} cabins limits fit`);
-    }
+/* Shared shortlist builder — one engine (generateMatchesForBuyer / weighted %
+   model) powers both the free-text brief and the saved-buyer paths, so the
+   Matching screen scores identically to the Buyers → Matches tab. */
+function buildShortlist(ask: BuyerProfile, criteria: ParsedClientBrief, inventory: YachtListing[]) {
+  const byId = new Map(inventory.map((listing) => [listing.id, listing]));
+  const matches = generateMatchesForBuyer(ask, inventory, 6)
+    .map((result) => {
+      const listing = byId.get(result.listingId);
+      if (!listing) return null;
+      return {
+        id: `brief-${listing.id}`,
+        listing,
+        category: result.category,
+        fitScore: result.fitScore,
+        criteriaMet: result.criteriaMet.slice(0, 6),
+        missingCriteria: result.missingCriteria.slice(0, 5),
+        tradeOffs: result.missingCriteria.length
+          ? result.missingCriteria.slice(0, 4).map((item) => `Verify ${item.toLowerCase()}`)
+          : ["No major trade-off flagged by the matcher"],
+        rationale: result.rationale,
+        talkingPoints: result.talkingPoints.length
+          ? result.talkingPoints
+          : [listing.highlights[0] ?? "Strong inventory option"],
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
-    if (!criteria.sizeRangeFt || (listing.lengthFt >= criteria.sizeRangeFt[0] && listing.lengthFt <= criteria.sizeRangeFt[1])) {
-      score += criteria.sizeRangeFt ? 10 : 2;
-      criteriaMet.push(criteria.sizeRangeFt ? "Inside size range" : "Size flexible");
-    } else {
-      missingCriteria.push("Size range");
-      tradeOffs.push(`${listing.lengthFt}ft sits outside the requested range`);
-    }
-
-    if (!criteria.interiorStyle || listing.interiorStyle.toLowerCase().includes("light") || listing.highlights.some((item) => item.toLowerCase().includes("light"))) {
-      score += criteria.interiorStyle ? 10 : 2;
-      criteriaMet.push(criteria.interiorStyle ? "Light interior signal" : "Interior flexible");
-    } else {
-      missingCriteria.push("Light interior");
-      tradeOffs.push(listing.weaknesses.find((weakness) => weakness.toLowerCase().includes("interior")) ?? "Interior needs broker review");
-    }
-
-    if (!criteria.vatStatus || listing.vatStatus === criteria.vatStatus) {
-      score += criteria.vatStatus ? 10 : 2;
-      criteriaMet.push(criteria.vatStatus ? criteria.vatStatus : "VAT flexible");
-    } else {
-      missingCriteria.push(criteria.vatStatus);
-      tradeOffs.push(`${listing.vatStatus} requires explanation before outreach`);
-    }
-
-    if (!criteria.preferredLocations?.length || criteria.preferredLocations.some((location) => listing.location.includes(location))) {
-      score += criteria.preferredLocations?.length ? 6 : 2;
-      criteriaMet.push(criteria.preferredLocations?.length ? "Preferred geography" : "Location flexible");
-    } else {
-      missingCriteria.push("Preferred location");
-    }
-
-    if (criteria.availability && listing.availability.toLowerCase().includes("immediate")) {
-      score += 5;
-      criteriaMet.push("Immediate availability");
-    } else if (criteria.availability) {
-      tradeOffs.push(`Availability: ${listing.availability}`);
-    }
-
-    if (listing.missingInfo.length) {
-      missingCriteria.push(...listing.missingInfo.slice(0, 2));
-    }
-
-    const fitScore = Math.max(18, Math.min(99, score));
-    const category =
-      fitScore >= 88 ? "Exact Match" : fitScore >= 70 ? "Close Match" : "Smart Substitute";
-
-    return {
-      id: `brief-${listing.id}`,
-      listing,
-      category,
-      fitScore,
-      criteriaMet: criteriaMet.slice(0, 6),
-      missingCriteria: [...new Set(missingCriteria)].slice(0, 5),
-      tradeOffs: tradeOffs.length ? [...new Set(tradeOffs)].slice(0, 4) : ["No major trade-off flagged by the deterministic matcher"],
-      rationale: `${listing.name} ranks as a ${category.toLowerCase()} because it covers ${criteriaMet.slice(0, 3).join(", ").toLowerCase()} while the broker should verify ${missingCriteria.slice(0, 2).join(", ").toLowerCase() || "final buyer preferences"}.`,
-      talkingPoints: [
-        listing.highlights[0],
-        listing.highlights[1] ?? listing.idealBuyer,
-        listing.weaknesses[0] ? `Frame trade-off: ${listing.weaknesses[0].toLowerCase()}` : "Confirm final objection handling",
-      ],
-    };
-  });
-
-  const matches = scored.sort((a, b) => b.fitScore - a.fitScore).slice(0, 6);
   const best = matches[0];
-
   return {
     criteria,
     matches,
@@ -779,9 +767,29 @@ export function generateClientBriefShortlist(
     missingCriteria: [...new Set(matches.flatMap((match) => match.missingCriteria))].slice(0, 8),
     tradeOffs: matches.slice(0, 3).flatMap((match) => match.tradeOffs.map((tradeOff) => `${match.listing.name}: ${tradeOff}`)),
     outreachMessage: best
-      ? `I found ${best.listing.name} as the strongest current fit for this brief, with ${matches[1]?.listing.name ?? "one close alternative"} as the comparison point. The main reason is ${best.criteriaMet.slice(0, 3).join(", ").toLowerCase()}; before sending, I would verify ${best.missingCriteria.slice(0, 2).join(", ").toLowerCase() || "viewing timing and final buyer priorities"}.`
-      : "No shortlist is ready yet. Add budget, size, location, and must-have criteria to generate outreach.",
+      ? `I found ${best.listing.name} as the strongest current fit, with ${matches[1]?.listing.name ?? "one close alternative"} as the comparison point. The main reason is ${best.criteriaMet.slice(0, 3).join(", ").toLowerCase() || "overlap with the stated criteria"}; before sending, I would verify ${best.missingCriteria.slice(0, 2).join(", ").toLowerCase() || "viewing timing and final buyer priorities"}.`
+      : "No shortlist is ready yet. Add budget, size, location, brand, or must-have criteria to generate one.",
   };
+}
+
+export function generateClientBriefShortlist(
+  raw: string,
+  segment?: BrokerSegment,
+  inventoryOverride?: YachtListing[],
+) {
+  const criteria = parseClientBrief(raw);
+  const ask = buildAskFromBrief(criteria, raw);
+  return buildShortlist(ask, criteria, inventoryOverride ?? getListingsForSegment(segment));
+}
+
+/* Saved-buyer shortlist — runs the weighted matcher directly on the buyer's
+   structured ask (no lossy text round-trip), so it matches the Buyers tab. */
+export function generateBuyerShortlist(
+  buyer: BuyerProfile,
+  segment?: BrokerSegment,
+  inventoryOverride?: YachtListing[],
+) {
+  return buildShortlist(buyer, criteriaFromBuyer(buyer), inventoryOverride ?? getListingsForSegment(segment));
 }
 
 export function discoverHiddenOpportunities(
@@ -989,6 +997,72 @@ function matchesPreferredLocation(listing: YachtListing, preferredLocations: str
   });
 }
 
+/* Relative importance of each criterion when the buyer specifies it. The score
+   is a weighted % over ONLY the criteria the buyer filled — empty fields mean
+   "no preference" and are excluded entirely (they neither help nor hurt). */
+const MATCH_WEIGHTS = {
+  brand: 30,
+  budget: 25,
+  size: 20,
+  mustHaves: 15,
+  location: 10,
+  taste: 5,
+} as const;
+
+/* Budget fit (0–1) with ±10% margins. When only a max is given we imply a
+   floor of 50% of max (so a €10M-max buyer isn't shown €500k boats); when only
+   a min is given there's no ceiling. Returns null when the price is unknown. */
+function budgetFit(price: number, min: number, max: number): number | null {
+  if (price <= 0) return null;
+  let lo: number;
+  let hi: number;
+  if (min > 0 && max > 0) {
+    lo = min;
+    hi = max;
+  } else if (max > 0) {
+    lo = max * 0.5;
+    hi = max;
+  } else {
+    lo = min;
+    hi = Number.POSITIVE_INFINITY;
+  }
+  const loAdj = lo > 0 ? lo * 0.9 : 0;
+  const hiAdj = hi === Number.POSITIVE_INFINITY ? hi : hi * 1.1;
+  if (price >= loAdj && price <= hiAdj) return 1;
+  const loSoft = loAdj > 0 ? loAdj * 0.9 : 0;
+  const hiSoft = hiAdj === Number.POSITIVE_INFINITY ? hiAdj : hiAdj * 1.1;
+  if (price >= loSoft && price <= hiSoft) return 0.4;
+  return 0;
+}
+
+/* Size fit (0–1) with ±10% margins. Empty min = from 0, empty max = no ceiling.
+   Returns null when the listing length is unknown. */
+function sizeFit(lengthFt: number, min: number, max: number): number | null {
+  if (lengthFt <= 0) return null;
+  const lo = min > 0 ? min : 0;
+  const hi = max > 0 ? max : Number.POSITIVE_INFINITY;
+  const loAdj = lo > 0 ? lo * 0.9 : 0;
+  const hiAdj = hi === Number.POSITIVE_INFINITY ? hi : hi * 1.1;
+  if (lengthFt >= loAdj && lengthFt <= hiAdj) return 1;
+  const loSoft = loAdj > 0 ? loAdj * 0.9 : 0;
+  const hiSoft = hiAdj === Number.POSITIVE_INFINITY ? hiAdj : hiAdj * 1.1;
+  if (lengthFt >= loSoft && lengthFt <= hiSoft) return 0.5;
+  return 0;
+}
+
+/* Fuzzy brand match: does any preferred brand term appear in the listing's
+   builder / model / name? (Case-insensitive substring — so "Sunreef" matches
+   "Sunreef 100 Power", which exact-equality missed.) */
+function brandFit(listing: YachtListing, preferredBrands: string[]): number {
+  const haystack = `${listing.builder} ${listing.model} ${listing.name}`.toLowerCase();
+  return preferredBrands.some((brand) => {
+    const term = brand.trim().toLowerCase();
+    return term.length > 0 && haystack.includes(term);
+  })
+    ? 1
+    : 0;
+}
+
 export function generateMatchesForBuyer(
   buyer: BuyerProfile,
   inventory: YachtListing[] = yachtListings,
@@ -996,92 +1070,125 @@ export function generateMatchesForBuyer(
 ): MatchResult[] {
   const requiredCabins = parseRequiredCabins(buyer.mustHaves);
   const vatRequired = requiresEuVat(buyer.mustHaves);
+  // Only machine-checkable must-haves count toward scoring; free-text we can't
+  // verify is ignored rather than penalised.
+  const checkableMustHaves = (requiredCabins != null ? 1 : 0) + (vatRequired ? 1 : 0);
 
   const scored = inventory.map((listing) => {
     const criteriaMet: string[] = [];
     const missingCriteria: string[] = [];
-    let score = 40;
+    // Each entry is a specified criterion: its 0–1 match and its weight.
+    const factors: { label: string; match: number; weight: number }[] = [];
 
-    // Budget — score only when the buyer set a budget AND the listing has a
-    // price. Bounds are independent: empty min = "from 0", empty max = "to any".
-    const buyerHasBudget = buyer.budgetMinEur > 0 || buyer.budgetMaxEur > 0;
-    if (buyerHasBudget && listing.priceEur > 0) {
-      if (inRangeOrOpen(listing.priceEur, buyer.budgetMinEur, buyer.budgetMaxEur)) {
-        score += 14;
-        criteriaMet.push("Inside budget");
-      } else {
-        missingCriteria.push("Budget fit");
+    if (buyer.preferredBrands.length) {
+      const m = brandFit(listing, buyer.preferredBrands);
+      factors.push({ label: "Preferred brand", match: m, weight: MATCH_WEIGHTS.brand });
+      if (m >= 1) criteriaMet.push("Preferred brand");
+      else missingCriteria.push("Preferred brand");
+    }
+
+    if (buyer.budgetMinEur > 0 || buyer.budgetMaxEur > 0) {
+      const m = budgetFit(listing.priceEur, buyer.budgetMinEur, buyer.budgetMaxEur);
+      if (m != null) {
+        factors.push({ label: "Budget", match: m, weight: MATCH_WEIGHTS.budget });
+        if (m >= 1) criteriaMet.push("Inside budget");
+        else if (m > 0) criteriaMet.push("Near budget");
+        else missingCriteria.push("Budget fit");
       }
     }
 
-    // Size — score only when the buyer set a size AND the listing length is
-    // known. Some listings store length only in their name (lengthFt = 0);
-    // penalising those would wrongly hide good matches, so skip when unknown.
-    const buyerHasSize = buyer.sizeRangeFt[0] > 0 || buyer.sizeRangeFt[1] > 0;
-    if (buyerHasSize && listing.lengthFt > 0) {
-      if (inRangeOrOpen(listing.lengthFt, buyer.sizeRangeFt[0], buyer.sizeRangeFt[1])) {
-        score += 12;
-        criteriaMet.push("Size range");
-      } else {
-        missingCriteria.push("Size range");
+    if (buyer.sizeRangeFt[0] > 0 || buyer.sizeRangeFt[1] > 0) {
+      const m = sizeFit(listing.lengthFt, buyer.sizeRangeFt[0], buyer.sizeRangeFt[1]);
+      if (m != null) {
+        factors.push({ label: "Size range", match: m, weight: MATCH_WEIGHTS.size });
+        if (m >= 1) criteriaMet.push("Size range");
+        else if (m > 0) criteriaMet.push("Near size range");
+        else missingCriteria.push("Size range");
       }
     }
 
-    if (buyer.preferredBrands.includes(listing.builder)) {
-      score += 10;
-      criteriaMet.push("Preferred brand");
+    let unmetMustHave = false;
+    if (checkableMustHaves > 0) {
+      let satisfied = 0;
+      if (requiredCabins != null) {
+        if (listing.cabins >= requiredCabins) {
+          satisfied += 1;
+          criteriaMet.push(`${requiredCabins}+ cabins`);
+        } else {
+          unmetMustHave = true;
+          missingCriteria.push(`${requiredCabins} cabins`);
+        }
+      }
+      if (vatRequired) {
+        if (listing.vatStatus === "EU VAT Paid") {
+          satisfied += 1;
+          criteriaMet.push("EU VAT paid");
+        } else {
+          unmetMustHave = true;
+          missingCriteria.push("EU VAT paid");
+        }
+      }
+      factors.push({
+        label: "Must-haves",
+        match: satisfied / checkableMustHaves,
+        weight: MATCH_WEIGHTS.mustHaves,
+      });
     }
 
-    // Preferred location — previously not scored at all, so a buyer's
-    // geography (e.g. Monaco) never influenced the ranking.
     if (buyer.preferredLocations.length) {
-      if (matchesPreferredLocation(listing, buyer.preferredLocations)) {
-        score += 8;
-        criteriaMet.push("Preferred location");
-      } else {
-        missingCriteria.push("Preferred location");
-      }
+      const m = matchesPreferredLocation(listing, buyer.preferredLocations) ? 1 : 0;
+      factors.push({ label: "Preferred location", match: m, weight: MATCH_WEIGHTS.location });
+      if (m >= 1) criteriaMet.push("Preferred location");
+      else missingCriteria.push("Preferred location");
     }
 
-    // VAT — matched from any must-have mentioning VAT (not an exact string).
-    if (vatRequired) {
-      if (listing.vatStatus === "EU VAT Paid") {
-        score += 10;
-        criteriaMet.push("EU VAT paid");
-      } else {
-        missingCriteria.push("EU VAT paid");
-      }
-    }
-
-    // Cabins — parsed from free-text ("At least 3 cabins" → min 3) instead of
-    // an exact "3 cabins" string that real buyers never store verbatim.
-    if (requiredCabins != null) {
-      if (listing.cabins >= requiredCabins) {
-        score += 8;
-        criteriaMet.push(`${requiredCabins}+ cabins`);
-      } else {
-        missingCriteria.push(`${requiredCabins} cabins`);
-      }
-    }
-
-    if (
-      buyer.lifestylePreferences.some((preference) =>
-        `${listing.interiorStyle} ${listing.highlights.join(" ")}`.toLowerCase().includes(preference.toLowerCase().split(" ")[0]),
+    if (buyer.lifestylePreferences.length) {
+      const m = buyer.lifestylePreferences.some((preference) =>
+        `${listing.interiorStyle} ${listing.highlights.join(" ")}`
+          .toLowerCase()
+          .includes(preference.toLowerCase().split(" ")[0]),
       )
-    ) {
-      score += 6;
-      criteriaMet.push("Taste signal");
+        ? 1
+        : 0;
+      factors.push({ label: "Taste signal", match: m, weight: MATCH_WEIGHTS.taste });
+      if (m >= 1) criteriaMet.push("Taste signal");
     }
 
-    const hasKnownObjection = buyer.rejectedAssets.some((rejection) => rejection.listingId === listing.id);
-    if (hasKnownObjection) {
-      score -= 25;
-      missingCriteria.push("Previously rejected");
-    }
+    // Normalise: % fit over the criteria the buyer actually specified. No flat
+    // base — a listing that matches none of the stated criteria scores low.
+    const totalWeight = factors.reduce((sum, factor) => sum + factor.weight, 0);
+    const earned = factors.reduce((sum, factor) => sum + factor.weight * factor.match, 0);
+    let raw = totalWeight > 0 ? (earned / totalWeight) * 100 : 50;
 
-    const fitScore = Math.max(20, Math.min(99, score));
+    // Hard rules: deal-breakers near-disqualify; an unmet must-have caps the score.
+    const previouslyRejected = buyer.rejectedAssets.some((r) => r.listingId === listing.id);
+    const commercialBlocked =
+      buyer.dealBreakers.some((d) => /commercial/i.test(d)) && listing.vatStatus === "Commercial";
+    if (previouslyRejected) missingCriteria.push("Previously rejected");
+    if (commercialBlocked) missingCriteria.push("Commercial registration");
+    if (unmetMustHave) raw = Math.min(raw, 65);
+    if (previouslyRejected || commercialBlocked) raw = Math.min(raw, 20);
+
+    const fitScore = Math.round(Math.max(0, Math.min(100, raw)));
     const category =
-      fitScore >= 88 ? "Exact Match" : fitScore >= 72 ? "Close Match" : "Smart Substitute";
+      fitScore >= 85 ? "Exact Match" : fitScore >= 65 ? "Close Match" : "Smart Substitute";
+
+    // Each factor's contribution to the final % (they sum to ~fitScore before
+    // any cap). Powers the "why this score?" tooltip.
+    const scoreBreakdown: { label: string; points: number; met: boolean }[] =
+      totalWeight > 0
+        ? factors.map((factor) => ({
+            label: factor.label,
+            points: Math.round((factor.weight * factor.match * 100) / totalWeight),
+            met: factor.match > 0,
+          }))
+        : [{ label: "No criteria set", points: 0, met: false }];
+    if (unmetMustHave) scoreBreakdown.push({ label: "Capped: unmet must-have", points: 0, met: false });
+    if (previouslyRejected || commercialBlocked) {
+      scoreBreakdown.push({ label: "Capped: deal-breaker", points: 0, met: false });
+    }
+
+    const headlineReasons = criteriaMet.slice(0, 3).join(", ").toLowerCase();
 
     return {
       id: `generated-${buyer.id}-${listing.id}`,
@@ -1089,10 +1196,11 @@ export function generateMatchesForBuyer(
       listingId: listing.id,
       category,
       fitScore,
-      rationale: `${listing.name} fits ${buyer.name} at ${fitScore}% because it combines ${criteriaMet.slice(0, 3).join(", ") || "some inventory overlap"} with ${listing.highlights[0].toLowerCase()}.`,
+      rationale: `${listing.name} fits ${buyer.name} at ${fitScore}% — ${headlineReasons || "limited overlap with the stated criteria"}.`,
       criteriaMet,
       missingCriteria,
       talkingPoints: listing.highlights.slice(0, 2),
+      scoreBreakdown,
     } satisfies MatchResult;
   });
 
