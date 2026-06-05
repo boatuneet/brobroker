@@ -1107,13 +1107,13 @@ export function BuyerMemoryProfile({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       {/* Editorial cockpit header — segment chip + last contacted, display h1,
           single-line summary, and a neat row of status badges. Action cluster
           (Capture / Open deal room / Delete) anchors top-right. */}
-      <header className="mt-6 flex flex-wrap items-start justify-between gap-6">
+      <header className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F625E]">
@@ -2199,7 +2199,7 @@ export function SellerMemoryProfile({ sellerId, segment }: { sellerId: string; s
   const totalValue = assets.reduce((total, listing) => total + listing.priceEur, 0);
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       <div>

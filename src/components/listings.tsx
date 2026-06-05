@@ -580,7 +580,7 @@ function ListingDetailHero({
   const specSummary = getListingSpecSummary(listing);
 
   return (
-    <section className="mt-8 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white">
+    <section className="overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white">
       <div className="relative min-w-0 p-6 pb-0 sm:p-8 sm:pb-0">
         <Link
           className="absolute right-5 top-5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] bg-[#003C33] px-3.5 text-[13px] font-medium text-white hover:bg-[#0B4A3F] sm:right-6 sm:top-6"
@@ -866,7 +866,7 @@ export function ListingBrain({
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       <ListingDetailHero
