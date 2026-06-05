@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { isSupabaseConfigured } from "./env";
+import { getCurrentUser } from "./current-user";
 import { createClient } from "./server";
 
 /* Count how many tasks the signed-in broker has marked as completed since
@@ -11,15 +11,10 @@ import { createClient } from "./server";
    Supabase isn't configured or the broker is signed out — graceful
    degrade, never throws. */
 export const getStoredCompletedTasksThisMonth = cache(async (): Promise<number> => {
-  if (!isSupabaseConfigured()) return 0;
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) return 0;
 
+  const supabase = await createClient();
   const startOfMonth = startOfCurrentMonthIso();
 
   const { count, error } = await supabase
@@ -39,15 +34,10 @@ export const getStoredCompletedTasksThisMonth = cache(async (): Promise<number> 
 /* Open broker tasks count — anything not in the "Done" status. Lets the
    dashboard show "tasks to do" without pulling the full task payload. */
 export const getStoredOpenTasksCount = cache(async (): Promise<number> => {
-  if (!isSupabaseConfigured()) return 0;
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) return 0;
 
+  const supabase = await createClient();
   const { count, error } = await supabase
     .from("broker_tasks")
     .select("id", { count: "exact", head: true })

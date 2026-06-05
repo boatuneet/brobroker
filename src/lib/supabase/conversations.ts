@@ -1,6 +1,6 @@
 import { cache } from "react";
 import type { Conversation } from "@/lib/types";
-import { isSupabaseConfigured } from "./env";
+import { getCurrentUser } from "./current-user";
 import { createClient } from "./server";
 
 type StoredConversationRow = {
@@ -18,15 +18,10 @@ type StoredConversationRow = {
 
 export const getStoredConversationsForBuyer = cache(
   async (buyerId: string): Promise<Conversation[]> => {
-    if (!isSupabaseConfigured()) return [];
-
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const user = await getCurrentUser();
     if (!user) return [];
 
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from("conversations")
       .select("*")

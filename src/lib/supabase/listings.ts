@@ -2,21 +2,16 @@ import { cache } from "react";
 import { type BrokerSegment } from "@/lib/broker-segments";
 import { mapStoredAssetToListing, type StoredAssetRow } from "@/lib/stored-listings";
 import type { ListingPhoto, YachtListing } from "@/lib/types";
-import { isSupabaseConfigured } from "./env";
+import { getCurrentUser } from "./current-user";
 import { createClient } from "./server";
 
 const PHOTO_SIGNED_URL_SECONDS = 60 * 60;
 
 export const getStoredListingsForSegment = cache(async (segment?: BrokerSegment) => {
-  if (!isSupabaseConfigured()) return [];
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) return [];
 
+  const supabase = await createClient();
   let query = supabase
     .from("assets")
     .select("*")
@@ -37,15 +32,10 @@ export const getStoredListingsForSegment = cache(async (segment?: BrokerSegment)
 });
 
 export const getStoredListingById = cache(async (id: string) => {
-  if (!isSupabaseConfigured()) return undefined;
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) return undefined;
 
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("assets")
     .select("*")

@@ -1,6 +1,6 @@
 import { cache } from "react";
 import type { DraftStatus, FollowUpDraft, FollowUpDraftKind } from "@/lib/types";
-import { isSupabaseConfigured } from "./env";
+import { getCurrentUser } from "./current-user";
 import { createClient } from "./server";
 
 type StoredFollowUpDraftRow = {
@@ -18,15 +18,10 @@ type StoredFollowUpDraftRow = {
 
 export const getStoredFollowUpDraftsForBuyer = cache(
   async (buyerId: string): Promise<FollowUpDraft[]> => {
-    if (!isSupabaseConfigured()) return [];
-
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const user = await getCurrentUser();
     if (!user) return [];
 
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from("follow_up_drafts")
       .select("*")

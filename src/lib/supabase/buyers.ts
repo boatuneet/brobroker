@@ -5,19 +5,14 @@ import {
   mapStoredBuyerToProfile,
   type StoredBuyerRow,
 } from "@/lib/stored-buyers";
-import { isSupabaseConfigured } from "./env";
+import { getCurrentUser } from "./current-user";
 import { createClient } from "./server";
 
 export const getStoredBuyersForSegment = cache(async (segment?: BrokerSegment) => {
-  if (!isSupabaseConfigured()) return [];
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) return [];
 
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("buyers")
     .select("*")
@@ -38,15 +33,10 @@ export const getStoredBuyersForSegment = cache(async (segment?: BrokerSegment) =
 });
 
 export const getStoredBuyerById = cache(async (id: string) => {
-  if (!isSupabaseConfigured()) return undefined;
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) return undefined;
 
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("buyers")
     .select("*")
