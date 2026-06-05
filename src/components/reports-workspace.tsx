@@ -136,10 +136,8 @@ export function ReportsWorkspace({
   }, [auditEvents, draftBody, selected]);
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <PageHeader
-        title="Owner reports"
-        description="Draft editable seller updates from activity, feedback, and next steps."
         metrics={[
           { label: "Inquiries", value: selected ? `${selected.input.inquiries}` : "—" },
           { label: "Qualified leads", value: selected ? `${selected.input.qualifiedLeads}` : "—" },
@@ -154,7 +152,7 @@ export function ReportsWorkspace({
             description="Add seller context and weekly activity to draft owner updates."
             action={
               <Link
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
+                className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
                 href="/listings"
               >
                 Open listings
@@ -184,10 +182,10 @@ export function ReportsWorkspace({
                       <li key={report.input.id}>
                         <button
                           className={cn(
-                            "block w-full rounded-2xl border p-4 text-left transition-all hover:border-[#003C33] hover:bg-white",
+                            "block w-full rounded-[10px] border p-4 text-left transition-all hover:border-[#003C33] hover:bg-white",
                             isSelected
-                              ? "border-[#003C33] bg-white shadow-[0_16px_34px_rgba(0,60,51,0.1)]"
-                              : "border-[#E7E7E2] bg-[#F1F2EE]",
+                              ? "border-[#003C33] bg-white"
+                              : "border-[#E7E7E7] bg-[#F1F2EE]",
                           )}
                           onClick={() => selectReport(report.input.id)}
                           type="button"
@@ -206,7 +204,7 @@ export function ReportsWorkspace({
                             </Badge>
                           </div>
                           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                            <div className="rounded-xl border border-[#F1F2EE] bg-white px-2 py-2">
+                            <div className="rounded-[12px] border border-[#E7E7E7] bg-white px-2 py-2">
                               <p className="font-mono text-[13px] font-semibold text-[#171719]">
                                 {report.input.inquiries}
                               </p>
@@ -214,7 +212,7 @@ export function ReportsWorkspace({
                                 Inq.
                               </p>
                             </div>
-                            <div className="rounded-xl border border-[#F1F2EE] bg-white px-2 py-2">
+                            <div className="rounded-[12px] border border-[#E7E7E7] bg-white px-2 py-2">
                               <p className="font-mono text-[13px] font-semibold text-[#171719]">
                                 {report.input.qualifiedLeads}
                               </p>
@@ -222,7 +220,7 @@ export function ReportsWorkspace({
                                 Leads
                               </p>
                             </div>
-                            <div className="rounded-xl border border-[#F1F2EE] bg-white px-2 py-2">
+                            <div className="rounded-[12px] border border-[#E7E7E7] bg-white px-2 py-2">
                               <p className="font-mono text-[13px] font-semibold text-[#171719]">
                                 {report.input.viewings}
                               </p>
@@ -239,7 +237,7 @@ export function ReportsWorkspace({
               </Card>
 
               <Card>
-                <div className="border-b border-[#E7E7E2] px-6 py-5">
+                <div className="border-b border-[#E7E7E7] px-6 py-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="bb-mono-label">Audit trail</p>
@@ -252,20 +250,20 @@ export function ReportsWorkspace({
                     </CardHeaderIcon>
                   </div>
                   {pendingAuditRemoval ? (
-                    <div className="mt-4 rounded-2xl border border-[#F0DDD0] bg-[#F0DDD0] px-4 py-3 text-[13px] leading-6 text-[#A86642]">
+                    <div className="mt-4 rounded-[10px] border border-[#F0DDD0] bg-[#F0DDD0] px-4 py-3 text-[13px] leading-6 text-[#A86642]">
                       <p className="font-medium text-[#A86642]">
                         Remove “{pendingAuditRemoval.label}” from the audit trail?
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
-                          className="inline-flex min-h-8 items-center justify-center rounded-full bg-[#003C33] px-3 text-[12px] font-medium text-white hover:bg-[#0B4A3F]"
+                          className="inline-flex min-h-8 items-center justify-center rounded-[8px] bg-[#003C33] px-3 text-[12px] font-medium text-white hover:bg-[#0B4A3F]"
                           onClick={() => removeAuditEvent(pendingAuditRemoval.id)}
                           type="button"
                         >
                           Remove entry
                         </button>
                         <button
-                          className="inline-flex min-h-8 items-center justify-center rounded-full border border-[#F0DDD0] bg-white px-3 text-[12px] font-medium text-[#A86642] hover:border-[#A86642]"
+                          className="inline-flex min-h-8 items-center justify-center rounded-[8px] border border-[#F0DDD0] bg-white px-3 text-[12px] font-medium text-[#A86642] hover:border-[#A86642]"
                           onClick={() => setPendingAuditRemoval(null)}
                           type="button"
                         >
@@ -275,7 +273,7 @@ export function ReportsWorkspace({
                     </div>
                   ) : null}
                 </div>
-                <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+                <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
                   {auditEvents.map((event) => (
                     <li key={event.id} className="grid gap-3 px-6 py-5 sm:grid-cols-[1fr_auto]">
                       <div className="min-w-0">
@@ -292,7 +290,7 @@ export function ReportsWorkspace({
                       </div>
                       <button
                         aria-label={`Remove audit entry: ${event.label}`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#A9ABA5] transition-colors hover:bg-[#F6F6F3] hover:text-[#171719]"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#A9ABA5] transition-colors hover:bg-[#FBFBFB] hover:text-[#171719]"
                         onClick={() => setPendingAuditRemoval(event)}
                         type="button"
                       >
@@ -316,7 +314,7 @@ export function ReportsWorkspace({
                 }
               />
               <div className="grid gap-5 px-6 py-5">
-                <div className="grid gap-3 rounded-2xl border border-[#E7EFEA] bg-[#f7fbf8] p-4 sm:grid-cols-3">
+                <div className="grid gap-3 rounded-[10px] border border-[#E7E7E7] bg-[#F1F2EE] p-4 sm:grid-cols-3">
                   <ReportStat label="Inquiries" value={`${selected.input.inquiries}`} />
                   <ReportStat label="Qualified" value={`${selected.input.qualifiedLeads}`} />
                   <ReportStat label="Viewings" value={`${selected.input.viewings}`} />
@@ -324,12 +322,12 @@ export function ReportsWorkspace({
 
                 <textarea
                   aria-label="Editable seller report draft"
-                  className="min-h-[460px] w-full resize-y rounded-2xl border border-[#D9DAD4] bg-[#fffefc] p-6 text-[15px] leading-8 text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/10"
+                  className="min-h-[460px] w-full resize-y rounded-[10px] border border-[#D9DAD4] bg-[#fffefc] p-6 text-[15px] leading-8 text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/10"
                   onChange={(event) => editDraft(event.target.value)}
                   value={draftBody}
                 />
 
-                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-3">
+                <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[#E7E7E7] bg-[#F1F2EE] p-3">
                   <Button onClick={approveDraft} type="button">
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                     {approvedReportIds.includes(selected.input.id) ? "Approved" : "Approve report"}
@@ -343,7 +341,7 @@ export function ReportsWorkspace({
                     {sentReportIds.includes(selected.input.id) ? "Staged" : "Stage send"}
                   </Button>
                   <Link
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
                     href={`/sellers/${selected.input.sellerId}`}
                   >
                     Open owner context
@@ -351,8 +349,8 @@ export function ReportsWorkspace({
                 </div>
 
                 {showExportPreview ? (
-                  <div className="rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-6">
-                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E7E7E2] pb-4">
+                  <div className="rounded-[10px] border border-[#E7E7E7] bg-[#F1F2EE] p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E7E7E7] pb-4">
                       <div>
                         <p className="bb-mono-label">Owner report PDF preview</p>
                         <h3 className="bb-display mt-2 text-xl font-medium text-[#171719]">
@@ -382,7 +380,7 @@ export function ReportsWorkspace({
                 />
                 <div className="grid gap-4 p-6 sm:grid-cols-2">
                   {selected.report.sections.map((section) => (
-                    <div key={section.label} className="rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-5">
+                    <div key={section.label} className="rounded-[10px] border border-[#E7E7E7] bg-[#F1F2EE] p-5">
                       <p className="bb-mono-label">{section.label}</p>
                       <p className="mt-3 text-[14px] leading-7 text-[#5F625E]">{section.value}</p>
                     </div>
@@ -399,7 +397,7 @@ export function ReportsWorkspace({
 
 function ReportStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[#E7EFEA] bg-white px-4 py-3 shadow-[0_10px_24px_rgba(23,23,28,0.03)]">
+    <div className="rounded-[12px] border border-[#E7E7E7] bg-white px-4 py-3">
       <p className="bb-mono-label">{label}</p>
       <p className="mt-2 font-mono text-lg font-semibold text-[#171719]">{value}</p>
     </div>

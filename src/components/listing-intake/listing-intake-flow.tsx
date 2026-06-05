@@ -4,8 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ImagePlus, MapPin, Save, Sparkles, X } from "lucide-react";
-import { type BrokerSegment, brokerSegments } from "@/lib/broker-segments";
+import {
+  Cross2Icon,
+  FilePlusIcon,
+  ImageIcon,
+  MagicWandIcon,
+  SewingPinIcon,
+} from "@radix-ui/react-icons";
+import { type BrokerSegment } from "@/lib/broker-segments";
 import {
   filterLocationOptions,
   findLocationOption,
@@ -22,6 +28,7 @@ import {
   type ListingDraftValue,
   type ListingDraftValues,
   type ListingField,
+  type ListingIntakeSection,
   type ListingRangeValue,
 } from "@/lib/listing-intake-config";
 import { saveSessionAsset } from "@/lib/browser-persistence";
@@ -37,6 +44,7 @@ import type {
 } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Badge, Button, Card, CardHeader, TextInput } from "@/components/ui";
+import { DatePicker } from "@/components/date-picker";
 import { SelectMenu } from "@/components/select-menu";
 import { ToastViewport } from "@/components/app-feedback";
 
@@ -52,6 +60,8 @@ type SaveResult = {
   savedAt: string;
 };
 
+const mediaTabId = "media";
+
 export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSegment }) {
   const router = useRouter();
   const segment = initialSegment;
@@ -63,7 +73,7 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const config = getListingIntakeConfig(segment);
-  const segmentMeta = brokerSegments.find((item) => item.id === segment) ?? brokerSegments[0];
+  const [activeTab, setActiveTab] = useState(config.sections[0]?.id ?? mediaTabId);
   const requiredFields = config.sections.flatMap((section) =>
     section.fields.filter((field) => field.required),
   );
@@ -74,6 +84,7 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
   const draftName = generateDraftName(segment, values);
   const specSummary = generateSpecSummary(segment, values);
   const price = readNumber(values, "priceEur");
+  const activeSection = config.sections.find((section) => section.id === activeTab) ?? config.sections[0];
 
   function updateField(id: string, value: ListingDraftValue) {
     setValues((current) => ({ ...current, [id]: value }));
@@ -267,105 +278,77 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
         }
         onDismiss={() => setSaveResult(null)}
       />
-      <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
-        href="/listings"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Back to listings
-      </Link>
+      {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-        <div className="grid gap-8">
-          <Card className="p-6">
-            <div className="flex flex-wrap items-start justify-between gap-5">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+        <div className="grid gap-6">
+          <Card>
+            <div className="border-b border-[#E7E7E7] px-6 py-5">
               <div className="min-w-0">
-                <p className="bb-mono-label">Listing intake</p>
-                <h1 className="bb-display mt-3 text-[2.2rem] font-medium leading-[1.05] text-[#171719]">
-                  {config.title}
-                </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-[#5F625E]">{config.description}</p>
+                <h1 className="text-2xl font-semibold leading-tight text-[#171719]">{config.title}</h1>
+                <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[#5F625E]">{config.description}</p>
               </div>
-              <Badge tone="info">{completion}% complete</Badge>
-            </div>
-
-            {/* Compact "active segment" hint — image kept as small thumbnail,
-                copy condensed to one row so the form gets the visual weight. */}
-            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-2.5">
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#edeae3]">
-                <Image
-                  alt=""
-                  className="object-cover"
-                  fill
-                  sizes="48px"
-                  src={segmentMeta.imageSrc}
+              <div className="mt-5">
+                <ListingIntakeTabs
+                  activeTab={activeTab}
+                  onChange={setActiveTab}
+                  sections={config.sections}
                 />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="bb-mono-label text-[#8E918B]">
-                  Active segment · {segmentMeta.label}
-                </p>
-                <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#5F625E]">
-                  Follows your broker segment from Profile.
-                </p>
-              </div>
-              <Link
-                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#D9DAD4] bg-white px-3.5 text-[12.5px] font-medium text-[#171719] hover:border-[#003C33]"
-                href="/profile"
-              >
-                Change segment
-              </Link>
             </div>
-          </Card>
 
-          {config.sections.map((section) => (
-            <Card key={section.id}>
-              <CardHeader
-                eyebrow={section.eyebrow}
-                title={section.title}
-                description={section.description}
-              />
-              <div className="grid gap-5 px-6 py-5 lg:grid-cols-3">
-                {section.fields
-                  .filter((field) => isFieldVisible(field, values))
-                  .map((field) => (
-                    <FieldControl
-                      field={field}
-                      key={field.id}
-                      onChange={(value) => updateField(field.id, value)}
-                      onLocationSelect={(option) => {
-                        if (field.id === locationFieldId) setSelectedLocationOverride(option);
-                      }}
-                      segment={segment}
-                      value={values[field.id]}
-                    />
-                  ))}
-              </div>
-            </Card>
-          ))}
-
-          <Card>
-            <CardHeader
-              eyebrow="Media"
-              title="Attach listing photos"
-              description="Add owner-approved photos now so the listing draft already has a buyer-ready visual set."
-            />
-            <div className="px-6 py-5">
-              <PhotoAttachmentField photos={photos} setPhotos={setPhotos} />
-            </div>
+            {activeTab === mediaTabId ? (
+              <>
+                <CardHeader
+                  eyebrow="Media"
+                  title="Attach listing photos"
+                  description="Add owner-approved photos now so the listing draft already has a buyer-ready visual set."
+                />
+                <div className="px-6 py-5">
+                  <PhotoAttachmentField photos={photos} setPhotos={setPhotos} />
+                </div>
+              </>
+            ) : activeSection ? (
+              <>
+                <CardHeader
+                  eyebrow={activeSection.eyebrow}
+                  title={activeSection.title}
+                  description={activeSection.description}
+                />
+                <div className="grid gap-5 px-6 py-5 lg:grid-cols-3">
+                  {activeSection.fields
+                    .filter((field) => isFieldVisible(field, values))
+                    .map((field) => (
+                      <FieldControl
+                        field={field}
+                        key={field.id}
+                        onChange={(value) => updateField(field.id, value)}
+                        onLocationSelect={(option) => {
+                          if (field.id === locationFieldId) setSelectedLocationOverride(option);
+                        }}
+                        segment={segment}
+                        value={values[field.id]}
+                      />
+                    ))}
+                </div>
+              </>
+            ) : null}
           </Card>
         </div>
 
-        <aside className="sticky top-8 grid gap-5">
+        <aside className="grid gap-5 xl:sticky xl:top-28">
           <Card className="p-6">
-            <p className="bb-mono-label">Listing summary</p>
-            <h2 className="bb-display mt-3 text-2xl font-medium leading-tight text-[#171719]">
+            <div className="flex items-start justify-between gap-4">
+              <p className="bb-mono-label">Listing summary</p>
+              <Badge tone={completion === 100 ? "success" : "info"}>{completion}% complete</Badge>
+            </div>
+            <h2 className="bb-display mt-4 text-2xl font-medium leading-tight text-[#171719]">
               {draftName}
             </h2>
             <p className="mt-3 text-sm leading-6 text-[#5F625E]">
               {specSummary || "Complete core fields to generate a broker-ready summary."}
             </p>
-            <dl className="mt-5 grid gap-3 border-y border-[#E7E7E2] py-5">
+            <dl className="mt-5 grid gap-3 border-y border-[#E7E7E7] py-5">
               <SummaryLine label="Segment" value={getSegmentLabel(segment)} />
               <SummaryLine label="Price" value={price ? formatCurrency(price) : "To confirm"} />
               <SummaryLine
@@ -379,13 +362,13 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
             {photos.length ? (
               <div className="mt-5 grid grid-cols-3 gap-2">
                 {photos.slice(0, 3).map((photo) => (
-                  <div className="relative aspect-square overflow-hidden rounded-xl bg-[#F1F2EE]" key={photo.id}>
+                  <div className="relative aspect-square overflow-hidden rounded-[12px] bg-[#F1F2EE]" key={photo.id}>
                     <Image alt={photo.alt} className="object-cover" fill sizes="90px" src={photo.src} />
                   </div>
                 ))}
               </div>
             ) : null}
-            <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-4">
+            <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-[8px] border border-[#E7E7E7] bg-[#F1F2EE] p-4">
               <span className="min-w-0">
                 <span className="block text-[13px] font-semibold text-[#171719]">Save as draft</span>
                 <span className="mt-1 block text-[12px] leading-5 text-[#5F625E]">
@@ -400,21 +383,21 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
               />
               <span
                 aria-hidden="true"
-                className="relative h-7 w-12 shrink-0 rounded-full bg-[#D9DAD4] transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-[#003C33] peer-checked:after:translate-x-5"
+                className="relative h-7 w-12 shrink-0 rounded-full bg-[#D9DAD4] transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-[#003C33] peer-checked:after:translate-x-5"
               />
             </label>
             <Button className="mt-4 w-full" disabled={isSaving} onClick={saveListing} type="button">
-              <Save className="h-4 w-4" aria-hidden="true" />
+              <FilePlusIcon className="h-4 w-4" aria-hidden="true" />
               {isSaving ? "Saving..." : saveAsDraft ? "Save draft" : "Create listing"}
             </Button>
             {saveError ? (
-              <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-[13px] leading-6 text-red-700">
+              <div className="mt-4 rounded-[8px] bg-red-50 px-4 py-3 text-[13px] leading-6 text-red-700">
                 {saveError}
               </div>
             ) : (
-              <div className="mt-4 rounded-2xl bg-[#F6F6F3] px-4 py-3 text-[13px] leading-6 text-[#5F625E]">
-                <Sparkles className="mr-1 inline h-4 w-4 align-[-3px] text-[#003C33]" aria-hidden="true" />
-                Saved listings become real listing records. Draft mode keeps the item internal.
+              <div className="mt-4 flex gap-2 rounded-[8px] border border-[#E7E7E7] bg-[#FBFBFB] px-4 py-3 text-[13px] leading-6 text-[#5F625E]">
+                <MagicWandIcon className="mt-1 h-4 w-4 shrink-0 text-[#003C33]" aria-hidden="true" />
+                <span>Saved listings become real listing records. Draft mode keeps the item internal.</span>
               </div>
             )}
           </Card>
@@ -422,6 +405,64 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
       </div>
     </div>
   );
+}
+
+function ListingIntakeTabs({
+  activeTab,
+  onChange,
+  sections,
+}: {
+  activeTab: string;
+  onChange: (next: string) => void;
+  sections: ListingIntakeSection[];
+}) {
+  const items = [
+    ...sections.map((section) => ({ key: section.id, label: getListingTabLabel(section) })),
+    { key: mediaTabId, label: "Photos" },
+  ];
+
+  return (
+    <nav
+      aria-label="Listing intake section"
+      className="grid w-full max-w-full gap-1 rounded-[8px] border border-[#D9DAD4] bg-white p-1"
+      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+    >
+      {items.map((item) => {
+        const active = activeTab === item.key;
+        return (
+          <button
+            aria-pressed={active}
+            className={cn(
+              "inline-flex min-h-9 min-w-0 items-center justify-center rounded-[8px] px-2 py-1.5 text-center text-[12.5px] font-medium leading-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
+              active ? "bg-[#171719] text-white" : "text-[#5F625E] hover:bg-[#F1F2EE]",
+            )}
+            key={item.key}
+            onClick={() => onChange(item.key)}
+            type="button"
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function getListingTabLabel(section: ListingIntakeSection) {
+  const labelById: Record<string, string> = {
+    basic: "Basic",
+    operations: "Operations",
+    brainReadiness: "Brain",
+    ownerContext: "Owner",
+    exterior: "Exterior",
+    interior: "Interior",
+    brokerDetails: "Broker details",
+    sizeAndPrice: "Size & price",
+    buildingDetails: "Building",
+    brokerNotes: "Broker notes",
+  };
+
+  return labelById[section.id] ?? section.title;
 }
 
 function FieldControl({
@@ -443,18 +484,18 @@ function FieldControl({
     const rangeValue = isRangeValue(value) ? value : { from: "", to: "" };
 
     return (
-      <fieldset className="grid gap-1.5">
-        <legend className="text-sm font-medium text-[#171719]">{field.label}</legend>
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#D9DAD4] bg-white">
+      <fieldset className="grid">
+        <legend className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{field.label}</legend>
+        <div className="mt-2 grid h-10 grid-cols-2 overflow-hidden rounded-[8px] border border-[#D9DAD4] bg-white">
           <input
-            className="min-h-11 min-w-0 border-r border-[#E7E7E2] px-3.5 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5]"
+            className="h-10 min-h-0 min-w-0 border-r border-[#E7E7E7] px-3 text-[14px] leading-none text-[#171719] outline-none placeholder:text-[#A9ABA5]"
             inputMode="numeric"
             onChange={(event) => onChange({ ...rangeValue, from: event.target.value })}
             placeholder={field.fromPlaceholder ?? "From"}
             value={rangeValue.from}
           />
           <input
-            className="min-h-11 min-w-0 px-3.5 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5]"
+            className="h-10 min-h-0 min-w-0 px-3 text-[14px] leading-none text-[#171719] outline-none placeholder:text-[#A9ABA5]"
             inputMode="numeric"
             onChange={(event) => onChange({ ...rangeValue, to: event.target.value })}
             placeholder={field.toPlaceholder ?? "To"}
@@ -468,15 +509,15 @@ function FieldControl({
   if (field.kind === "segmented") {
     return (
       <fieldset className="grid gap-1.5">
-        <legend className="text-sm font-medium text-[#171719]">{field.label}</legend>
-        <div className="flex overflow-hidden rounded-xl border border-[#D9DAD4] bg-white">
+        <legend className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{field.label}</legend>
+        <div className="flex h-10 overflow-hidden rounded-[8px] border border-[#D9DAD4] bg-white">
           {field.options?.map((option) => (
             <button
               className={cn(
-                "min-h-11 flex-1 border-r border-[#E7E7E2] px-3 text-sm font-medium last:border-r-0",
+                "h-10 min-h-0 flex-1 border-r border-[#E7E7E7] px-3 text-[13px] font-medium last:border-r-0",
                 stringValue === option.value
                   ? "bg-[#171719] text-white"
-                  : "text-[#171719] hover:bg-[#F6F6F3]",
+                  : "text-[#171719] hover:bg-[#FBFBFB]",
               )}
               key={option.value}
               onClick={() => onChange(option.value)}
@@ -493,6 +534,7 @@ function FieldControl({
   if (field.kind === "select") {
     return (
       <SelectMenu
+        buttonClassName="!h-10 !min-h-10 !rounded-[8px] !px-3 !py-0 !text-[14px]"
         label={field.label}
         onChange={onChange}
         options={field.options ?? []}
@@ -517,10 +559,10 @@ function FieldControl({
 
   if (field.kind === "textarea") {
     return (
-      <label className="grid gap-1.5 text-sm font-medium text-[#171719] lg:col-span-3">
-        <span>{field.label}</span>
+      <label className="grid gap-1.5 lg:col-span-3">
+        <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{field.label}</span>
         <textarea
-          className="min-h-28 rounded-xl border border-[#D9DAD4] bg-white px-3.5 py-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+          className="min-h-24 rounded-[8px] border border-[#D9DAD4] bg-white px-3 py-2.5 text-[14px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
           onChange={(event) => onChange(event.target.value)}
           placeholder={field.placeholder}
           value={stringValue}
@@ -529,9 +571,20 @@ function FieldControl({
     );
   }
 
+  if (field.kind === "date") {
+    return (
+      <DatePicker
+        className="text-[13px]"
+        label={field.label}
+        onChange={onChange}
+        value={stringValue}
+      />
+    );
+  }
+
   if (field.kind === "checkbox") {
     return (
-      <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[#D9DAD4] bg-white px-3.5 text-sm font-medium text-[#171719]">
+      <label className="flex h-10 min-h-0 items-center gap-3 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] font-medium text-[#171719]">
         <input
           checked={value === true}
           className="h-4 w-4"
@@ -553,7 +606,7 @@ function FieldControl({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {field.options?.map((option) => (
             <label
-              className="flex min-h-11 items-center gap-3 rounded-xl border border-[#D9DAD4] bg-white px-3.5 text-sm font-medium text-[#171719]"
+              className="flex h-10 min-h-0 items-center gap-3 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] font-medium text-[#171719]"
               key={option.value}
             >
               <input
@@ -586,7 +639,7 @@ function FieldControl({
           {field.options?.map((option) => (
             <button
               className={cn(
-                "flex min-h-11 items-center gap-3 rounded-xl border bg-white px-3 text-left text-sm font-medium transition-colors",
+                "flex h-10 min-h-0 items-center gap-3 rounded-[8px] border bg-white px-3 text-left text-[13px] font-medium transition-colors",
                 value === option.value ? "border-[#171719]" : "border-[#D9DAD4] hover:border-[#003C33]",
               )}
               key={option.value}
@@ -608,11 +661,13 @@ function FieldControl({
 
   return (
     <TextInput
-      inputMode={field.kind === "number" ? "numeric" : undefined}
+      className={cn("text-[13px]", field.id === "surveyStatus" && "lg:col-span-2")}
+      inputClassName="!h-10 !min-h-10 !rounded-[8px] !px-3 !text-[14px] !leading-none"
+      inputMode={field.kind === "number" ? (isListingMoneyField(field) ? "decimal" : "numeric") : undefined}
       label={field.label}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={field.placeholder}
-      value={stringValue}
+      onChange={(event) => onChange(formatIntakeNumber(event.target.value, isListingMoneyField(field)))}
+      placeholder={formatIntakeNumber(field.placeholder ?? "", isListingMoneyField(field))}
+      value={formatIntakeNumber(stringValue, isListingMoneyField(field))}
     />
   );
 }
@@ -678,16 +733,21 @@ function LocationAutocomplete({
   }
 
   return (
-    <div className="relative grid gap-1.5 text-sm font-medium text-[#171719]">
-      <label htmlFor={`location-${field.id}`}>{field.label}</label>
+    <div className="relative grid gap-1.5">
+      <label
+        className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]"
+        htmlFor={`location-${field.id}`}
+      >
+        {field.label}
+      </label>
       <div className="relative">
-        <MapPin
+        <SewingPinIcon
           aria-hidden="true"
           className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
         />
         <input
           autoComplete="off"
-          className="h-11 w-full rounded-xl border border-[#D9DAD4] bg-white pl-10 pr-3.5 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+          className="h-10 w-full rounded-[8px] border border-[#D9DAD4] bg-white pl-10 pr-3 text-[14px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
           id={`location-${field.id}`}
           onBlur={() => window.setTimeout(() => setOpen(false), 120)}
           onClick={() => setOpen(true)}
@@ -707,17 +767,17 @@ function LocationAutocomplete({
         />
       </div>
       {open && (suggestions.length || isSearching) ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-80 overflow-y-auto rounded-xl border border-[#E7E7E2] bg-white shadow-[0_18px_45px_rgba(23,23,28,0.14)]">
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-80 overflow-y-auto rounded-[12px] border border-[#E7E7E7] bg-white">
           {suggestions.map((option) => (
             <button
-              className="flex w-full items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-[#F6F6F3] focus:bg-[#F6F6F3] focus:outline-none"
+              className="flex w-full items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-[#FBFBFB] focus:bg-[#FBFBFB] focus:outline-none"
               key={option.id}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectOption(option)}
               type="button"
             >
-              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#edf7f4] text-[#003C33]">
-                <MapPin className="h-4 w-4" aria-hidden="true" />
+              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1F2EE] text-[#003C33]">
+                <SewingPinIcon className="h-4 w-4" aria-hidden="true" />
               </span>
               <span className="min-w-0">
                 <span className="block text-[13px] font-semibold text-[#171719]">{option.label}</span>
@@ -729,7 +789,7 @@ function LocationAutocomplete({
             </button>
           ))}
           {isSearching ? (
-            <div className="border-t border-[#E7E7E2] px-3.5 py-3 text-[12px] font-medium text-[#8E918B]">
+            <div className="border-t border-[#E7E7E7] px-3.5 py-3 text-[12px] font-medium text-[#8E918B]">
               Searching address matches...
             </div>
           ) : null}
@@ -1125,9 +1185,9 @@ function PhotoAttachmentField({
 
   return (
     <div className="grid gap-4">
-      <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-5 py-8 text-center transition-colors hover:border-[#003C33] hover:bg-[#f7fbf8]">
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#003C33] shadow-[0_8px_24px_rgba(23,23,28,0.08)]">
-          <ImagePlus className="h-5 w-5" aria-hidden="true" />
+      <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-[12px] border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-5 py-8 text-center transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#003C33]">
+          <ImageIcon className="h-5 w-5" aria-hidden="true" />
         </span>
         <span className="mt-4 text-sm font-medium text-[#171719]">Upload owner-approved photos</span>
         <span className="mt-1 text-[13px] leading-6 text-[#5F625E]">
@@ -1147,16 +1207,16 @@ function PhotoAttachmentField({
       {photos.length ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {photos.map((photo) => (
-            <div className="overflow-hidden rounded-2xl border border-[#E7E7E2] bg-white" key={photo.id}>
+            <div className="overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white" key={photo.id}>
               <div className="relative aspect-[4/3] bg-[#F1F2EE]">
                 <Image alt={photo.alt} className="object-cover" fill sizes="240px" src={photo.src} />
                 <button
                   aria-label={`Remove ${photo.name ?? "photo"}`}
-                  className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[#171719] shadow-[0_8px_20px_rgba(23,23,28,0.12)] backdrop-blur hover:bg-white"
+                  className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[#171719] backdrop-blur hover:bg-white"
                   onClick={() => setPhotos((current) => current.filter((item) => item.id !== photo.id))}
                   type="button"
                 >
-                  <X className="h-4 w-4" aria-hidden="true" />
+                  <Cross2Icon className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
               <div className="px-3 py-2">
@@ -1191,6 +1251,20 @@ function isFieldVisible(field: ListingField, values: ListingDraftValues) {
   return Array.isArray(field.showWhen.value)
     ? field.showWhen.value.includes(current)
     : current === field.showWhen.value;
+}
+
+function isListingMoneyField(field: ListingField) {
+  return field.kind === "number" && /price|budget/i.test(`${field.id} ${field.label}`);
+}
+
+function formatIntakeNumber(value: string, shouldFormat: boolean) {
+  if (!shouldFormat) return value;
+  const normalized = value.replace(/[^\d.]/g, "");
+  if (!normalized) return "";
+  const [integer = "", ...decimalParts] = normalized.split(".");
+  const formattedInteger = integer.replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const decimal = decimalParts.join("");
+  return decimalParts.length ? `${formattedInteger || "0"}.${decimal}` : formattedInteger;
 }
 
 function SummaryLine({ label, value }: { label: string; value: string }) {

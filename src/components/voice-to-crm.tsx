@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   Bot,
   CheckCircle2,
   Clock3,
+  Copy,
   ExternalLink,
+  Info,
   Mic,
-  FilePenLine,
+  RotateCcw,
   Send,
   Sparkles,
+  Target,
   Trash2,
   UserPlus,
   Users,
@@ -32,7 +35,7 @@ import type {
   DraftStatus,
   FollowUpDraft,
 } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import {
   Badge,
   Button,
@@ -45,6 +48,7 @@ import {
 import { ConfirmDialog, ToastViewport } from "./app-feedback";
 import { Tile } from "./dashboard/visuals";
 import { SelectMenu } from "./select-menu";
+import { VoiceRecorder } from "./voice-recorder";
 
 type CaptureMode = "existing" | "new";
 
@@ -76,18 +80,6 @@ function createAuditId(id: string, action: string) {
   return `audit-${id}-${action}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-type BrowserSpeechRecognition = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
-
 function draftStatusTone(status: DraftStatus): "success" | "warning" | "neutral" {
   if (status === "Approved") return "success";
   if (status === "Edited") return "warning";
@@ -101,6 +93,57 @@ function taskPriorityTone(priority: string): "error" | "warning" | "info" | "neu
   return "neutral";
 }
 
+/* Channel-aware "open" link for a follow-up draft — pre-fills the user's email,
+   WhatsApp, or SMS composer with the drafted subject/body. "Call Summary" has no
+   send target, so it returns null (Copy is the only action there). */
+function draftShareHref(draft: FollowUpDraft): string | null {
+  const body = encodeURIComponent(draft.body);
+  const combined = encodeURIComponent([draft.subject, draft.body].filter(Boolean).join("\n\n"));
+  switch (draft.channel) {
+    case "Email":
+      return `mailto:?subject=${encodeURIComponent(draft.subject)}&body=${body}`;
+    case "WhatsApp":
+      return `https://api.whatsapp.com/send?text=${combined}`;
+    case "SMS":
+      return `sms:?&body=${combined}`;
+    default:
+      return null;
+  }
+}
+
+/* Light-blue informational callout with a leading info icon. Re-key it (e.g.
+   key={mode}) to replay the gentle expand-in animation on content change. */
+function InfoNote({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "bb-expand-note flex items-start gap-2.5 rounded-[12px] border border-[#CBDDEB] bg-[#E0ECF2] px-4 py-3 text-[13px] leading-6 text-[#3D6F8F]",
+        className,
+      )}
+    >
+      <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="min-w-0">{children}</span>
+    </div>
+  );
+}
+
+/* "Clear capture" lives in the AppShell top bar (pageActions), outside this
+   component's tree, so it signals a reset via a window event. */
+export const VOICE_CRM_CLEAR_EVENT = "bb:voice-crm-clear";
+
+export function VoiceCrmClearButton() {
+  return (
+    <button
+      className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+      onClick={() => window.dispatchEvent(new CustomEvent(VOICE_CRM_CLEAR_EVENT))}
+      type="button"
+    >
+      <RotateCcw className="h-4 w-4" aria-hidden="true" />
+      Clear capture
+    </button>
+  );
+}
+
 export function VoiceToCrmWorkspace({
   includeDemo = true,
   prefillBuyerId,
@@ -112,20 +155,20 @@ export function VoiceToCrmWorkspace({
   segment?: BrokerSegment;
   storedBuyers?: BuyerProfile[];
 }) {
-  const persistedWorkspace = readPersisted<PersistedVoiceWorkspace | null>(activeVoiceKey, null);
-  const [callSummary, setCallSummary] = useState(persistedWorkspace?.callSummary ?? "");
-  const [parsedSummary, setParsedSummary] = useState(persistedWorkspace?.parsedSummary ?? "");
+  // The persisted workspace lives in localStorage (client-only). Seed to
+  // SSR-safe defaults and hydrate after mount (see effect below) so the first
+  // client render matches the server HTML — otherwise React throws a hydration
+  // mismatch on values like the detected buyer name.
+  const [callSummary, setCallSummary] = useState("");
+  const [parsedSummary, setParsedSummary] = useState("");
   const workflow = useMemo(
     () => getVoiceToCrmWorkflow(parsedSummary, segment, { includeDemo }),
     [parsedSummary, segment, includeDemo],
   );
-  const [drafts, setDrafts] = useState<FollowUpDraft[]>(persistedWorkspace?.drafts ?? []);
-  const [auditLog, setAuditLog] = useState<AuditEvent[]>(persistedWorkspace?.auditLog ?? []);
-  const [activeRunId, setActiveRunId] = useState(persistedWorkspace?.activeRunId ?? "");
-  const [savedRuns, setSavedRuns] = useState<PersistedVoiceRun[]>(() =>
-    readPersisted<PersistedVoiceRun[]>(voiceRunsKey, []),
-  );
-  const [isDictating, setIsDictating] = useState(false);
+  const [drafts, setDrafts] = useState<FollowUpDraft[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditEvent[]>([]);
+  const [activeRunId, setActiveRunId] = useState("");
+  const [savedRuns, setSavedRuns] = useState<PersistedVoiceRun[]>([]);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingDeleteRunId, setPendingDeleteRunId] = useState<string | null>(null);
@@ -148,6 +191,32 @@ export function VoiceToCrmWorkspace({
     () => storedBuyers.find((buyer) => buyer.id === selectedBuyerId),
     [storedBuyers, selectedBuyerId],
   );
+
+  // `hydrated` is false on the server and on the first client render, then
+  // flips true after hydration — useSyncExternalStore swaps server→client
+  // snapshot without a hydration mismatch and without setState-in-effect.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  // Seed the persisted workspace + saved runs once, at render time after
+  // hydration (guarded by state — the allowed "adjust state during render"
+  // pattern). Reading localStorage here is safe: it only runs post-hydration.
+  const [seeded, setSeeded] = useState(false);
+  if (hydrated && !seeded) {
+    setSeeded(true);
+    const persisted = readPersisted<PersistedVoiceWorkspace | null>(activeVoiceKey, null);
+    if (persisted) {
+      if (persisted.callSummary) setCallSummary(persisted.callSummary);
+      if (persisted.parsedSummary) setParsedSummary(persisted.parsedSummary);
+      if (persisted.drafts?.length) setDrafts(persisted.drafts);
+      if (persisted.auditLog?.length) setAuditLog(persisted.auditLog);
+      if (persisted.activeRunId) setActiveRunId(persisted.activeRunId);
+    }
+    const runs = readPersisted<PersistedVoiceRun[]>(voiceRunsKey, []);
+    if (runs.length) setSavedRuns(runs);
+  }
 
   const hasParsed = parsedSummary.trim().length > 0;
 
@@ -247,42 +316,6 @@ export function VoiceToCrmWorkspace({
     }
   }
 
-  function startDictation() {
-    const SpeechRecognition =
-      (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor })
-        .SpeechRecognition ??
-      (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor })
-        .webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setAuditLog((current) => [
-        {
-          id: `audit-dictation-unavailable-${current.length}`,
-          actor: "System",
-          label: "Dictation unavailable",
-          detail: "This browser does not expose the Web Speech API. Paste or type the call summary instead.",
-          occurredAt: nowIso,
-        },
-        ...current,
-      ]);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0].transcript)
-        .join(" ");
-      setCallSummary((current) => [current, transcript].filter(Boolean).join(" "));
-    };
-    recognition.onend = () => setIsDictating(false);
-    setIsDictating(true);
-    recognition.start();
-  }
-
   function resetWorkspace() {
     setCallSummary("");
     setParsedSummary("");
@@ -292,6 +325,18 @@ export function VoiceToCrmWorkspace({
     setSyncMessage(null);
     setSyncError(null);
     writePersisted(activeVoiceKey, null);
+  }
+
+  async function copyDraft(draft: FollowUpDraft) {
+    const text = [draft.subject, draft.body].filter(Boolean).join("\n\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setSyncError(null);
+      setSyncMessage("Draft copied to clipboard.");
+    } catch {
+      setSyncMessage(null);
+      setSyncError("Couldn’t copy automatically — select and copy the text manually.");
+    }
   }
 
   function updateDraft(id: string, field: "subject" | "body", value: string) {
@@ -405,14 +450,33 @@ export function VoiceToCrmWorkspace({
   const urgencyLabel = hasParsed ? workflow.extracted.urgency : "—";
   const approvalsLabel = drafts.length > 0 ? `${approvedCount}/${drafts.length}` : "—";
   const pendingDeleteRun = savedRuns.find((run) => run.id === pendingDeleteRunId);
+  // Build-shortlist hand-off: an attached saved buyer has a browsable detail
+  // page (deep-link to its Matches tab); a brand-new voice buyer isn't saved as
+  // a page yet, so fall back to the general matching workspace.
+  const shortlistHref =
+    captureMode === "existing" && selectedBuyer
+      ? `/buyers/${selectedBuyer.id}?tab=matches`
+      : "/matching";
 
   useEffect(() => {
     if (!parsedSummary.trim() && drafts.length === 0 && auditLog.length === 0) return;
     writePersisted(activeVoiceKey, { activeRunId, callSummary, parsedSummary, drafts, auditLog });
   }, [activeRunId, auditLog, callSummary, drafts, parsedSummary]);
 
+  // The top-bar "Clear capture" button resets us via a window event. A ref
+  // keeps the latest reset handler current without re-subscribing each render.
+  const clearRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    clearRef.current = resetWorkspace;
+  });
+  useEffect(() => {
+    const handler = () => clearRef.current();
+    window.addEventListener(VOICE_CRM_CLEAR_EVENT, handler);
+    return () => window.removeEventListener(VOICE_CRM_CLEAR_EVENT, handler);
+  }, []);
+
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <ToastViewport
         message={syncError ?? syncMessage}
         onDismiss={() => {
@@ -438,32 +502,11 @@ export function VoiceToCrmWorkspace({
         title="Delete saved CRM capture?"
       />
 
-      {/* Page header — title-first, no eyebrow chip / no date (matches the
-          rest of the workspaces; only the dashboard keeps the cockpit chip). */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="bb-display text-[2rem] font-medium leading-[1.04] text-[#171719] sm:text-[2.35rem]">
-            Capture a call
-          </h1>
-          <p className="mt-3 max-w-xl text-[13.5px] leading-7 text-[#5F625E]">
-            Parse a call summary into saved buyer memory, tasks, and editable follow-up drafts.
-          </p>
-        </div>
-        {hasParsed ? (
-          <button
-            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#171719]"
-            onClick={resetWorkspace}
-            type="button"
-          >
-            Start over
-          </button>
-        ) : null}
-      </header>
-
-      {/* 3-tile metric fold band — Buyer detected / Urgency / Approvals. */}
+      {/* 3-tile metric fold band — Buyer detected / Urgency / Approvals.
+          Title + "Clear capture" now live in the AppShell top bar. */}
       <section
         aria-label="Voice CRM at a glance"
-        className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-3"
+        className="grid grid-cols-1 gap-4 md:grid-cols-3"
       >
         <Tile tone="paper">
           <p className="bb-mono-label">Buyer detected</p>
@@ -474,7 +517,7 @@ export function VoiceToCrmWorkspace({
             {hasParsed
               ? captureMode === "existing"
                 ? "Attached to saved buyer"
-                : "New buyer from voice"
+                : "New buyer"
               : "Awaiting parse"}
           </p>
         </Tile>
@@ -501,116 +544,128 @@ export function VoiceToCrmWorkspace({
       </section>
 
       <div className="mt-8 grid gap-8">
-          {/* Capture mode + buyer-attach card — segmented control + combobox. */}
+          {/* One capture card: choose who the call is about, then type or
+              dictate the note and parse — a single, logical flow. */}
           <Card>
             <CardHeader
-              eyebrow="Capture mode"
-              title="Who is this call about?"
-              description="Attach the parse to an existing saved buyer, or start a new buyer from this voice note."
-              action={
-                <CardHeaderIcon>
-                  <Users className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            <div className="grid gap-4 px-6 py-5">
-              <div
-                aria-label="Capture mode"
-                className="inline-flex rounded-full border border-[#D9DAD4] bg-[#F1F2EE] p-1 text-[13px] font-medium"
-                role="tablist"
-              >
-                <button
-                  aria-selected={captureMode === "existing"}
-                  className={`inline-flex min-h-9 items-center gap-2 rounded-full px-4 transition-colors ${
-                    captureMode === "existing"
-                      ? "bg-white text-[#171719] shadow-sm"
-                      : "text-[#8E918B] hover:text-[#5F625E]"
-                  }`}
-                  disabled={!storedBuyers.length}
-                  onClick={() => setCaptureMode("existing")}
-                  role="tab"
-                  type="button"
-                >
-                  <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                  Existing buyer
-                </button>
-                <button
-                  aria-selected={captureMode === "new"}
-                  className={`inline-flex min-h-9 items-center gap-2 rounded-full px-4 transition-colors ${
-                    captureMode === "new"
-                      ? "bg-white text-[#171719] shadow-sm"
-                      : "text-[#8E918B] hover:text-[#5F625E]"
-                  }`}
-                  onClick={() => setCaptureMode("new")}
-                  role="tab"
-                  type="button"
-                >
-                  <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                  New buyer from voice
-                </button>
-              </div>
-
-              {captureMode === "existing" ? (
-                storedBuyers.length ? (
-                  <div className="grid gap-1.5">
-                    <SelectMenu
-                      label="Saved buyer"
-                      onChange={(value) => setSelectedBuyerId(value)}
-                      options={storedBuyers.map((buyer) => ({
-                        value: buyer.id,
-                        label: buyer.name,
-                        meta: [buyer.company, buyer.country]
-                          .filter(Boolean)
-                          .join(" · "),
-                      }))}
-                      value={selectedBuyerId}
-                    />
-                    {selectedBuyer ? (
-                      <span className="text-[12px] leading-6 text-[#8E918B]">
-                        Parsed memory will upsert into {selectedBuyer.name}&apos;s buyer row — preferences, tasks, and drafts stay attached to this saved profile.
-                      </span>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
-                    No saved buyers in this segment yet. Switch to “New buyer from voice” to capture this call as a fresh profile.
-                  </p>
-                )
-              ) : (
-                <p className="rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
-                  A new buyer record will be created from the parsed call. Move them to an existing buyer next time by selecting from the saved list above.
-                </p>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader
-              eyebrow="Call note"
-              title="Paste or dictate the call summary"
-              description="Mention names, budgets, preferences, blockers, and follow-up timing."
+              eyebrow="Voice CRM"
+              title="Capture a call"
+              description="Pick who the call is about, then paste or dictate the summary to parse it into CRM memory."
               action={
                 <CardHeaderIcon>
                   <Mic className="h-4 w-4" aria-hidden="true" />
                 </CardHeaderIcon>
               }
             />
-            <div className="grid gap-4 px-6 py-5">
-              <textarea
-                aria-label="Call summary"
-                className="min-h-56 w-full rounded-xl border border-[#D9DAD4] bg-white p-4 text-[15px] leading-7 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
-                onChange={(event) => setCallSummary(event.target.value)}
-                placeholder="Describe the call in your own words — buyer name, size, budget, must-haves, deal-breakers, urgency, and follow-up timing."
-                value={callSummary}
-              />
+            <div className="grid gap-5 px-6 py-5">
+              {/* Compact segmented control (matches the buyer-detail tabs) sits
+                  inline beside the saved-buyer select rather than full-width. */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="grid gap-1.5">
+                  <span className="block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+                    Attach to
+                  </span>
+                  <div
+                    aria-label="Capture mode"
+                    className="inline-flex w-fit shrink-0 items-center gap-1 rounded-[8px] border border-[#D9DAD4] bg-white p-1 text-[13px] font-medium"
+                    role="tablist"
+                  >
+                    <button
+                      aria-selected={captureMode === "existing"}
+                      className={cn(
+                        "inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] px-3 transition-colors",
+                        captureMode === "existing"
+                          ? "bg-[#171719] text-white"
+                          : "text-[#5F625E] hover:bg-[#F1F2EE]",
+                      )}
+                      disabled={!storedBuyers.length}
+                      onClick={() => setCaptureMode("existing")}
+                      role="tab"
+                      type="button"
+                    >
+                      <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                      Existing buyer
+                    </button>
+                    <button
+                      aria-selected={captureMode === "new"}
+                      className={cn(
+                        "inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] px-3 transition-colors",
+                        captureMode === "new"
+                          ? "bg-[#171719] text-white"
+                          : "text-[#5F625E] hover:bg-[#F1F2EE]",
+                      )}
+                      onClick={() => {
+                        // Starting a brand-new buyer means a clean slate — clear
+                        // any restored/prior note + parse so nothing stale lingers.
+                        if (captureMode !== "new") resetWorkspace();
+                        setCaptureMode("new");
+                      }}
+                      role="tab"
+                      type="button"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                      New buyer
+                    </button>
+                  </div>
+                </div>
+
+                {/* Saved buyer stays visible in both modes — just disabled when
+                    capturing a new buyer (no more hide/show jump). */}
+                {storedBuyers.length ? (
+                  <SelectMenu
+                    className="min-w-[220px] flex-1"
+                    disabled={captureMode === "new"}
+                    label="Saved buyer"
+                    onChange={(value) => setSelectedBuyerId(value)}
+                    options={storedBuyers.map((buyer) => ({
+                      value: buyer.id,
+                      label: buyer.name,
+                      meta: [buyer.company, buyer.country].filter(Boolean).join(" · "),
+                    }))}
+                    value={selectedBuyerId}
+                  />
+                ) : null}
+              </div>
+
+              {/* Single info callout — light blue, info icon, re-keyed by mode so
+                  it smoothly expands in when the broker switches tabs. */}
+              <InfoNote key={captureMode}>
+                {captureMode === "new"
+                  ? "A new buyer record will be created from the parsed call. Move them to an existing buyer next time by selecting from the saved list above."
+                  : storedBuyers.length
+                    ? selectedBuyer
+                      ? `Parsed memory will upsert into ${selectedBuyer.name}'s buyer row — preferences, tasks, and drafts stay attached to this saved profile.`
+                      : "Select a saved buyer to attach this parse to their existing buyer row."
+                    : "No saved buyers in this segment yet. Switch to “New buyer” to capture this call as a fresh profile."}
+              </InfoNote>
+
+              {/* Call note — type or dictate in one place. The recorder appends
+                  to the text, it never replaces what's already there. */}
+              <div className="grid gap-2">
+                <span className="block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+                  Call note
+                </span>
+                <div className="grid gap-4 sm:grid-cols-[7fr_3fr] sm:items-stretch">
+                <textarea
+                  aria-label="Call summary"
+                  className="min-h-56 h-full w-full rounded-[12px] border border-[#D9DAD4] bg-white p-4 text-[15px] leading-7 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+                  onChange={(event) => setCallSummary(event.target.value)}
+                  placeholder="Describe the call in your own words — buyer name, size, budget, must-haves, deal-breakers, urgency, and follow-up timing."
+                  value={callSummary}
+                />
+                <VoiceRecorder
+                  className="h-full min-h-56"
+                  surfaceClassName="border-[#E1E3DC] bg-[#F1F2EE]"
+                  onTranscribed={(transcript) =>
+                    setCallSummary((current) => [current.trim(), transcript].filter(Boolean).join("\n\n"))
+                  }
+                />
+                </div>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <Button disabled={!callSummary.trim()} onClick={() => void parseCurrentSummary()} type="button">
                   <Sparkles className="h-4 w-4" aria-hidden="true" />
                   Parse & save to CRM
-                </Button>
-                <Button onClick={startDictation} type="button" variant="secondary">
-                  <Mic className="h-4 w-4" aria-hidden="true" />
-                  {isDictating ? "Listening" : "Dictate"}
                 </Button>
                 <Button
                   onClick={() => setCallSummary(exampleCallSummary)}
@@ -643,7 +698,7 @@ export function VoiceToCrmWorkspace({
               <>
                 {/* Attachment confirmation strip — only in existing mode with a real buyer selected. */}
                 {captureMode === "existing" && selectedBuyer ? (
-                  <div className="mx-6 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-[#D9DAD4] bg-[#F1F2EE] px-4 py-2.5 text-[12.5px] leading-6 text-[#5F625E]">
+                  <div className="mx-6 mt-5 flex flex-wrap items-center gap-2 rounded-[12px] border border-[#E7E7E7] bg-white px-4 py-2.5 text-[12.5px] leading-6 text-[#5F625E]">
                     <Users className="h-3.5 w-3.5 text-[#8E918B]" aria-hidden="true" />
                     <span>
                       Attached to{" "}
@@ -653,25 +708,43 @@ export function VoiceToCrmWorkspace({
                   </div>
                 ) : null}
 
-                {/* Profile updates as mini-tiles + extracted preferences. */}
+                {/* Post-parse hand-off — turn the captured memory into a ranked
+                    shortlist via the matching engine. */}
+                <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
+                  <p className="min-w-0 text-[12.5px] leading-6 text-[#5F625E]">
+                    Memory and tasks are saved — build a ranked shortlist for this buyer next.
+                  </p>
+                  <Link
+                    className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] bg-[#003C33] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0a4a3f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+                    href={shortlistHref}
+                  >
+                    <Target className="h-4 w-4" aria-hidden="true" />
+                    Build shortlist
+                  </Link>
+                </div>
+
+                {/* Profile updates as a clean divided card + extracted preferences. */}
                 <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
                   <div className="min-w-0">
                     <p className="bb-mono-label">Profile updates</p>
-                    <div className="mt-3 grid gap-3">
+                    <div className="mt-3 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white">
                       {[
                         ["Buyer", displayBuyerName],
                         ["Budget memory", workflow.profileUpdates.budget],
                         ["Pipeline", workflow.profileUpdates.pipelineStage],
                         ["Urgency", workflow.profileUpdates.urgency],
-                      ].map(([label, value]) => (
+                      ].map(([label, value], index) => (
                         <div
                           key={label}
-                          className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] p-4"
+                          className={cn(
+                            "flex items-baseline justify-between gap-4 px-4 py-3",
+                            index > 0 && "border-t border-[#F1F2EE]",
+                          )}
                         >
-                          <p className="bb-mono-label">{label}</p>
-                          <p className="mt-1.5 text-[14px] font-medium leading-6 text-[#171719]">
+                          <span className="bb-mono-label shrink-0">{label}</span>
+                          <span className="text-right text-[14px] font-medium leading-6 text-[#171719]">
                             {value}
-                          </p>
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -680,25 +753,29 @@ export function VoiceToCrmWorkspace({
                   <div className="min-w-0">
                     <p className="bb-mono-label">Extracted preferences</p>
                     {workflow.profileUpdates.preferences.length ? (
-                      <ul className="mt-3 grid gap-2">
-                        {workflow.profileUpdates.preferences.map((item) => (
-                          <li
+                      <div className="mt-3 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white">
+                        {workflow.profileUpdates.preferences.map((item, index) => (
+                          <div
                             key={item}
-                            className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] px-4 py-2.5 text-[13px] leading-6 text-[#5F625E]"
+                            className={cn(
+                              "flex items-center gap-2.5 px-4 py-2.5 text-[13px] leading-6 text-[#5F625E]",
+                              index > 0 && "border-t border-[#F1F2EE]",
+                            )}
                           >
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#003C33]/40" aria-hidden="true" />
                             {item}
-                          </li>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     ) : (
-                      <p className="mt-3 rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
+                      <p className="mt-3 rounded-[12px] border border-dashed border-[#E7E7E7] bg-white px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
                         Add size, budget, interior, VAT, or timing language to extract preferences.
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="grid gap-6 border-t border-[#E7E7E2] px-6 py-5 lg:grid-cols-2">
+                <div className="grid gap-6 border-t border-[#E7E7E7] px-6 py-5 lg:grid-cols-2">
                   <div className="min-w-0">
                     <p className="bb-mono-label">Linked listings</p>
                     {workflow.linkedListings.length ? (
@@ -706,7 +783,7 @@ export function VoiceToCrmWorkspace({
                         {workflow.linkedListings.map((listing) => (
                           <li key={listing.id}>
                             <Link
-                              className="grid gap-1 rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] px-4 py-3 transition-colors hover:border-[#D9DAD4] hover:bg-white sm:grid-cols-[1fr_auto] sm:items-center sm:gap-3"
+                              className="grid gap-1 rounded-[12px] border border-[#E7E7E7] bg-white px-4 py-3 transition-colors hover:border-[#003C33]/30 hover:bg-[#FBFBFB] sm:grid-cols-[1fr_auto] sm:items-center sm:gap-3"
                               href={`/listings/${listing.id}`}
                             >
                               <div className="min-w-0">
@@ -724,7 +801,7 @@ export function VoiceToCrmWorkspace({
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
+                      <p className="mt-3 rounded-[12px] border border-dashed border-[#E7E7E7] bg-white px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
                         Add inventory and mention a size range, area, brand, or model to auto-link matching listings here.
                       </p>
                     )}
@@ -737,7 +814,7 @@ export function VoiceToCrmWorkspace({
                         {workflow.tasks.map((task) => (
                           <li
                             key={task.id}
-                            className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] p-4"
+                            className="rounded-[12px] border border-[#E7E7E7] bg-white p-4"
                           >
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge tone={taskPriorityTone(task.priority)}>{task.priority}</Badge>
@@ -749,7 +826,7 @@ export function VoiceToCrmWorkspace({
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 rounded-xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
+                      <p className="mt-3 rounded-[12px] border border-dashed border-[#E7E7E7] bg-white px-4 py-3 text-[13px] leading-6 text-[#8E918B]">
                         Tasks appear here once the note mentions actions, viewings, or comparisons.
                       </p>
                     )}
@@ -767,103 +844,46 @@ export function VoiceToCrmWorkspace({
 
       <div className="mt-8 grid items-start gap-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1fr)]">
         <div className="grid content-start gap-8">
-          {auditLog.length > 0 ? (
-            <Card>
-              <CardHeader
-                eyebrow="Audit trail"
-                title="Approval and edit events"
-                action={
-                  <CardHeaderIcon>
-                    <Clock3 className="h-4 w-4" aria-hidden="true" />
-                  </CardHeaderIcon>
-                }
-              />
-              <ul className="divide-y divide-[#E7E7E2]">
-                {auditLog.map((event) => (
-                  <li key={event.id} className="grid gap-3 px-6 py-5 sm:grid-cols-[28px_1fr]">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#171719]">
-                      <FilePenLine className="h-3.5 w-3.5" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge tone={event.actor === "Broker" ? "coral" : "neutral"}>
-                          {event.actor}
-                        </Badge>
-                        <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
-                          {formatDate(event.occurredAt)}
-                        </span>
-                      </div>
-                      <h3 className="mt-2 text-[14px] font-medium text-[#171719]">{event.label}</h3>
-                      <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{event.detail}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader
-                eyebrow="Audit trail"
-                title="Nothing approved yet"
-                action={
-                  <CardHeaderIcon>
-                    <Bot className="h-4 w-4" aria-hidden="true" />
-                  </CardHeaderIcon>
-                }
-              />
-              <EmptyState
-                title="Approval and edit events appear here"
-                description="Parses, edits, and approvals are logged here."
-              />
-            </Card>
-          )}
-
           {savedRuns.length > 0 ? (
             <Card id="voice-saved-captures">
               <CardHeader
-                eyebrow="Persistent memory queue"
-                title="Saved CRM captures"
-                description="These are the parsed runs stored for follow-up. Open buyer memory to review the saved client side, or remove a capture if it was noise."
+                eyebrow="Recent captures"
+                title="Recently saved"
+                description="Recently parsed calls. Full buyer memory lives on the Buyers screen."
                 action={
                   <CardHeaderIcon>
                     <Clock3 className="h-4 w-4" aria-hidden="true" />
                   </CardHeaderIcon>
                 }
               />
-              <ul className="divide-y divide-[#E7E7E2]">
-                {savedRuns.slice(0, 4).map((run) => (
-                  <li key={run.id} className="px-6 py-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-[14px] font-medium text-[#171719]">{run.buyerName}</p>
-                      <Badge tone="success">Saved</Badge>
+              <ul className="divide-y divide-[#E7E7E7]">
+                {savedRuns.slice(0, 5).map((run) => (
+                  <li key={run.id} className="flex items-start justify-between gap-3 px-6 py-3.5">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <p className="truncate text-[14px] font-medium text-[#171719]">{run.buyerName}</p>
+                        <span className="shrink-0 text-[11px] uppercase tracking-[0.12em] text-[#8E918B]">
+                          {run.taskCount} tasks · {run.draftCount} drafts
+                        </span>
+                      </div>
+                      <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#8E918B]">{run.summary}</p>
                     </div>
-                    <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{run.summary}</p>
-                    <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
-                      {run.taskCount} tasks · {run.draftCount} drafts
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1">
                       <Link
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33]"
+                        aria-label={`Open ${run.buyerName} in buyers`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5F625E] transition-colors hover:bg-[#F1F2EE] hover:text-[#171719]"
                         href="/buyers"
                       >
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                        Open buyers
                       </Link>
-                      <Link
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33]"
-                        href="#voice-approval-queue"
-                      >
-                        Review drafts
-                      </Link>
-                      <Button
+                      <button
+                        aria-label={`Delete ${run.buyerName} capture`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-[#8E918B] transition-colors hover:bg-[#F1F2EE] hover:text-[#A4361C]"
                         onClick={() => setPendingDeleteRunId(run.id)}
-                        size="sm"
                         type="button"
-                        variant="ghost"
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        Delete capture
-                      </Button>
+                      </button>
                     </div>
                   </li>
                 ))}
@@ -902,7 +922,7 @@ export function VoiceToCrmWorkspace({
                 {drafts.map((draft) => (
                   <article
                     key={draft.id}
-                    className="rounded-2xl border border-[#E7E7E2] bg-white p-5"
+                    className="rounded-[12px] border border-[#E7E7E7] bg-white p-5"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex flex-wrap items-center gap-2">
@@ -936,7 +956,7 @@ export function VoiceToCrmWorkspace({
                     <label className="mt-4 grid gap-1.5 text-[13px] font-medium text-[#171719]">
                       <span className="bb-mono-label">Subject</span>
                       <input
-                        className="min-h-10 rounded-lg border border-[#D9DAD4] bg-white px-3 text-[14px] text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+                        className="min-h-10 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[14px] text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
                         onChange={(event) => updateDraft(draft.id, "subject", event.target.value)}
                         value={draft.subject}
                       />
@@ -944,11 +964,31 @@ export function VoiceToCrmWorkspace({
                     <label className="mt-3 grid gap-1.5 text-[13px] font-medium text-[#171719]">
                       <span className="bb-mono-label">Body</span>
                       <textarea
-                        className="min-h-36 rounded-lg border border-[#D9DAD4] bg-white p-3 text-[14px] leading-7 text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+                        className="min-h-36 rounded-[8px] border border-[#D9DAD4] bg-white p-3 text-[14px] leading-7 text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
                         onChange={(event) => updateDraft(draft.id, "body", event.target.value)}
                         value={draft.body}
                       />
                     </label>
+
+                    {/* Hand-off actions — copy the text, or open it pre-filled in
+                        the buyer's channel. The prototype never sends on its own. */}
+                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#E7E7E7] pt-4">
+                      <Button onClick={() => void copyDraft(draft)} size="sm" type="button" variant="secondary">
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        Copy
+                      </Button>
+                      {draftShareHref(draft) ? (
+                        <a
+                          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33]"
+                          href={draftShareHref(draft)!}
+                          rel="noreferrer"
+                          target={draft.channel === "WhatsApp" ? "_blank" : undefined}
+                        >
+                          <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                          Open in {draft.channel}
+                        </a>
+                      ) : null}
+                    </div>
                   </article>
                 ))}
               </div>

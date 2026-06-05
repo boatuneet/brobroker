@@ -2,7 +2,7 @@ import {
   type BrokerSegment,
   brokerSegments,
 } from "@/lib/broker-segments";
-import type { BuyerProfile } from "@/lib/types";
+import type { BuyerProfile, BuyerSource } from "@/lib/types";
 
 export type BuyerFieldKind = "text" | "number" | "date" | "textarea" | "select" | "range";
 
@@ -64,12 +64,28 @@ const stageOptions: BuyerFieldOption[] = [
   { label: "Negotiation", value: "Negotiation" },
 ];
 
+/* Lead-source options shown in intake. Stored in `buyers.source` and used
+   by the dashboard's "Deal sources" donut. Keep value strings in sync with
+   the BuyerSource union in lib/types.ts and the CHECK constraint in the
+   Supabase migration (brobroker-analytics-2026-06.sql). */
+const sourceOptions: BuyerFieldOption[] = [
+  { label: "—", value: "" },
+  { label: "Referral", value: "referral" },
+  { label: "Website", value: "website" },
+  { label: "Voice note", value: "voice_note" },
+  { label: "Marketplace", value: "marketplace" },
+  { label: "Email", value: "email" },
+  { label: "Social", value: "social" },
+  { label: "Other", value: "other" },
+];
+
 const commonIdentityFields: BuyerField[] = [
   { id: "name", label: "Buyer name", kind: "text", placeholder: "Helena Rossi", required: true },
   { id: "company", label: "Company / entity", kind: "text", placeholder: "Family office, holding company..." },
   { id: "country", label: "Country", kind: "text", placeholder: "Italy", required: true },
   { id: "stage", label: "Stage", kind: "select", options: stageOptions, required: true },
   { id: "urgency", label: "Urgency", kind: "select", options: urgencyOptions, required: true },
+  { id: "source", label: "Lead source", kind: "select", options: sourceOptions, helper: "Where this buyer came from. Used in the dashboard's deal-source donut." },
   { id: "nextActionDueAt", label: "Next action due", kind: "date", required: true },
 ];
 
@@ -459,6 +475,7 @@ export function getBuyerDraftValuesFromProfile(
         ? ""
         : buyer.communicationStyle,
     relationshipNotes: buyer.relationshipNotes.join("\n"),
+    source: buyer.source ?? "",
   };
 }
 
@@ -520,6 +537,23 @@ export function normalizeBuyerUrgency(value: string): BuyerProfile["urgency"] {
     return value;
   }
   return "This Season";
+}
+
+const VALID_SOURCES: ReadonlyArray<BuyerSource> = [
+  "referral",
+  "website",
+  "voice_note",
+  "marketplace",
+  "email",
+  "social",
+  "other",
+];
+
+export function normalizeBuyerSource(value: string): BuyerSource | undefined {
+  if (!value) return undefined;
+  return (VALID_SOURCES as ReadonlyArray<string>).includes(value)
+    ? (value as BuyerSource)
+    : undefined;
 }
 
 export function generateBuyerSummary(segment: BrokerSegment, values: BuyerDraftValues) {

@@ -38,7 +38,8 @@ export type KnowledgePageCategory =
   | "Deal Room"
   | "Market Note"
   | "Open Gaps"
-  | "Source Log";
+  | "Source Log"
+  | "Note";
 
 export type KnowledgeSourceType =
   | "listing"

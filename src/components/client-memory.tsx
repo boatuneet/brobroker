@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   Bot,
@@ -24,7 +23,6 @@ import {
   MessageSquareText,
   MoreVertical,
   Pencil,
-  PlusCircle,
   Radio,
   Search,
   ShieldCheck,
@@ -76,6 +74,7 @@ import {
 import { ConfirmDialog, ToastViewport } from "./app-feedback";
 import { FitRing, Tile } from "./dashboard/visuals";
 import { deleteSessionBuyer } from "@/lib/browser-persistence";
+import { readRerankConfig } from "@/lib/rerank-config";
 import { deleteBuyerCascade } from "@/lib/supabase/delete-buyer";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -122,6 +121,8 @@ function stageTone(
 }
 
 type BuyerMemoryModel = NonNullable<ReturnType<typeof getBuyerMemoryProfile>>;
+
+type AiMatch = { listingId: string; fitScore: number; reason: string };
 
 function getBuyerMemoryModel(
   buyer: BuyerProfile,
@@ -378,25 +379,11 @@ export function BuyerIndex({
   const hasFilters = searching || stageFilter !== "All";
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <PageHeader
-        title="Buyers"
-        description="Urgency, fit, and the next sentence to say."
-        actions={
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
-            href="/buyers/new"
-          >
-            <PlusCircle className="h-4 w-4" aria-hidden="true" />
-            New buyer
-          </Link>
-        }
-      />
-
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* KPI band — one cream tile, three paper tiles. Same shape as Listings. */}
       <section
         aria-label="Buyer summary"
-        className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4"
+        className="grid grid-cols-2 gap-4 md:grid-cols-4"
       >
         <KpiTile
           tone="cream"
@@ -428,94 +415,91 @@ export function BuyerIndex({
         />
       </section>
 
-      {/* Search + stage chips — Knowledge Vault dynamic-count pattern. */}
-      <section
-        aria-label="Filter buyers"
-        className="mt-8 rounded-[24px] border border-[#E7E7E2] bg-white p-4 sm:p-5"
-      >
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-          <label className="relative block">
-            <span className="sr-only">Search buyers</span>
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
-            />
-            <input
-              className="h-10 w-full rounded-full border border-[#E7E7E2] bg-white pl-10 pr-9 text-[13px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
-              onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Family use, VAT, Germany, brand…"
-              type="search"
-              value={query}
-            />
-            {searching ? (
-              <button
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#8E918B] hover:bg-[#f4fbf5] hover:text-[#171719]"
-                onClick={() => onQueryChange("")}
-                type="button"
-              >
-                <X aria-hidden="true" className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            <StatusChip
-              active={stageFilter === "All"}
-              count={searching ? queryFilteredBuyers.length : allBuyers.length}
-              label="All"
-              onClick={() => onStageChange("All")}
-            />
-            {availableStages.map((stage) => {
-              const count = searching
-                ? (dynamicStageCounts.get(stage) ?? 0)
-                : allBuyers.filter((b) => b.currentStage === stage).length;
-              return (
-                <StatusChip
-                  active={stageFilter === stage}
-                  count={count}
-                  key={stage}
-                  label={stage}
-                  onClick={() => onStageChange(stage)}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       <SessionBuyerQueue />
 
-      {filteredBuyers.length === 0 ? (
-        <Card className="mt-10">
-          <EmptyState
-            title={searching ? `No buyers match “${query}”` : "No buyers in this stage"}
-            description="Adjust the search, clear the stage chip, or open the matching workspace to surface buyers by criteria."
-            action={
-              hasFilters ? (
+      {/* Buyers — search + stage chips now live inside the card (Listings pattern). */}
+      <section
+        aria-label="Buyers"
+        className="mt-8 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white"
+      >
+        <div className="border-b border-[#E7E7E7] px-4 py-3 sm:px-5">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <label className="relative block">
+              <span className="sr-only">Search buyers</span>
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
+              />
+              <input
+                className="h-10 w-full rounded-[10px] border border-[#E7E7E7] bg-white pl-10 pr-9 text-[13px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+                onChange={(event) => onQueryChange(event.target.value)}
+                placeholder="Family use, VAT, Germany, brand…"
+                type="search"
+                value={query}
+              />
+              {searching ? (
                 <button
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
-                  onClick={clearFilters}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#8E918B] hover:bg-[#F1F2EE] hover:text-[#171719]"
+                  onClick={() => onQueryChange("")}
                   type="button"
                 >
-                  Clear filters
+                  <X aria-hidden="true" className="h-3.5 w-3.5" />
                 </button>
-              ) : undefined
-            }
-          />
-        </Card>
-      ) : (
-        <>
-          <section
-            aria-label="Buyers"
-            className="mt-8 overflow-hidden rounded-[24px] border border-[#E7E7E2] bg-white"
-          >
-            <div className="hidden grid-cols-[minmax(280px,1.4fr)_minmax(200px,1fr)_minmax(180px,1fr)_44px] border-b border-[#E7E7E2] bg-[#F1F2EE] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B] lg:grid">
+              ) : null}
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              <StatusChip
+                active={stageFilter === "All"}
+                count={searching ? queryFilteredBuyers.length : allBuyers.length}
+                label="All"
+                onClick={() => onStageChange("All")}
+              />
+              {availableStages.map((stage) => {
+                const count = searching
+                  ? (dynamicStageCounts.get(stage) ?? 0)
+                  : allBuyers.filter((b) => b.currentStage === stage).length;
+                return (
+                  <StatusChip
+                    active={stageFilter === stage}
+                    count={count}
+                    key={stage}
+                    label={stage}
+                    onClick={() => onStageChange(stage)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {filteredBuyers.length === 0 ? (
+          <div className="px-6 py-14">
+            <EmptyState
+              title={searching ? `No buyers match “${query}”` : "No buyers in this stage"}
+              description="Adjust the search, clear the stage chip, or open the matching workspace to surface buyers by criteria."
+              action={
+                hasFilters ? (
+                  <button
+                    className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
+                    onClick={clearFilters}
+                    type="button"
+                  >
+                    Clear filters
+                  </button>
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <div className="hidden grid-cols-[minmax(280px,1.4fr)_minmax(200px,1fr)_minmax(180px,1fr)_44px] border-b border-[#E7E7E7] bg-white px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B] lg:grid">
               <span>Buyer</span>
               <span>Intent · range</span>
               <span>Signal</span>
               <span />
             </div>
-            <div className="divide-y divide-[#E7E7E2]">
+            <div className="divide-y divide-[#E7E7E7]">
               {pageBuyers.map((buyer) => (
                 <BuyerListRow
                   key={buyer.id}
@@ -525,9 +509,11 @@ export function BuyerIndex({
                 />
               ))}
             </div>
-          </section>
+          </>
+        )}
+      </section>
 
-          {pageCount > 1 ? (
+      {filteredBuyers.length > 0 && pageCount > 1 ? (
             <nav
               aria-label="Buyers pagination"
               className="mt-6 flex items-center justify-between gap-3"
@@ -545,7 +531,7 @@ export function BuyerIndex({
               <div className="flex items-center gap-2">
                 <button
                   aria-label="Previous page"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#E7E7E2] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#E7E7E2]"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#E7E7E7]"
                   disabled={safePage === 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   type="button"
@@ -553,12 +539,12 @@ export function BuyerIndex({
                   <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
                   Prev
                 </button>
-                <span className="inline-flex h-9 items-center rounded-full border border-[#E7E7E2] bg-[#F1F2EE] px-3 font-mono text-[12.5px] font-semibold tabular-nums text-[#171719]">
+                <span className="inline-flex h-9 items-center rounded-[8px] border border-[#E7E7E7] bg-[#F1F2EE] px-3 font-mono text-[12.5px] font-semibold tabular-nums text-[#171719]">
                   {safePage} / {pageCount}
                 </span>
                 <button
                   aria-label="Next page"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#E7E7E2] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#E7E7E2]"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#E7E7E7]"
                   disabled={safePage === pageCount}
                   onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
                   type="button"
@@ -569,8 +555,6 @@ export function BuyerIndex({
               </div>
             </nav>
           ) : null}
-        </>
-      )}
     </div>
   );
 }
@@ -589,10 +573,10 @@ function KpiTile({
   return (
     <div
       className={cn(
-        "rounded-[24px] border p-5",
+        "rounded-[12px] border p-5",
         tone === "cream"
           ? "border-transparent bg-[#F2EADC] text-[#171719]"
-          : "border-[#E7E7E2] bg-white text-[#171719]",
+          : "border-[#E7E7E7] bg-white text-[#171719]",
       )}
     >
       <p className="bb-mono-label">{label}</p>
@@ -618,12 +602,12 @@ function StatusChip({
     <button
       aria-pressed={active}
       className={cn(
-        "inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
+        "inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
         active
           ? "border-[#171719] bg-[#171719] text-white"
           : isEmpty
-            ? "cursor-not-allowed border-[#E7E7E2] bg-white text-[#A9ABA5] opacity-50"
-            : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
+            ? "cursor-not-allowed border-[#E7E7E7] bg-white text-[#A9ABA5] opacity-50"
+            : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]",
       )}
       disabled={isEmpty}
       onClick={onClick}
@@ -666,7 +650,7 @@ function BuyerListRow({
       <div className="flex shrink-0 items-center justify-center">
         {fit ? (
           <FitRing
-            label={`${Math.round(fit.score)}`}
+            label={`${Math.round(fit.score)}%`}
             size={44}
             stroke={4}
             tone="green"
@@ -739,22 +723,8 @@ function BuyerListRow({
    explainer card showing what each buyer profile will remember. */
 function FirstRunBuyers() {
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <PageHeader
-        title="Add your first buyer"
-        description="Capture criteria, urgency, style, objections, and next actions for every conversation."
-        actions={
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
-            href="/buyers/new"
-          >
-            <PlusCircle className="h-4 w-4" aria-hidden="true" />
-            Add buyer
-          </Link>
-        }
-      />
-
-      <section aria-labelledby="buyers-quick-start" className="mt-12">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+      <section aria-labelledby="buyers-quick-start">
         <div className="flex items-baseline justify-between gap-4">
           <div>
             <p className="bb-mono-label">Quick start</p>
@@ -799,7 +769,7 @@ function FirstRunBuyers() {
         <CardHeader
           title="Memory you'll have on every conversation"
         />
-        <ul className="divide-y divide-[#E7E7E2]">
+        <ul className="divide-y divide-[#E7E7E7]">
           <BuyersExplainerRow
             icon={CircleAlert}
             title="Criteria, urgency, and stage"
@@ -841,7 +811,7 @@ function BuyersActionCard({
 }) {
   return (
     <Link
-      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#E7E7E2] bg-white p-6 transition-colors hover:border-[#003C33]"
+      className="group flex h-full flex-col justify-between gap-5 rounded-[12px] border border-[#E7E7E7] bg-white p-6 transition-colors hover:border-[#003C33]"
       href={href}
     >
       <div>
@@ -876,7 +846,7 @@ function BuyersExplainerRow({
 }) {
   return (
     <li className="grid gap-4 px-6 py-5 sm:grid-cols-[36px_1fr]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#003C33]">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0">
@@ -906,18 +876,47 @@ export function BuyerMemoryProfile({
   storedConversations?: Conversation[];
   storedDrafts?: FollowUpDraft[];
 }) {
-  const inventory = mergeListings(
-    storedListings,
-    includeDemo ? getListingsForSegment(segment) : [],
-  );
   const staticProfile = includeDemo ? getBuyerMemoryProfile(buyerId, segment) : undefined;
+  // Match a real (stored) buyer only against the broker's real inventory —
+  // never the demo seed boats, so sample listings can't outrank actual ones.
+  // Demo buyers still match the demo catalogue.
+  const inventory = buyerOverride
+    ? storedListings
+    : includeDemo
+      ? getListingsForSegment(segment)
+      : storedListings;
   const profile = buyerOverride
     ? getBuyerMemoryModel(buyerOverride, segment, inventory)
     : staticProfile
       ? buildBuyerMemoryModel(staticProfile.buyer, segment, inventory)
       : undefined;
   const [tab, setTab] = useState<"memory" | "matches" | "drafts">(initialTab ?? "memory");
+  const [aiMatches, setAiMatches] = useState<AiMatch[] | null>(null);
+  const [aiMode, setAiMode] = useState<"ai" | "deterministic" | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const router = useRouter();
+
+  async function runAiMatch() {
+    if (aiLoading) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/buyer-match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ buyerId, config: readRerankConfig() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not run the AI match.");
+      setAiMatches(Array.isArray(data.ranked) ? data.ranked : []);
+      setAiMode(data.mode === "ai" ? "ai" : "deterministic");
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "Could not run the AI match.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
   const [toast, setToast] = useState<{ tone: "success" | "error"; message: string } | null>(null);
@@ -1054,13 +1053,7 @@ export function BuyerMemoryProfile({
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
-        href="/buyers"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Back to buyers
-      </Link>
+      {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       {/* Editorial cockpit header — segment chip + last contacted, display h1,
           single-line summary, and a neat row of status badges. Action cluster
@@ -1068,7 +1061,7 @@ export function BuyerMemoryProfile({
       <header className="mt-6 flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F625E]">
+            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F625E]">
               <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
               {eyebrowDetail || `${segmentMeta.label} buyer`}
             </span>
@@ -1103,14 +1096,14 @@ export function BuyerMemoryProfile({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-sm font-medium text-[#171719] transition-colors hover:border-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-sm font-medium text-[#171719] transition-colors hover:border-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
             href="/voice-crm"
           >
             <Bot className="h-4 w-4" aria-hidden="true" />
             Capture voice note
           </Link>
           <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            className="inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
             href="/deal-rooms"
           >
             <FileText className="h-4 w-4" aria-hidden="true" />
@@ -1130,11 +1123,11 @@ export function BuyerMemoryProfile({
             {actionMenuOpen ? (
               <div
                 aria-orientation="vertical"
-                className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-[#e3e3e8] bg-white p-1.5 shadow-[0_18px_45px_rgba(23,23,28,0.13)]"
+                className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-[12px] border border-[#e3e3e8] bg-white p-1.5"
                 role="menu"
               >
                 <Link
-                  className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-[#5F625E] transition-colors hover:bg-[#f5f5f7] hover:text-[#171719] focus:bg-[#f5f5f7] focus:outline-none"
+                  className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-3 py-2 text-left text-[13px] font-medium text-[#5F625E] transition-colors hover:bg-[#f5f5f7] hover:text-[#171719] focus:bg-[#f5f5f7] focus:outline-none"
                   href={`/buyers/${buyer.id}/edit`}
                   onClick={() => setActionMenuOpen(false)}
                   role="menuitem"
@@ -1143,7 +1136,7 @@ export function BuyerMemoryProfile({
                   Edit
                 </Link>
                 <button
-                  className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-[#A86642] transition-colors hover:bg-[#F0DDD0] focus:bg-[#F0DDD0] focus:outline-none"
+                  className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-3 py-2 text-left text-[13px] font-medium text-[#A86642] transition-colors hover:bg-[#F0DDD0] focus:bg-[#F0DDD0] focus:outline-none"
                   onClick={() => {
                     setActionMenuOpen(false);
                     setDeleteOpen(true);
@@ -1216,7 +1209,7 @@ export function BuyerMemoryProfile({
       </section>
 
       {/* Tabbed Buyer Profile card — overflow-hidden so inner rounded edges clip cleanly. */}
-      <Card className="mt-7 overflow-hidden rounded-[20px]" id="buyer-profile">
+      <Card className="mt-7 overflow-hidden rounded-[12px]" id="buyer-profile">
         <CardHeader
           title={
             tab === "memory"
@@ -1235,7 +1228,7 @@ export function BuyerMemoryProfile({
               {memoryTiles.map((tile) => (
                 <div
                   key={tile.label}
-                  className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] p-4"
+                  className="rounded-[12px] border border-[#E7E7E7] bg-white p-4"
                 >
                   <p className="bb-mono-label">{tile.label}</p>
                   <p className="mt-2 text-[14px] font-medium leading-[1.4] text-[#171719]">
@@ -1290,11 +1283,74 @@ export function BuyerMemoryProfile({
         {tab === "matches" ? (
           sortedMatches.length ? (
             <div className="px-6 py-5">
-              <p className="bb-mono-label">
-                Top {Math.min(sortedMatches.length, 3)} of {sortedMatches.length} match
-                {sortedMatches.length === 1 ? "" : "es"}
-              </p>
-              <ul className="mt-3 overflow-hidden rounded-xl border border-[#E7E7E2] bg-white divide-y divide-[#E7E7E2]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="bb-mono-label">
+                  Top {Math.min(sortedMatches.length, 3)} of {sortedMatches.length} match
+                  {sortedMatches.length === 1 ? "" : "es"}
+                </p>
+                <button
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={aiLoading}
+                  onClick={() => void runAiMatch()}
+                  type="button"
+                >
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                  {aiLoading ? "Ranking…" : aiMatches ? "Re-run AI ranking" : "Re-rank with AI"}
+                </button>
+              </div>
+
+              {aiError ? (
+                <p className="mt-3 rounded-[8px] bg-[#F0DDD0]/60 px-3 py-2 text-[12.5px] text-[#A86642]">{aiError}</p>
+              ) : null}
+
+              {aiMatches ? (
+                <div className="mt-3 overflow-hidden rounded-[12px] border border-[#E7EFEA] bg-[#f4fbf5]">
+                  <div className="flex items-center justify-between gap-3 border-b border-[#E7EFEA] px-4 py-2.5">
+                    <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#3F5249]">
+                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                      {aiMode === "ai" ? "AI semantic ranking" : "Rule-based ranking (no OpenAI key)"}
+                    </p>
+                    <button
+                      className="text-[12px] font-medium text-[#5F7A6F] transition-colors hover:text-[#003C33]"
+                      onClick={() => setAiMatches(null)}
+                      type="button"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  {aiMatches.length ? (
+                    <ul className="divide-y divide-[#E7EFEA]">
+                      {aiMatches.map((item) => {
+                        const listing =
+                          inventory.find((entry) => entry.id === item.listingId) ??
+                          getListingById(item.listingId, segment);
+                        return (
+                          <li className="px-4 py-3" key={item.listingId}>
+                            <div className="flex items-center justify-between gap-3">
+                              <Link
+                                className="truncate text-[14px] font-medium text-[#171719] hover:text-[#003C33] hover:underline"
+                                href={`/listings/${item.listingId}`}
+                              >
+                                {listing?.name ?? item.listingId}
+                              </Link>
+                              <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-[#003C33]">
+                                {item.fitScore}%
+                              </span>
+                            </div>
+                            {item.reason ? (
+                              <p className="mt-1 text-[12.5px] leading-[1.55] text-[#5F625E]">{item.reason}</p>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="px-4 py-3 text-[12.5px] text-[#5F625E]">No candidates to rank.</p>
+                  )}
+                </div>
+              ) : null}
+
+              <ul className="mt-3 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white divide-y divide-[#E7E7E7]">
                 {sortedMatches.map((match) => (
                   <MatchPanel
                     key={match.id}
@@ -1320,26 +1376,28 @@ export function BuyerMemoryProfile({
             <section aria-label="Recent conversations">
               <p className="bb-mono-label">Recent conversations</p>
               {conversations.length ? (
-                <ul className="mt-3 overflow-hidden rounded-xl border border-[#E7E7E2] bg-white divide-y divide-[#E7E7E2]">
-                  {conversations.map((conversation) => (
-                    <li key={conversation.id} className="px-5 py-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge tone="neutral">{conversation.channel}</Badge>
-                        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#8E918B]">
-                          {formatDate(conversation.occurredAt)}
-                        </span>
-                        {conversation.needsSummary ? (
-                          <Badge tone="warning">Needs summary</Badge>
-                        ) : null}
-                      </div>
-                      <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">
-                        {conversation.summary}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-3 max-h-[380px] overflow-y-auto rounded-[12px] border border-[#E7E7E7] bg-white">
+                  <ul className="divide-y divide-[#E7E7E7]">
+                    {conversations.map((conversation) => (
+                      <li key={conversation.id} className="px-5 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone="neutral">{conversation.channel}</Badge>
+                          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#8E918B]">
+                            {formatDate(conversation.occurredAt)}
+                          </span>
+                          {conversation.needsSummary ? (
+                            <Badge tone="warning">Needs summary</Badge>
+                          ) : null}
+                        </div>
+                        <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">
+                          {conversation.summary}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : (
-                <div className="mt-3 rounded-xl border border-dashed border-[#E7E7E2] bg-white">
+                <div className="mt-3 rounded-[12px] border border-dashed border-[#E7E7E7] bg-white">
                   <EmptyState
                     title="No conversations captured"
                     description="Voice notes and inbox threads tied to this buyer will appear here."
@@ -1351,22 +1409,24 @@ export function BuyerMemoryProfile({
             <section aria-label="Drafts in approval">
               <p className="bb-mono-label">Drafts in approval</p>
               {drafts.length ? (
-                <ul className="mt-3 overflow-hidden rounded-xl border border-[#E7E7E2] bg-white divide-y divide-[#E7E7E2]">
-                  {drafts.map((draft) => (
-                    <li key={draft.id} className="px-5 py-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge tone="success">{draft.status}</Badge>
-                        <Badge tone="neutral">{draft.channel}</Badge>
-                      </div>
-                      <h2 className="mt-2 text-[14px] font-medium text-[#171719]">
-                        {draft.subject}
-                      </h2>
-                      <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{draft.body}</p>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-3 max-h-[380px] overflow-y-auto rounded-[12px] border border-[#E7E7E7] bg-white">
+                  <ul className="divide-y divide-[#E7E7E7]">
+                    {drafts.map((draft) => (
+                      <li key={draft.id} className="px-5 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone="success">{draft.status}</Badge>
+                          <Badge tone="neutral">{draft.channel}</Badge>
+                        </div>
+                        <h2 className="mt-2 text-[14px] font-semibold text-[#171719]">
+                          {draft.subject}
+                        </h2>
+                        <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{draft.body}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : (
-                <div className="mt-3 rounded-xl border border-dashed border-[#E7E7E2] bg-white">
+                <div className="mt-3 rounded-[12px] border border-dashed border-[#E7E7E7] bg-white">
                   <EmptyState
                     title="No drafts pending"
                     description="Outgoing follow-ups awaiting your approval will land here before send."
@@ -1380,151 +1440,159 @@ export function BuyerMemoryProfile({
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
         <div className="grid content-start gap-6">
-          {/* Rejected assets — Tile with editorial divided list. */}
-          <Tile tone="paper" className="!p-0">
-            <div className="flex items-start justify-between gap-3 px-6 pt-5">
-              <div>
-                <p className="bb-mono-label">Rejected assets</p>
-                <p className="bb-display mt-2 text-[1.05rem] font-medium leading-[1.2] text-[#171719]">
-                  Do not repeat the same mismatch
-                </p>
-              </div>
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
-                <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-              </span>
-            </div>
-            <ul className="mt-4 divide-y divide-[#E7E7E2] border-t border-[#E7E7E2]">
-              {rejectedListings.length ? (
-                rejectedListings.map(({ rejection, listing }) => (
+          {/* Rejected assets — Card with divide list */}
+          <Card>
+            <CardHeader
+              title="Rejected assets"
+              description="Do not repeat the same mismatch"
+              action={
+                <CardHeaderIcon>
+                  <MapPin className="h-4 w-4" aria-hidden="true" />
+                </CardHeaderIcon>
+              }
+            />
+            {rejectedListings.length ? (
+              <ul className="divide-y divide-[#E7E7E7] border-t border-[#E7E7E7]">
+                {rejectedListings.map(({ rejection, listing }) => (
                   <li
                     key={rejection.listingId}
-                    className="grid gap-3 px-6 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                    className="flex flex-col gap-1.5 px-6 py-4 transition-colors hover:bg-[#fcfcfb]"
                   >
-                    <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-3">
                       {listing ? (
                         <Link
-                          className="text-[14px] font-medium text-[#171719] hover:text-[#003C33] hover:underline"
+                          className="text-[14px] font-semibold text-[#171719] hover:text-[#1863dc] hover:underline"
                           href={`/listings/${listing.id}`}
                         >
                           {listing.name}
                         </Link>
                       ) : (
-                        <p className="text-[14px] font-medium text-[#171719]">Unknown asset</p>
+                        <span className="text-[14px] font-semibold text-[#171719]">Unknown asset</span>
                       )}
-                      <p className="mt-1 text-[12.5px] leading-[1.5] text-[#8E918B]">
-                        {rejection.reason}
-                      </p>
+                      <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-[#8E918B] bg-[#F5F5F7] px-2.5 py-0.5 rounded-[4px] border border-[#E7E7E7]">
+                        Rejected {formatDate(rejection.rejectedAt)}
+                      </span>
                     </div>
-                    <span className="bb-mono-label rounded-full border border-[#E7E7E2] bg-white px-2.5 py-1 text-[#5F625E]">
-                      Rejected {formatDate(rejection.rejectedAt)}
-                    </span>
+                    <p className="text-[13.0px] leading-relaxed text-[#5F625E]">
+                      {rejection.reason}
+                    </p>
                   </li>
-                ))
-              ) : (
-                <li className="px-6 py-5">
-                  <EmptyState
-                    title="No rejections recorded"
-                    description="Once buyers veto an asset, the reason lands here so we never re-pitch it."
-                  />
-                </li>
-              )}
-            </ul>
-          </Tile>
-
-          {/* Broker guardrails — paired with Rejected assets (both are "be careful" context). */}
-          <Tile tone="paper">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="bb-mono-label">Broker guardrails</p>
-                <p className="bb-display mt-2 text-[1.05rem] font-medium leading-[1.2] text-[#171719]">
-                  Filtered before buyer delivery
-                </p>
+                ))}
+              </ul>
+            ) : (
+              <div className="border-t border-[#E7E7E7] px-6 py-10 text-center text-[#8E918B] text-[13px]">
+                <MapPin className="mx-auto h-5 w-5 text-[#8E918B] opacity-50 mb-2" />
+                No rejected assets recorded for this buyer.
               </div>
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
-                <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
-              </span>
-            </div>
-            <ul className="mt-4 divide-y divide-[#E7E7E2] border-t border-[#E7E7E2]">
-              {buyerSafeBrief.removedInternalFields.map((field, index) => (
-                <li
-                  key={`${field}-${index}`}
-                  className="flex items-start gap-3 py-3 text-[13px] leading-6 text-[#5F625E]"
-                >
-                  <LockKeyhole
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#003C33]"
-                    aria-hidden="true"
-                  />
-                  <span>{field}</span>
-                </li>
-              ))}
-            </ul>
-          </Tile>
-        </div>
+            )}
+          </Card>
 
-        {/* Right rail — ActionStack stays as Card; supporting context becomes Tiles. */}
-        <div className="grid content-start gap-6">
-          <ActionStack actions={nextActions} title="Memory-derived next actions" />
-
-          <Tile tone="cream">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="bb-mono-label">Buyer-safe content</p>
-                <p className="bb-display mt-2 text-[1.15rem] font-medium leading-[1.2] text-[#171719]">
-                  {buyerSafeBrief.headline}
-                </p>
-              </div>
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/60 text-[#003C33]">
-                <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
-              </span>
-            </div>
-            <ul className="mt-4 grid gap-2">
-              {buyerSafeBrief.body.map((line, index) => (
-                <li
-                  key={`${line}-${index}`}
-                  className="text-[13px] leading-6 text-[#5F625E]"
-                >
-                  · {line}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-5 border-t border-[#171719]/10 pt-4">
-              <p className="bb-mono-label">Approved facts used</p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {buyerSafeBrief.approvedFacts.map((fact, index) => (
-                  <Badge key={`${fact}-${index}`} tone="success">
-                    {fact}
-                  </Badge>
+          {/* Broker guardrails — Card with secure badges */}
+          <Card>
+            <CardHeader
+              title="Broker guardrails"
+              description="Filtered before buyer delivery"
+              action={
+                <CardHeaderIcon>
+                  <LockKeyhole className="h-4 w-4" aria-hidden="true" />
+                </CardHeaderIcon>
+              }
+            />
+            <div className="border-t border-[#E7E7E7] px-6 py-5 bg-white">
+              <div className="flex flex-wrap gap-2">
+                {buyerSafeBrief.removedInternalFields.map((field, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] bg-white border border-[#E7E7E7] text-[#5F625E] text-[13px] font-medium transition-colors hover:border-[#003C33] hover:text-[#003C33]"
+                  >
+                    <LockKeyhole className="h-3.5 w-3.5 text-[#A86642] shrink-0" />
+                    {field}
+                  </span>
                 ))}
               </div>
             </div>
-          </Tile>
+          </Card>
+        </div>
 
-          <Tile tone="paper">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="bb-mono-label">Verification context</p>
-                <p className="bb-display mt-2 text-[1.05rem] font-medium leading-[1.2] text-[#171719]">
-                  {verification?.requestedAccess ?? "Access request"}
-                </p>
+        {/* Right rail — ActionStack and details */}
+        <div className="grid content-start gap-6">
+          <ActionStack actions={nextActions} title="Memory-derived next actions" />
+
+          {/* Buyer-safe content Card */}
+          <Card className="overflow-hidden border border-[#E7E7E7]">
+            <CardHeader
+              title="Buyer-safe content"
+              description="Copyable preview of the memory-derived brief"
+              action={
+                <CardHeaderIcon>
+                  <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+                </CardHeaderIcon>
+              }
+            />
+            <div className="p-6 bg-white border-t border-[#E7E7E7]">
+              <div className="bg-[#FBFBFB] border border-[#E7E7E7] rounded-[12px] p-5">
+                <h3 className="text-[14px] font-semibold text-[#171719] leading-snug">
+                  "{buyerSafeBrief.headline}"
+                </h3>
+                <ul className="mt-4 space-y-2.5 border-l-2 border-[#E2ECE9] pl-4">
+                  {buyerSafeBrief.body.map((line, index) => (
+                    <li
+                      key={`${line}-${index}`}
+                      className="text-[13px] leading-relaxed text-[#5F625E]"
+                    >
+                      {line}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
-                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              </span>
+
+              <div className="mt-5 pt-4 border-t border-[#E7E7E7]">
+                <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#8E918B] block mb-2">
+                  Approved facts referenced:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {buyerSafeBrief.approvedFacts.map((fact, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center text-[12px] bg-[#E1F1EA]/60 text-[#0F8F62] px-2.5 py-0.5 rounded-[6px] font-medium border border-[#E1F1EA]"
+                    >
+                      {fact}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <Badge className={verificationTone.className}>
-                <StatusDot className={verificationTone.dotClassName} />
-                {verification?.status ?? "Needs Review"}
-              </Badge>
-              <span className="bb-display font-mono text-[1.05rem] font-medium tabular-nums text-[#171719]">
-                {verification?.score ?? 0}
-              </span>
+          </Card>
+
+          {/* Verification context Card */}
+          <Card className="overflow-hidden border border-[#E7E7E7]">
+            <CardHeader
+              title={verification?.requestedAccess ?? "Access request"}
+              eyebrow="Verification context"
+              action={
+                <CardHeaderIcon>
+                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                </CardHeaderIcon>
+              }
+            />
+            <div className="p-6 bg-white border-t border-[#E7E7E7]">
+              <div className="flex items-center justify-between gap-3">
+                <Badge className={verificationTone.className}>
+                  <StatusDot className={verificationTone.dotClassName} />
+                  {verification?.status ?? "Needs Review"}
+                </Badge>
+                <span className="font-mono text-base font-bold tabular-nums text-[#171719]">
+                  Score: {verification?.score ?? 0}
+                </span>
+              </div>
+              
+              <ProgressBar className="mt-4" value={verification?.score ?? 0} />
+              
+              <p className="mt-4 text-[13px] leading-relaxed text-[#5F625E] bg-[#FBFBFB] p-3 rounded-[8px] border border-[#E7E7E7]">
+                {verification?.recommendedAction ?? "No verification recommendation recorded."}
+              </p>
             </div>
-            <ProgressBar className="mt-3" value={verification?.score ?? 0} />
-            <p className="mt-3 text-[13px] leading-6 text-[#5F625E]">
-              {verification?.recommendedAction ?? "No verification recommendation recorded."}
-            </p>
-          </Tile>
+          </Card>
         </div>
       </div>
 
@@ -1560,7 +1628,7 @@ function InsightSubtile({
   items: string[];
 }) {
   return (
-    <div className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] p-4">
+    <div className="rounded-[12px] border border-[#E7E7E7] bg-white p-4">
       <div className="flex items-center gap-2">
         <Icon className="h-3.5 w-3.5 text-[#003C33]" aria-hidden="true" />
         <p className="bb-mono-label">{title}</p>
@@ -1593,12 +1661,12 @@ function NotesTile({
   items: string[];
 }) {
   return (
-    <div className="rounded-xl border border-[#E7E7E2] bg-[#F1F2EE] p-4">
+    <div className="rounded-[12px] border border-[#E7E7E7] bg-white p-4">
       <div className="flex items-center gap-2">
         <Icon className="h-3.5 w-3.5 text-[#003C33]" aria-hidden="true" />
         <p className="bb-mono-label">{title}</p>
       </div>
-      <ul className="mt-3 divide-y divide-[#E7E7E2]">
+      <ul className="mt-3 divide-y divide-[#E7E7E7]">
         {items.map((item, index) => (
           <li
             key={`${item}-${index}`}
@@ -1628,7 +1696,7 @@ function BuyerMemoryNav({
   return (
     <nav
       aria-label="Buyer profile section"
-      className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-[#D9DAD4] bg-white p-1"
+      className="flex max-w-full items-center gap-1 overflow-x-auto rounded-[8px] border border-[#D9DAD4] bg-white p-1"
     >
       {items.map((item) => {
         const active = value === item.key;
@@ -1636,7 +1704,7 @@ function BuyerMemoryNav({
           <button
             aria-pressed={active}
             className={cn(
-              "inline-flex min-h-8 shrink-0 items-center rounded-full px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
+              "inline-flex min-h-8 shrink-0 items-center rounded-[8px] px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
               active ? "bg-[#171719] text-white" : "text-[#5F625E] hover:bg-[#F1F2EE]",
             )}
             key={item.key}
@@ -1651,6 +1719,140 @@ function BuyerMemoryNav({
   );
 }
 
+function CompactFitRing({
+  value,
+  size = 48,
+  stroke = 4,
+}: {
+  value: number;
+  size?: number;
+  stroke?: number;
+}) {
+  const clamped = Math.max(0, Math.min(100, value));
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dash = (clamped / 100) * circumference;
+
+  let color = "#0F8F62"; // green
+  let track = "#E1F1EA"; // soft green
+  let textColor = "#0F8F62";
+
+  if (clamped < 72) {
+    color = "#A86642"; // coral/copper
+    track = "#F0DDD0"; // soft copper
+    textColor = "#A86642";
+  } else if (clamped < 88) {
+    color = "#003C33"; // brand green
+    track = "#E2ECE9"; // soft brand green
+    textColor = "#003C33";
+  }
+
+  return (
+    <div
+      className="relative inline-flex shrink-0 items-center justify-center font-sans"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        aria-hidden="true"
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        width={size}
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          fill="none"
+          r={radius}
+          stroke={track}
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          fill="none"
+          r={radius}
+          stroke={color}
+          strokeDasharray={`${dash} ${circumference - dash}`}
+          strokeDashoffset={circumference / 4}
+          strokeLinecap="round"
+          strokeWidth={stroke}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <span
+        className="absolute text-[11px] font-bold tabular-nums"
+        style={{ color: textColor }}
+      >
+        {Math.round(clamped)}%
+      </span>
+    </div>
+  );
+}
+
+function getListingDisplayName(listing: YachtListing) {
+  const name = listing.name;
+  const builder = listing.builder;
+  const model = listing.model;
+  
+  const containsBuilder = name.toLowerCase().includes(builder.toLowerCase());
+  const containsModel = name.toLowerCase().includes(model.toLowerCase());
+  
+  if (containsBuilder && containsModel) {
+    return name;
+  }
+  if (containsModel) {
+    return `${builder} · ${name}`;
+  }
+  if (containsBuilder) {
+    return `${name} · ${model}`;
+  }
+  return `${name} · ${builder} ${model}`;
+}
+
+function formatListWithAnd(items: string[]) {
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+function getCleanRationale(match: MatchResult, listingName: string) {
+  const met = match.criteriaMet;
+  const missing = match.missingCriteria;
+  
+  if (met.length === 0) {
+    return `${listingName} requires manual broker review to confirm criteria alignment.`;
+  }
+  
+  const metClean = met.map(c => {
+    const lower = c.toLowerCase();
+    if (lower === "inside budget" || lower === "inside max budget" || lower === "budget fit") return "being within budget";
+    if (lower === "size range") return "matching the requested size range";
+    if (lower === "preferred brand") return "being from a preferred brand";
+    if (lower === "preferred location") return "being in a preferred location";
+    if (lower === "eu vat paid") return "having EU VAT paid status";
+    return lower;
+  });
+  
+  const metStr = formatListWithAnd(metClean);
+  const actualMissing = missing.filter(c => c && !c.toLowerCase().includes("no missing") && !c.toLowerCase().includes("no blockers") && !c.toLowerCase().includes("needs broker review"));
+  
+  if (actualMissing.length > 0) {
+    const missingClean = actualMissing.map(c => {
+      const lower = c.toLowerCase();
+      if (lower === "budget fit" || lower === "budget ceiling") return "budget fit";
+      if (lower === "size range") return "exact size range";
+      if (lower === "preferred location") return "preferred location";
+      if (lower === "eu vat paid") return "VAT status";
+      return lower;
+    });
+    const missingStr = formatListWithAnd(missingClean);
+    return `${listingName} is a strong fit due to ${metStr}, but requires confirmation on ${missingStr}.`;
+  }
+  
+  return `${listingName} aligns perfectly with all key requirements, including ${metStr}.`;
+}
+
 function MatchPanel({
   inventory,
   match,
@@ -1663,48 +1865,96 @@ function MatchPanel({
   const listing = inventory?.find((listing) => listing.id === match.listingId) ?? getListingById(match.listingId, segment);
   const owner = listing ? getSellerById(listing.ownerId, segment) : undefined;
 
+  const badgeTone = match.category === "Exact Match" ? "success" : match.category === "Close Match" ? "info" : "warning";
+
   return (
-    <li className="px-6 py-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Badge tone="info">{match.category}</Badge>
-          <h2 className="mt-2 text-[14px] font-medium">
-            {listing ? (
-              <Link className="text-[#171719] hover:text-[#1863dc] hover:underline" href={`/listings/${listing.id}`}>
-                {listing.name} · {listing.builder} {listing.model}
-              </Link>
-            ) : (
-              <span className="text-[#171719]">Unknown asset</span>
-            )}
-          </h2>
-          {owner ? (
-            <Link
-              className="mt-1 inline-flex text-[13px] font-medium text-[#1863dc] hover:underline"
-              href={`/sellers/${owner.id}`}
-            >
-              {owner.name}
-            </Link>
-          ) : null}
-        </div>
-        <span className="font-mono text-[13px] font-medium text-[#171719]">
-          {percentage(match.fitScore)}
-        </span>
+    <li className="relative px-6 py-5 transition-colors hover:bg-[#fcfcfb]">
+      {/* Category badge positioned at the top-right corner */}
+      <div className="absolute top-5 right-6">
+        {match.category === "Close Match" ? (
+          <span className="inline-flex min-h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[8px] border border-[#D0DFDC] bg-[#E2ECE9] text-[#003C33] px-2.5 py-0.5 text-[11px] font-medium leading-[1.6] tracking-[0.01em]">
+            {match.category}
+          </span>
+        ) : (
+          <Badge tone={badgeTone}>{match.category}</Badge>
+        )}
       </div>
-      <ProgressBar className="mt-3" value={match.fitScore} />
-      <p className="mt-3 text-[13px] leading-6 text-[#5F625E]">{match.rationale}</p>
-      <div className="mt-3 grid gap-x-10 gap-y-3 sm:grid-cols-2">
-        <ListBlock
-          label="Criteria met"
-          items={match.criteriaMet.length ? match.criteriaMet : ["Needs broker review"]}
-        />
-        <ListBlock
-          label="Missing criteria"
-          items={
-            match.missingCriteria.length
-              ? match.missingCriteria
-              : ["No missing criteria flagged"]
-          }
-        />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
+        {/* Left side: Dynamic circular fit indicator */}
+        <div className="flex shrink-0 items-center justify-start sm:mt-1">
+          <CompactFitRing value={match.fitScore} size={48} stroke={4.5} />
+        </div>
+
+        {/* Details & Criteria */}
+        <div className="min-w-0 flex-1">
+          {/* Header row: title and seller details, padded to avoid badge collision */}
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pr-[120px]">
+            <h2 className="text-[14px] font-semibold leading-tight">
+              {listing ? (
+                <Link className="text-[#171719] hover:text-[#1863dc] hover:underline" href={`/listings/${listing.id}`}>
+                  {getListingDisplayName(listing)}
+                </Link>
+              ) : (
+                <span className="text-[#171719]">Unknown asset</span>
+              )}
+            </h2>
+            {owner ? (
+              <span className="text-[12px] text-[#8E918B] leading-none">
+                Seller:{" "}
+                <Link
+                  className="text-[#5F625E] hover:text-[#1863dc] hover:underline"
+                  href={`/sellers/${owner.id}`}
+                >
+                  {owner.name}
+                </Link>
+              </span>
+            ) : null}
+          </div>
+
+          {/* Rationale text */}
+          <p className="mt-2 text-[13.5px] leading-relaxed text-[#5F625E] pr-[120px] sm:pr-0">
+            {listing ? getCleanRationale(match, getListingDisplayName(listing)) : match.rationale}
+          </p>
+
+          {/* Criteria tags section (flex-wrap to fit on a single line where possible) */}
+          <div className="mt-3.5 flex flex-wrap gap-1.5">
+            {/* Met criteria list */}
+            {match.criteriaMet.length ? (
+              match.criteriaMet.map((item, idx) => (
+                <span
+                  key={`met-${idx}`}
+                  className="inline-flex items-center gap-1 text-[12px] bg-[#E1F1EA]/60 text-[#0F8F62] px-2 py-0.5 rounded-[6px] font-medium border border-[#E1F1EA]"
+                >
+                  <CheckCircle2 className="h-3 w-3 shrink-0" />
+                  {item}
+                </span>
+              ))
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[12px] bg-white text-[#5F625E] px-2 py-0.5 rounded-[6px] font-medium border border-[#E7E7E7]">
+                Needs broker review
+              </span>
+            )}
+
+            {/* Missing criteria list */}
+            {match.missingCriteria.length ? (
+              match.missingCriteria.map((item, idx) => (
+                <span
+                  key={`missing-${idx}`}
+                  className="inline-flex items-center gap-1 text-[12px] bg-[#F0DDD0]/30 text-[#A86642] px-2 py-0.5 rounded-[6px] font-medium border border-[#F0DDD0]/50"
+                >
+                  <CircleAlert className="h-3 w-3 shrink-0" />
+                  {item}
+                </span>
+              ))
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[12px] bg-[#E1F1EA]/60 text-[#0F8F62] px-2 py-0.5 rounded-[6px] font-medium border border-[#E1F1EA]">
+                <CheckCircle2 className="h-3 w-3 shrink-0" />
+                No missing criteria
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </li>
   );
@@ -1722,15 +1972,9 @@ export function SellerMemoryProfile({ sellerId, segment }: { sellerId: string; s
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
-        href="/listings"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Back to listings
-      </Link>
+      {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
-      <div className="mt-6">
+      <div>
         <PageHeader
           title={seller.name}
           description="Owner motivation, pricing posture, feedback expectations, and next update timing."
@@ -1767,7 +2011,7 @@ export function SellerMemoryProfile({ sellerId, segment }: { sellerId: string; s
                 ]}
               />
             </div>
-            <div className="border-t border-[#E7E7E2] px-6 py-5">
+            <div className="border-t border-[#E7E7E7] px-6 py-5">
               <InsightList
                 icon={MessageSquareText}
                 title="Feedback history"
@@ -1778,7 +2022,7 @@ export function SellerMemoryProfile({ sellerId, segment }: { sellerId: string; s
 
           <Card>
             <CardHeader eyebrow="Portfolio" title="Listed assets and blockers" />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
               {assets.map((asset) => (
                 <li
                   key={asset.id}
@@ -1811,7 +2055,7 @@ export function SellerMemoryProfile({ sellerId, segment }: { sellerId: string; s
 
           <Card>
             <CardHeader eyebrow="Owner reporting" title="Prepared update material" />
-            <div className="grid gap-0 divide-y divide-[#E7E7E2]">
+            <div className="grid gap-0 divide-y divide-[#E7E7E7]">
               {reports.length ? (
                 reports.map((report) => (
                   <article key={report.title} className="px-6 py-5">
@@ -1873,7 +2117,7 @@ export function SellerMemoryProfile({ sellerId, segment }: { sellerId: string; s
             <CardHeader
               title="Conversations and open tasks"
             />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
               {conversations.map((conversation) => (
                 <li key={conversation.id} className="px-6 py-5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -1930,10 +2174,13 @@ function ActionStack({
           </CardHeaderIcon>
         }
       />
-      <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+      <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
         {actions.length ? (
           actions.map((action) => (
-            <li key={`${action.label}-${action.dueAt}`} className="px-6 py-5">
+            <li
+              key={`${action.label}-${action.dueAt}`}
+              className="relative px-6 py-5 transition-colors hover:bg-[#fcfcfb]"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={priorityTone(action.priority)}>{action.priority}</Badge>
                 <Badge tone="neutral">{action.kind}</Badge>
@@ -1941,8 +2188,8 @@ function ActionStack({
                   {dueLabel(action.dueAt)}
                 </span>
               </div>
-              <h2 className="mt-2 text-[14px] font-medium text-[#171719]">{action.label}</h2>
-              <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{action.reason}</p>
+              <h2 className="mt-2 text-[14px] font-semibold text-[#171719]">{action.label}</h2>
+              <p className="mt-2 text-[13.0px] leading-relaxed text-[#5F625E]">{action.reason}</p>
             </li>
           ))
         ) : (
@@ -2017,4 +2264,3 @@ function ListBlock({ label, items }: { label: string; items: string[] }) {
     </div>
   );
 }
-

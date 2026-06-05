@@ -34,7 +34,7 @@ export function ListingMediaGallery({ listing }: { listing: YachtListing }) {
         {(visiblePhotos.length ? visiblePhotos : [undefined]).map((photo, index) => (
           <button
             aria-label={photo ? `Open ${photo.alt}` : `Open ${listing.name} media`}
-            className="group min-h-48 min-w-0 overflow-hidden rounded-2xl text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            className="group min-h-48 min-w-0 overflow-hidden rounded-[12px] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
             key={photo?.id ?? "listing-media-fallback"}
             onClick={() => openPreview(index)}
             type="button"
@@ -46,7 +46,7 @@ export function ListingMediaGallery({ listing }: { listing: YachtListing }) {
         {hiddenCount ? (
           <button
             aria-label={`Open all ${photos.length} listing photos`}
-            className="group relative min-h-48 overflow-hidden rounded-2xl border border-[#E7E7E2] bg-[#171719] text-left text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            className="group relative min-h-48 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-[#171719] text-left text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
             onClick={() => openPreview(2)}
             type="button"
           >
@@ -103,7 +103,7 @@ export function ListingMediaGallery({ listing }: { listing: YachtListing }) {
                 <ChevronLeft className="h-5 w-5" aria-hidden="true" />
               </button>
             ) : null}
-            <div className="relative h-full max-h-[72vh] w-full overflow-hidden rounded-[24px]">
+            <div className="relative h-full max-h-[72vh] w-full overflow-hidden rounded-[12px]">
               <Image
                 alt={selectedPhoto.alt}
                 className="object-contain"
@@ -130,7 +130,7 @@ export function ListingMediaGallery({ listing }: { listing: YachtListing }) {
               <button
                 aria-label={`Show ${photo.alt}`}
                 className={cn(
-                  "relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border transition",
+                  "relative h-16 w-24 shrink-0 overflow-hidden rounded-[12px] border transition",
                   index === selectedIndex ? "border-white opacity-100" : "border-white/10 opacity-55 hover:opacity-85",
                 )}
                 key={photo.id}
@@ -153,7 +153,7 @@ function ListingPhotoTile({
   photo?: ListingPhoto;
 }) {
   return (
-    <div className="relative h-full min-h-48 overflow-hidden rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE]">
+    <div className="relative h-full min-h-48 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-[#F1F2EE]">
       {photo ? (
         <Image
           alt={photo.alt}

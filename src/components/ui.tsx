@@ -30,12 +30,12 @@ export function Badge({
               ? "border-[#ffd6cc] bg-white text-[#c64a31]"
               : tone === "ink"
                 ? "border-[#171719] bg-[#171719] text-white"
-                : "border-[#E7E7E2] bg-white text-[#5F625E]";
+            : "border-[#E7E7E7] bg-white text-[#5F625E]";
 
   return (
     <span
       className={cn(
-        "inline-flex min-h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-medium leading-[1.6] tracking-[0.01em]",
+        "inline-flex min-h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[8px] border px-2.5 py-0.5 text-[11px] font-medium leading-[1.6] tracking-[0.01em]",
         toneClass,
         className,
       )}
@@ -62,7 +62,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6] disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-[8px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6] disabled:pointer-events-none disabled:opacity-50",
         sizing,
         variant === "primary" &&
           "bg-[#003C33] text-white hover:bg-[#0B4A3F]",
@@ -85,7 +85,7 @@ export function Card({ children, className, ...props }: ComponentPropsWithoutRef
   return (
     <section
       className={cn(
-        "min-w-0 rounded-2xl border border-[#E7E7E2] bg-white",
+        "min-w-0 rounded-[12px] border border-[#E7E7E7] bg-white",
         className,
       )}
       {...props}
@@ -107,12 +107,12 @@ export function CardHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-4 border-b border-[#E7E7E2] px-6 py-5 sm:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid grid-cols-1 items-start gap-4 border-b border-[#E7E7E7] px-6 py-5 sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="min-w-0">
         {eyebrow ? <p className="bb-mono-label">{eyebrow}</p> : null}
-        <h2 className="bb-display mt-2 text-xl font-medium text-[#171719]">{title}</h2>
+        <h2 className="mt-2 text-xl font-semibold text-[#171719]">{title}</h2>
         {description ? (
-          <p className="mt-2 max-w-xl text-sm leading-6 text-[#5F625E]">{description}</p>
+          <p className="mt-1.5 max-w-3xl text-sm leading-6 text-[#5F625E]">{description}</p>
         ) : null}
       </div>
       {action ? (
@@ -132,7 +132,7 @@ export function CardHeaderIcon({
   return (
     <span
       className={cn(
-        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4fbf5] text-[#003C33]",
+        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F1F2EE] text-[#003C33]",
         className,
       )}
     >
@@ -155,46 +155,54 @@ export function PageHeader({
      dashboard's custom header keeps a segment chip + date. */
   eyebrow?: string;
   eyebrowActions?: ReactNode;
-  title: string;
+  /* Title is optional now — the sticky top bar renders the page title for
+     top-level screens, so workspaces that only need the metric strip can
+     drop the redundant in-content heading. */
+  title?: string;
   description?: string;
   metrics?: Array<{ label: string; value: string }>;
   actions?: ReactNode;
 }) {
   const hasEyebrowRow = Boolean(eyebrow || eyebrowActions);
+  const hasTitleRow = Boolean(title || description || actions || hasEyebrowRow);
   return (
     <header className="grid gap-5">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-        <div className="min-w-0">
-          {hasEyebrowRow ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {eyebrow ? (
-                <p className="inline-flex min-h-7 items-center rounded-full border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-[#8E918B]">
-                  {eyebrow}
-                </p>
-              ) : null}
-              {eyebrowActions}
+      {hasTitleRow ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <div className="min-w-0">
+            {hasEyebrowRow ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {eyebrow ? (
+                  <p className="inline-flex min-h-7 items-center rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-[#8E918B]">
+                    {eyebrow}
+                  </p>
+                ) : null}
+                {eyebrowActions}
+              </div>
+            ) : null}
+            {title ? (
+              <h1
+                className={cn(
+                  "max-w-[860px] text-[1.75rem] font-bold leading-[1.12] tracking-normal text-[#171719] sm:text-[1.95rem]",
+                  hasEyebrowRow ? "mt-4" : "",
+                )}
+              >
+                {title}
+              </h1>
+            ) : null}
+            {description ? (
+              <p className="mt-1 max-w-3xl text-[15px] leading-6 text-[#5F625E]">
+                {description}
+              </p>
+            ) : null}
+          </div>
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              {actions}
             </div>
           ) : null}
-          <h1
-            className={cn(
-              "bb-display max-w-[860px] text-[2rem] font-medium leading-[1.08] text-[#171719] sm:text-[2.35rem]",
-              hasEyebrowRow ? "mt-4" : "",
-            )}
-          >
-            {title}
-          </h1>
-          {description ? (
-            <p className="mt-3 max-w-3xl text-[14px] leading-7 text-[#5F625E]">
-              {description}
-            </p>
-          ) : null}
         </div>
-        {actions ? (
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end lg:pt-9">
-            {actions}
-          </div>
-        ) : null}
-      </div>
+      ) : null}
       {metrics?.length ? (
         /* KPI tile band — same shape Buyers/Listings use. White surface
            with eyebrow label + big number. First tile gets the cream accent
@@ -212,10 +220,10 @@ export function PageHeader({
             <div
               key={metric.label}
               className={cn(
-                "rounded-[24px] border p-5",
+                "rounded-[12px] border p-5",
                 index === 0
                   ? "border-transparent bg-[#F2EADC] text-[#171719]"
-                  : "border-[#E7E7E2] bg-white text-[#171719]",
+                  : "border-[#E7E7E7] bg-white text-[#171719]",
               )}
             >
               <dt className="bb-mono-label">{metric.label}</dt>
@@ -301,10 +309,10 @@ export function WorkflowState({
           ? "border-[#F0DDD0] bg-[#F0DDD0] text-[#A86642]"
           : tone === "loading"
             ? "border-[#cfdcfa] bg-[#f1f5ff] text-[#0e2a66]"
-            : "border-[#E7E7E2] bg-white text-[#171719]";
+            : "border-[#E7E7E7] bg-white text-[#171719]";
 
   return (
-    <div className={cn("rounded-xl border p-5", toneClass)}>
+    <div className={cn("rounded-[12px] border p-5", toneClass)}>
       <p className="text-sm font-semibold">{title}</p>
       <p className="mt-2 text-sm leading-6 opacity-80">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
@@ -341,16 +349,23 @@ export function TextInput({
   label,
   helper,
   className,
+  inputClassName,
   ...props
 }: ComponentPropsWithoutRef<"input"> & {
   label: string;
   helper?: string;
+  inputClassName?: string;
 }) {
   return (
-    <label className={cn("grid gap-1.5 text-sm font-medium text-[#171719]", className)}>
-      <span>{label}</span>
+    <label className={cn("grid gap-1.5", className)}>
+      <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+        {label}
+      </span>
       <input
-        className="min-h-11 rounded-lg border border-[#D9DAD4] bg-white px-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+        className={cn(
+          "min-h-11 rounded-[10px] border border-[#D9DAD4] bg-white px-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15",
+          inputClassName,
+        )}
         {...props}
       />
       {helper ? <span className="text-xs font-normal text-[#8E918B]">{helper}</span> : null}
@@ -370,12 +385,12 @@ export function TabList({
   active: string;
 }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-full border border-[#D9DAD4] bg-white p-1">
+    <div className="inline-flex items-center gap-1 rounded-[8px] border border-[#D9DAD4] bg-white p-1">
       {items.map((item) => (
         <button
           key={item}
           className={cn(
-            "min-h-8 rounded-full px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
+            "min-h-8 rounded-[8px] px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
             active === item
               ? "bg-[#171719] text-white"
               : "text-[#5F625E] hover:bg-[#F1F2EE]",
@@ -402,10 +417,10 @@ export function DialogShell({
     <div
       aria-labelledby="dialog-preview-title"
       aria-modal="true"
-      className="rounded-2xl border border-[#E7E7E2] bg-white p-6"
+      className="rounded-[12px] border border-[#E7E7E7] bg-white p-6"
       role="dialog"
     >
-      <div className="border-b border-[#E7E7E2] pb-4">
+      <div className="border-b border-[#E7E7E7] pb-4">
         <h3 id="dialog-preview-title" className="bb-display text-lg font-medium text-[#171719]">
           {title}
         </h3>
@@ -460,11 +475,11 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cn("border-t border-[#E7E7E2] pt-8", className)}>
+    <section className={cn("border-t border-[#E7E7E7] pt-8", className)}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           {eyebrow ? <p className="bb-mono-label">{eyebrow}</p> : null}
-          <h2 className="bb-display mt-2 text-[22px] font-medium text-[#171719]">{title}</h2>
+          <h2 className="mt-2 text-[22px] font-semibold text-[#171719]">{title}</h2>
           {description ? (
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5F625E]">{description}</p>
           ) : null}

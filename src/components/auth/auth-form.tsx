@@ -49,7 +49,7 @@ export function AuthForm({
       {state?.error ? (
         <p
           aria-live="polite"
-          className="rounded-xl bg-[#fdecec] px-4 py-3 text-[13px] leading-6 text-[#b42318]"
+          className="rounded-[12px] bg-[#fdecec] px-4 py-3 text-[13px] leading-6 text-[#b42318]"
           role="alert"
         >
           {state.error}
@@ -84,7 +84,7 @@ function Field({
       <input
         aria-invalid={error ? true : undefined}
         autoComplete={autoComplete}
-        className={`min-h-11 rounded-xl border bg-white px-4 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:ring-2 ${
+        className={`min-h-11 rounded-[10px] border bg-white px-4 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:ring-2 ${
           error
             ? "border-[#b42318] focus:border-[#b42318] focus:ring-[#b42318]/15"
             : "border-[#D9DAD4] focus:border-[#003C33] focus:ring-[#003C33]/15"
@@ -106,7 +106,7 @@ function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button
-      className="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] disabled:cursor-not-allowed disabled:bg-[#5F625E]"
+      className="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] disabled:cursor-not-allowed disabled:bg-[#5F625E]"
       disabled={pending}
       type="submit"
     >

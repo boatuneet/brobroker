@@ -124,8 +124,8 @@ export function HalfGauge({
     : "#171719";
   const inactiveColor =
     tone === "coral" ? "#f1ddd0"
-    : tone === "green" ? "#E7EFEA"
-    : "#E7E7E2";
+    : tone === "green" ? "#F1F2EE"
+    : "#E7E7E7";
 
   return (
     <div
@@ -309,7 +309,7 @@ export function Sparkbars({
             <div
               aria-label={`${d.label}: ${d.value}`}
               className={cn(
-                "w-full rounded-t-[3px] transition-all",
+                "w-full rounded-t-[4px] transition-all",
                 isHigh ? "bg-[#A86642]" : "bg-[#171719]/15",
               )}
               role="img"
@@ -338,7 +338,7 @@ export function StatBadge({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1.5",
+        "inline-flex items-center gap-2 rounded-[8px] px-3 py-1.5",
         tone === "ivory"
           ? "bg-[#F2EADC]/15 text-[#F2EADC]"
           : "border border-white/20 bg-transparent text-white/85",
@@ -371,12 +371,12 @@ export function Tile({
       : tone === "cream"
         ? "bg-[#F2EADC] text-[#171719]"
         : tone === "outline"
-          ? "border border-[#E7E7E2] bg-transparent text-[#171719]"
-          : "bg-white text-[#171719] border border-[#E7E7E2]";
+          ? "border border-[#E7E7E7] bg-transparent text-[#171719]"
+          : "bg-white text-[#171719] border border-[#E7E7E7]";
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[24px] p-5 sm:p-6",
+        "relative overflow-hidden rounded-[12px] p-5 sm:p-6",
         base,
         className,
       )}

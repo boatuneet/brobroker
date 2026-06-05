@@ -178,10 +178,8 @@ function DealRoomsOperational({
   const persistedRoomIds = new Set(savedRooms.map((room) => room.id));
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <PageHeader
-        title="Private deal rooms"
-        description="Create buyer-safe shortlists with approved listings and documents."
         metrics={[
           { label: "Rooms", value: `${existingRooms.length}` },
           {
@@ -211,7 +209,7 @@ function DealRoomsOperational({
               description="Add a buyer first, then curate a private room here."
               action={
                 <Link
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
+                  className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
                   href="/voice-crm"
                 >
                   Capture a buyer
@@ -245,10 +243,10 @@ function DealRoomsOperational({
                       return (
                         <li key={listing.id}>
                           <label
-                            className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                            className={`flex cursor-pointer items-start gap-3 rounded-[8px] border px-3 py-2.5 transition-colors ${
                               isSelected
-                                ? "border-[#003C33] bg-[#E7EFEA]/40"
-                                : "border-[#E7E7E2] bg-white hover:border-[#003C33]"
+                                ? "border-[#003C33] bg-[#F1F2EE]/40"
+                                : "border-[#E7E7E7] bg-white hover:border-[#003C33]"
                             }`}
                           >
                             <input
@@ -283,7 +281,7 @@ function DealRoomsOperational({
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-[#F6F6F3] p-5">
+              <div className="rounded-[12px] bg-[#FBFBFB] p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className={generatedTone.className}>
                     <StatusDot className={generatedTone.dotClassName} />
@@ -301,7 +299,7 @@ function DealRoomsOperational({
                 </p>
               </div>
 
-              <div className="grid gap-3 rounded-2xl border border-[#E7E7E2] bg-white p-4">
+              <div className="grid gap-3 rounded-[12px] border border-[#E7E7E7] bg-white p-4">
                 <p className="bb-mono-label">Share controls</p>
                 <SelectMenu
                   label="Access mode"
@@ -316,7 +314,7 @@ function DealRoomsOperational({
                 <label className="grid gap-1.5 text-[13px] font-medium text-[#171719]">
                   <span>Room passcode</span>
                   <input
-                    className="min-h-10 rounded-lg border border-[#D9DAD4] bg-white px-3 text-[14px] text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+                    className="min-h-10 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[14px] text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
                     onChange={(event) => setPasscode(event.target.value)}
                     value={passcode}
                   />
@@ -336,7 +334,7 @@ function DealRoomsOperational({
                   {isCommitted ? "Room saved" : "Save room draft"}
                 </Button>
                 <Link
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
                   href={`/deal-rooms/${generatedRoom.id}`}
                 >
                   Preview buyer-facing room
@@ -391,7 +389,7 @@ function DealRoomsOperational({
                             return (
                               <div
                                 key={listing.id}
-                                className="rounded-xl border border-[#E7E7E2] bg-white p-4"
+                                className="rounded-[12px] border border-[#E7E7E7] bg-white p-4"
                               >
                                 <p className="text-[14px] font-medium text-[#171719]">
                                   {listing.name}
@@ -408,7 +406,7 @@ function DealRoomsOperational({
                           })}
                         </div>
                       </div>
-                      <div className="grid content-start gap-4 border-l border-[#E7E7E2] pl-5">
+                      <div className="grid content-start gap-4 border-l border-[#E7E7E7] pl-5">
                         <Stat
                           label="Access"
                           value={room.verificationStatus}
@@ -425,7 +423,7 @@ function DealRoomsOperational({
                           detail={`/deal-rooms/${room.id}`}
                         />
                         <Link
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-sm font-medium text-[#171719] hover:border-[#003C33]"
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-sm font-medium text-[#171719] hover:border-[#003C33]"
                           href={`/deal-rooms/${room.id}`}
                         >
                           Open buyer room
@@ -447,22 +445,8 @@ function DealRoomsOperational({
    + an explainer card showing what each room contains. */
 function FirstRunDealRooms() {
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <PageHeader
-        title="Build private buyer rooms"
-        description="Curate approved listings and buyer-safe rationale while seller notes stay internal."
-        actions={
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
-            href="/voice-crm"
-          >
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-            Capture by voice
-          </Link>
-        }
-      />
-
-      <section aria-labelledby="rooms-quick-start" className="mt-12">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+      <section aria-labelledby="rooms-quick-start">
         <div className="flex items-baseline justify-between gap-4">
           <div>
             <p className="bb-mono-label">Quick start</p>
@@ -507,7 +491,7 @@ function FirstRunDealRooms() {
         <CardHeader
           title="A private space, scoped to one buyer"
         />
-        <ul className="divide-y divide-[#E7E7E2]">
+        <ul className="divide-y divide-[#E7E7E7]">
           <RoomsExplainerRow
             icon={ShieldCheck}
             title="Verification + broker approval state"
@@ -544,7 +528,7 @@ function RoomsActionCard({
 }) {
   return (
     <Link
-      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#E7E7E2] bg-white p-6 transition-colors hover:border-[#003C33]"
+      className="group flex h-full flex-col justify-between gap-5 rounded-[12px] border border-[#E7E7E7] bg-white p-6 transition-colors hover:border-[#003C33]"
       href={href}
     >
       <div>
@@ -579,7 +563,7 @@ function RoomsExplainerRow({
 }) {
   return (
     <li className="grid gap-4 px-6 py-5 sm:grid-cols-[36px_1fr]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#003C33]">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0">

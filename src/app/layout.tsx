@@ -42,7 +42,7 @@ export default function RootLayout({
       className={`${inter.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
       data-scroll-behavior="smooth"
     >
-      <body className="flex min-h-full flex-col bg-[#F6F6F3] font-sans text-[#171719]">
+      <body className="flex min-h-full flex-col bg-white font-sans text-[#171719]">
         {children}
       </body>
     </html>

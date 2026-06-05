@@ -19,7 +19,7 @@ export default async function MatchingPage() {
   ]);
 
   return (
-    <AppShell active="Matching">
+    <AppShell active="Matching" pageTitle="Matching">
       <MatchingWorkspace
         key={segment}
         includeDemo={includeDemo}

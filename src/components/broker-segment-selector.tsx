@@ -58,10 +58,10 @@ export function BrokerSegmentSelector({
             key={segment.id}
             aria-pressed={active}
             className={cn(
-              "group h-full overflow-hidden rounded-2xl border bg-white text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
+              "group h-full overflow-hidden rounded-[12px] border bg-white text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
               active
-                ? "border-[#003C33] shadow-[0_18px_45px_rgba(0,60,51,0.14)]"
-                : "border-[#E7E7E2] hover:-translate-y-0.5 hover:border-[#D9DAD4] hover:shadow-[0_18px_45px_rgba(23,23,28,0.08)]",
+                ? "border-[#003C33]"
+                : "border-[#E7E7E7] hover:-translate-y-0.5 hover:border-[#D9DAD4] hover:",
             )}
             onClick={() => selectSegment(segment.id)}
             type="button"
@@ -78,14 +78,14 @@ export function BrokerSegmentSelector({
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.02)_0%,rgba(0,0,0,0.2)_100%)]" />
               <span
                 className={cn(
-                  "absolute left-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 shadow-[0_10px_28px_rgba(23,23,28,0.14)] backdrop-blur",
+                  "absolute left-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 backdrop-blur",
                   active ? "text-[#003C33]" : "text-[#5F625E]",
                 )}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
               </span>
               {active ? (
-                <span className="absolute right-4 top-4 inline-flex h-8 items-center gap-1.5 rounded-full bg-[#003C33] px-3 text-[12px] font-medium text-white shadow-[0_10px_28px_rgba(0,60,51,0.24)]">
+                <span className="absolute right-4 top-4 inline-flex h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12px] font-medium text-white">
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                   Selected
                 </span>
@@ -103,7 +103,7 @@ export function BrokerSegmentSelector({
                   </div>
                   <span
                     className={cn(
-                      "inline-flex shrink-0 rounded-full px-3 py-1 text-[12px] font-medium sm:hidden",
+                      "inline-flex shrink-0 rounded-[8px] px-3 py-1 text-[12px] font-medium sm:hidden",
                       segment.accentClass,
                     )}
                   >
@@ -116,7 +116,7 @@ export function BrokerSegmentSelector({
                 </p>
               </div>
               <div className="hidden items-center justify-between gap-3 sm:flex">
-                <span className={cn("rounded-full px-3 py-1 text-[12px] font-medium", segment.accentClass)}>
+                <span className={cn("rounded-[8px] px-3 py-1 text-[12px] font-medium", segment.accentClass)}>
                   {segment.listings} assets
                 </span>
                 <div className="min-w-0">

@@ -1,5 +1,5 @@
 import { type BrokerSegment } from "@/lib/broker-segments";
-import type { BuyerProfile, RejectedAsset } from "@/lib/types";
+import type { BuyerProfile, BuyerSource, RejectedAsset } from "@/lib/types";
 
 export type StoredBuyerRow = {
   id: string;
@@ -17,6 +17,7 @@ export type StoredBuyerRow = {
   rejected_assets: unknown;
   relationship_notes: string[] | null;
   payload: unknown;
+  source: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -69,7 +70,25 @@ export function mapStoredBuyerToProfile(row: StoredBuyerRow): BuyerProfile {
     nextActionDueAt: row.next_action_due_at ?? createdDate,
     verificationCaseId: row.verification_case_id ?? "",
     tags: row.tags ?? [],
+    source: normalizeSource(row.source),
   };
+}
+
+const VALID_SOURCES: ReadonlyArray<BuyerSource> = [
+  "referral",
+  "website",
+  "voice_note",
+  "marketplace",
+  "email",
+  "social",
+  "other",
+];
+
+export function normalizeSource(value: unknown): BuyerSource | undefined {
+  if (typeof value !== "string") return undefined;
+  return (VALID_SOURCES as ReadonlyArray<string>).includes(value)
+    ? (value as BuyerSource)
+    : undefined;
 }
 
 export function getStoredBuyerSegment(row: StoredBuyerRow): BrokerSegment | undefined {

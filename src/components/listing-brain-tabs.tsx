@@ -114,7 +114,7 @@ function ListingBrainTabNav({
   return (
     <div
       aria-label="Listing brain sections"
-      className="inline-flex items-center gap-1 rounded-full border border-[#D9DAD4] bg-white p-1"
+      className="inline-flex items-center gap-1 rounded-[8px] border border-[#D9DAD4] bg-white p-1"
       role="tablist"
     >
       {listingBrainTabs.map((tab) => {
@@ -124,9 +124,9 @@ function ListingBrainTabNav({
           <button
             aria-selected={isActive}
             className={cn(
-              "min-h-8 rounded-full px-3 text-[13px] font-medium transition-[background-color,color,box-shadow,transform] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
+              "min-h-8 rounded-[8px] px-3 text-[13px] font-medium transition-[background-color,color,transform] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
               isActive
-                ? "bg-[#171719] text-white shadow-[0_8px_22px_rgba(23,23,28,0.14)]"
+                ? "bg-[#171719] text-white"
                 : "text-[#5F625E] hover:bg-[#F1F2EE] hover:text-[#171719]",
             )}
             key={tab.value}
@@ -199,7 +199,7 @@ function ListingOverviewPanel({
           </div>
         </section>
 
-        <section className="min-w-0 rounded-2xl bg-[#F6F6F3] p-4">
+        <section className="min-w-0 rounded-[12px] bg-[#FBFBFB] p-4">
           <PanelKicker icon={MessageSquareText} title="Owner snapshot" />
           <h3 className="mt-3 text-[16px] font-semibold text-[#171719]">
             {seller?.name ?? "Owner not recorded"}
@@ -214,7 +214,7 @@ function ListingOverviewPanel({
         </section>
       </div>
 
-      <div className="grid gap-4 border-t border-[#E7E7E2] px-6 py-5 lg:grid-cols-3">
+      <div className="grid gap-4 border-t border-[#E7E7E7] px-6 py-5 lg:grid-cols-3">
         <CompactSignalCard
           icon={FileText}
           items={approvedDocuments.map((document) => document.title)}
@@ -247,7 +247,7 @@ function ListingDocsPanel({
   return (
     <div className="grid gap-6 px-6 py-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
       <section className="min-w-0">
-        <div className="rounded-2xl bg-[#F6F6F3] p-4">
+        <div className="rounded-[12px] bg-[#FBFBFB] p-4">
           <div className="grid gap-4 sm:grid-cols-[minmax(130px,0.55fr)_minmax(0,1fr)] sm:items-center">
             <div>
               <p className="bb-mono-label">Readiness</p>
@@ -269,7 +269,7 @@ function ListingDocsPanel({
           </div>
         </div>
 
-        <ul className="mt-4 divide-y divide-[#E7E7E2] rounded-2xl border border-[#F1F2EE] bg-white">
+        <ul className="mt-4 divide-y divide-[#E7E7E7] rounded-[12px] border border-[#E7E7E7] bg-white">
           {listing.documents.map((document) => (
             <li
               className="grid gap-3 px-4 py-4 sm:grid-cols-[36px_minmax(0,1fr)_auto] sm:items-center"
@@ -350,7 +350,7 @@ function ListingOwnerPanel({
           <div className="mt-5 flex flex-wrap gap-2">
             {hasOwnerRoute ? (
               <Link
-                className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#171719] bg-[#003C33] px-4 text-[13px] font-medium text-white hover:bg-[#0B4A3F]"
+                className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#171719] bg-[#003C33] px-4 text-[13px] font-medium text-white hover:bg-[#0B4A3F]"
                 href={`/sellers/${seller.id}`}
               >
                 Open owner context
@@ -358,7 +358,7 @@ function ListingOwnerPanel({
               </Link>
             ) : null}
             <Link
-              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
+              className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
               href="/reports"
             >
               Open owner reports
@@ -366,7 +366,7 @@ function ListingOwnerPanel({
           </div>
         </section>
 
-        <section className="min-w-0 rounded-2xl bg-[#F6F6F3] p-4">
+        <section className="min-w-0 rounded-[12px] bg-[#FBFBFB] p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <PanelKicker icon={Gauge} title="Communication expectation" />
             <Badge tone={ownerTasks.length ? "warning" : "success"}>
@@ -380,13 +380,13 @@ function ListingOwnerPanel({
         </section>
       </div>
 
-      <div className="grid gap-4 border-t border-[#E7E7E2] px-6 py-5 lg:grid-cols-3">
+      <div className="grid gap-4 border-t border-[#E7E7E7] px-6 py-5 lg:grid-cols-3">
         <CompactSignalCard icon={MessageSquareText} items={listing.ownerNotes} title="Owner notes" />
         <CompactSignalCard icon={ShieldCheck} items={listing.brokerOnlyNotes} title="Broker-only notes" />
         <CompactSignalCard icon={Gauge} items={listing.marketSignals} title="Market signals" />
       </div>
 
-      <div className="grid gap-4 border-t border-[#E7E7E2] px-6 py-5 lg:grid-cols-2">
+      <div className="grid gap-4 border-t border-[#E7E7E7] px-6 py-5 lg:grid-cols-2">
         <CompactSignalCard icon={FileText} items={seller.feedbackHistory} title="Owner feedback history" />
         <CompactSignalCard
           icon={AlertTriangle}
@@ -410,7 +410,7 @@ function PanelKicker({ icon: Icon, title }: { icon: LucideIcon; title: string })
 
 function FactTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-[#F1F2EE] bg-white px-4 py-3">
+    <div className="min-w-0 rounded-[12px] border border-[#E7E7E7] bg-white px-4 py-3">
       <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{label}</p>
       <p className="mt-2 line-clamp-3 text-[14px] font-medium leading-6 text-[#2f2f37]">{value}</p>
     </div>
@@ -441,13 +441,13 @@ function CompactSignalCard({
   const remainingCount = Math.max(0, items.length - visibleItems.length);
 
   return (
-    <section className="min-w-0 rounded-2xl border border-[#F1F2EE] bg-white p-4">
+    <section className="min-w-0 rounded-[12px] border border-[#E7E7E7] bg-white p-4">
       <PanelKicker icon={Icon} title={title} />
       <ul className="mt-3 grid gap-2">
         {visibleItems.map((item) => (
           <li
             className={cn(
-              "rounded-xl px-3 py-2 text-[13px] leading-6 text-[#5F625E]",
+              "rounded-[12px] px-3 py-2 text-[13px] leading-6 text-[#5F625E]",
               tone === "warning" ? "bg-[#F0DDD0]" : "bg-[#F1F2EE]",
             )}
             key={item}
@@ -465,7 +465,7 @@ function CompactSignalCard({
 
 function ReadinessStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-white px-3 py-2">
+    <div className="rounded-[12px] bg-white px-3 py-2">
       <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{label}</p>
       <p className="mt-1 font-mono text-[14px] font-semibold text-[#171719]">{value}</p>
     </div>
@@ -487,14 +487,14 @@ function DocumentSection({
     tone === "success" ? "text-[#0F8F62]" : tone === "warning" ? "text-[#A86642]" : "text-[#003C33]";
 
   return (
-    <section className="min-w-0 rounded-2xl border border-[#F1F2EE] bg-white p-4">
+    <section className="min-w-0 rounded-[12px] border border-[#E7E7E7] bg-white p-4">
       <div className="flex items-center gap-2">
         <Icon className={`h-3.5 w-3.5 ${iconColor}`} aria-hidden="true" />
         <p className="bb-mono-label">{title}</p>
       </div>
       <ul className="mt-3 grid gap-2">
         {items.slice(0, 4).map((item) => (
-          <li className="rounded-xl bg-[#F1F2EE] px-3 py-2 text-[13px] leading-6 text-[#5F625E]" key={item}>
+          <li className="rounded-[12px] bg-[#F1F2EE] px-3 py-2 text-[13px] leading-6 text-[#5F625E]" key={item}>
             {item}
           </li>
         ))}

@@ -13,7 +13,7 @@ export default async function DealRoomsPage() {
   const includeDemo = await isDemoModeEnabled();
 
   return (
-    <AppShell active="Deal Rooms">
+    <AppShell active="Deal Rooms" pageTitle="Deal rooms">
       <DealRoomsWorkspace key={segment} includeDemo={includeDemo} segment={segment} />
     </AppShell>
   );

@@ -13,7 +13,7 @@ export default async function ReportsPage() {
   const includeDemo = await isDemoModeEnabled();
 
   return (
-    <AppShell active="Reports">
+    <AppShell active="Reports" pageTitle="Reports">
       <ReportsWorkspace key={segment} includeDemo={includeDemo} segment={segment} />
     </AppShell>
   );

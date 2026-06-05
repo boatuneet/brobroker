@@ -106,10 +106,8 @@ export function VerificationWorkspace({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <PageHeader
-        title="Buyer access review"
-        description="Check risk signals and keep broker approval in control before sensitive sharing."
         metrics={[
           { label: "Verified", value: `${counts.Verified}` },
           { label: "Needs review", value: `${counts["Needs Review"]}` },
@@ -128,7 +126,7 @@ export function VerificationWorkspace({
               </CardHeaderIcon>
             }
           />
-          <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+          <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
             {inbox.map((item) => {
               const tone = getVerificationTone(item.caseFile.status);
               const active = selected.caseFile.id === item.caseFile.id;
@@ -136,8 +134,8 @@ export function VerificationWorkspace({
                 <li key={item.caseFile.id}>
                   <button
                     className={cn(
-                      "block w-full px-6 py-5 text-left transition-colors hover:bg-[#F6F6F3]",
-                      active && "bg-[#F6F6F3]",
+                      "block w-full px-6 py-5 text-left transition-colors hover:bg-[#FBFBFB]",
+                      active && "bg-[#FBFBFB]",
                     )}
                     onClick={() => setSelectedCaseId(item.caseFile.id)}
                     type="button"
@@ -207,7 +205,7 @@ export function VerificationWorkspace({
                   {formatDate(selected.caseFile.updatedAt)}.
                 </p>
               </div>
-              <div className="rounded-2xl bg-[#F6F6F3] p-5 text-right lg:text-left">
+              <div className="rounded-[12px] bg-[#FBFBFB] p-5 text-right lg:text-left">
                 <p className="bb-mono-label">Risk score</p>
                 <p className="bb-display mt-2 text-3xl font-medium text-[#171719]">
                   {selected.caseFile.score}
@@ -219,7 +217,7 @@ export function VerificationWorkspace({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 border-t border-[#E7E7E2] px-6 py-5">
+            <div className="flex flex-wrap items-center gap-3 border-t border-[#E7E7E7] px-6 py-5">
               <Button
                 disabled={selected.caseFile.status !== "Verified"}
                 onClick={() =>
@@ -271,7 +269,7 @@ export function VerificationWorkspace({
                   </CardHeaderIcon>
                 }
               />
-              <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
                 {selected.caseFile.signals.map((signal) => (
                   <li key={signal.label} className="grid gap-3 px-6 py-4">
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
@@ -296,7 +294,7 @@ export function VerificationWorkspace({
                   </CardHeaderIcon>
                 }
               />
-              <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
                 {selected.accessGates.map((gate) => (
                   <li key={gate.label} className="grid gap-3 px-6 py-4">
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
@@ -339,10 +337,10 @@ export function VerificationWorkspace({
                 </CardHeaderIcon>
               }
             />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
               {auditTrail.map((event) => (
                 <li key={event.id} className="grid gap-3 px-6 py-5 sm:grid-cols-[28px_1fr]">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#171719]">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#171719]">
                     {event.actor === "Broker" ? (
                       <UserCheck className="h-3.5 w-3.5" aria-hidden="true" />
                     ) : (

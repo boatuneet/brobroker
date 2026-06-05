@@ -5,13 +5,9 @@ import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
-  ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   Bot,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   FileText,
   Gauge,
@@ -19,12 +15,10 @@ import {
   MapPin,
   MessageSquareText,
   Pencil,
-  PlusCircle,
   Radio,
   Search,
   ShieldCheck,
   Sparkles,
-  UploadCloud,
   X,
 } from "lucide-react";
 import { yachtListings } from "@/lib/demo-data";
@@ -55,7 +49,6 @@ import {
   CardHeader,
   CardHeaderIcon,
   EmptyState,
-  PageHeader,
   ProgressBar,
   StatusDot,
 } from "./ui";
@@ -63,6 +56,7 @@ import { ObjectionRecorder, type BuyerOption, type RecordedObjection } from "./o
 import { AssetMedia } from "./asset-media";
 import { ListingBrainTabs } from "./listing-brain-tabs";
 import { ListingMediaGallery } from "./listing-media-gallery";
+import { ListingsTable, toListingRows } from "./listings-table";
 
 function vatTone(status: YachtListing["vatStatus"]): "success" | "error" | "warning" | "info" {
   if (status === "EU VAT Paid") return "success";
@@ -113,7 +107,7 @@ function filterListings(listings: YachtListing[], query: string) {
   );
 }
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 10;
 const STATUS_OPTIONS: ListingStatus[] = [
   "Draft",
   "Active",
@@ -121,6 +115,10 @@ const STATUS_OPTIONS: ListingStatus[] = [
   "Under Offer",
   "Coming Soon",
 ];
+/* Quick filters that are always shown, even at a count of 0, so brokers can
+   jump to Drafts (or Pre-Market) before any exist. Other statuses appear only
+   when present in the data. */
+const PRIMARY_STATUSES: ListingStatus[] = ["Active", "Pre-Market", "Draft"];
 
 function isListingStatus(value: string): value is ListingStatus {
   return (STATUS_OPTIONS as string[]).includes(value);
@@ -181,11 +179,15 @@ export function ListingIndex({
     return map;
   }, [queryFilteredListings]);
 
-  // Only show chips for statuses that actually exist in the dataset.
+  // Primary statuses (Active, Pre-Market, Draft) are always shown; the rest
+  // only appear when present in the data.
   const availableStatuses = useMemo(() => {
     const present = new Set<ListingStatus>();
     for (const listing of segmentListings) present.add(listing.status);
-    return STATUS_OPTIONS.filter((status) => present.has(status));
+    const extras = STATUS_OPTIONS.filter(
+      (status) => !PRIMARY_STATUSES.includes(status) && present.has(status),
+    );
+    return [...PRIMARY_STATUSES, ...extras];
   }, [segmentListings]);
 
   const filteredListings = useMemo(
@@ -194,6 +196,12 @@ export function ListingIndex({
         ? queryFilteredListings
         : queryFilteredListings.filter((listing) => listing.status === statusFilter),
     [queryFilteredListings, statusFilter],
+  );
+
+  // Computed before the early return so all hooks run in a stable order.
+  const listingRows = useMemo(
+    () => toListingRows(filteredListings, openTaskCounts),
+    [filteredListings, openTaskCounts],
   );
 
   if (segmentListings.length === 0 && !initialQuery) {
@@ -207,8 +215,6 @@ export function ListingIndex({
     // Inline correction — cheaper than useEffect for derived state.
     setPage(safePage);
   }
-  const pageStart = (safePage - 1) * PAGE_SIZE;
-  const pageListings = filteredListings.slice(pageStart, pageStart + PAGE_SIZE);
 
   // KPI band — only fields we genuinely have on YachtListing.
   const activeCount = filteredListings.filter((listing) => listing.status === "Active").length;
@@ -236,34 +242,11 @@ export function ListingIndex({
   const hasFilters = searching || statusFilter !== "All";
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <PageHeader
-        title="Listing intelligence"
-        description="Search inventory by fit, owner, location, documents, and missing facts."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]"
-              href="/listings/import"
-            >
-              <UploadCloud className="h-4 w-4" aria-hidden="true" />
-              Bulk import
-            </Link>
-            <Link
-              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
-              href="/listings/new"
-            >
-              <PlusCircle className="h-4 w-4" aria-hidden="true" />
-              New listing
-            </Link>
-          </div>
-        }
-      />
-
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* KPI band — editorial cockpit. One cream tile, three paper tiles. */}
       <section
         aria-label="Inventory summary"
-        className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
       >
         <KpiTile
           tone="cream"
@@ -295,144 +278,84 @@ export function ListingIndex({
         />
       </section>
 
-      {/* Search + status chips — same dynamic-count pattern as Knowledge Vault. */}
-      <section
-        aria-label="Filter listings"
-        className="mt-8 rounded-[24px] border border-[#E7E7E2] bg-white p-4 sm:p-5"
-      >
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-          <label className="relative block">
-            <span className="sr-only">Search listings</span>
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
+      {/* Inventory — search + quick filters now live inside the card, since
+          they're inseparable from the list they act on. */}
+      <section aria-label="Listings" className="mt-8">
+        <ListingsTable
+          emptyState={
+            <EmptyState
+              title={searching ? `No listings match “${query}”` : "No listings in this status"}
+              description="Try a different keyword, clear the status filter, or open a new listing brain."
+              action={
+                hasFilters ? (
+                  <button
+                    className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
+                    onClick={clearFilters}
+                    type="button"
+                  >
+                    Clear filters
+                  </button>
+                ) : undefined
+              }
             />
-            <input
-              className="h-10 w-full rounded-full border border-[#E7E7E2] bg-white pl-10 pr-9 text-[13px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
-              onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Search make, model, location, missing info…"
-              type="search"
-              value={query}
-            />
-            {searching ? (
-              <button
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#8E918B] hover:bg-[#f4fbf5] hover:text-[#171719]"
-                onClick={() => onQueryChange("")}
-                type="button"
-              >
-                <X aria-hidden="true" className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            <StatusChip
-              active={statusFilter === "All"}
-              count={searching ? queryFilteredListings.length : segmentListings.length}
-              label="All"
-              onClick={() => onStatusChange("All")}
-            />
-            {availableStatuses.map((status) => {
-              const count = searching
-                ? (dynamicStatusCounts.get(status) ?? 0)
-                : segmentListings.filter((l) => l.status === status).length;
-              return (
-                <StatusChip
-                  active={statusFilter === status}
-                  count={count}
-                  key={status}
-                  label={status}
-                  onClick={() => onStatusChange(status)}
+          }
+          filters={
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+              <label className="relative block">
+                <span className="sr-only">Search listings</span>
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
                 />
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {filteredListings.length === 0 ? (
-        <Card className="mt-10">
-          <EmptyState
-            title={searching ? `No listings match “${query}”` : "No listings in this status"}
-            description="Try a different keyword, clear the status filter, or open a new listing brain."
-            action={
-              hasFilters ? (
-                <button
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
-                  onClick={clearFilters}
-                  type="button"
-                >
-                  Clear filters
-                </button>
-              ) : undefined
-            }
-          />
-        </Card>
-      ) : (
-        <>
-          <section
-            aria-label="Listings"
-            className="mt-8 overflow-hidden rounded-[24px] border border-[#E7E7E2] bg-white"
-          >
-            <div className="hidden grid-cols-[minmax(280px,1.4fr)_minmax(180px,1fr)_180px_140px] border-b border-[#E7E7E2] bg-[#F1F2EE] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B] lg:grid">
-              <span>Asset</span>
-              <span>Location · specs</span>
-              <span>Status · readiness</span>
-              <span className="text-right">Price</span>
-            </div>
-            {pageListings.map((listing) => (
-              <ListingListRow
-                key={listing.id}
-                listing={listing}
-                openTasks={openTaskCounts.get(listing.id) ?? 0}
-              />
-            ))}
-          </section>
-
-          {pageCount > 1 ? (
-            <nav
-              aria-label="Listings pagination"
-              className="mt-6 flex items-center justify-between gap-3"
-            >
-              <p className="text-[12px] text-[#8E918B]">
-                Showing{" "}
-                <span className="font-mono font-semibold tabular-nums text-[#171719]">
-                  {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredListings.length)}
-                </span>{" "}
-                of{" "}
-                <span className="font-mono font-semibold tabular-nums text-[#171719]">
-                  {filteredListings.length}
-                </span>
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  aria-label="Previous page"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#E7E7E2] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#E7E7E2]"
-                  disabled={safePage === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  type="button"
-                >
-                  <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
-                  Prev
-                </button>
-                <span className="inline-flex h-9 items-center rounded-full border border-[#E7E7E2] bg-[#F1F2EE] px-3 font-mono text-[12.5px] font-semibold tabular-nums text-[#171719]">
-                  {safePage} / {pageCount}
-                </span>
-                <button
-                  aria-label="Next page"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#E7E7E2] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#E7E7E2]"
-                  disabled={safePage === pageCount}
-                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                  type="button"
-                >
-                  Next
-                  <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
-                </button>
+                <input
+                  className="h-10 w-full rounded-[10px] border border-[#E7E7E7] bg-white pl-10 pr-9 text-[13px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+                  onChange={(event) => onQueryChange(event.target.value)}
+                  placeholder="Search make, model, location, missing info…"
+                  type="search"
+                  value={query}
+                />
+                {searching ? (
+                  <button
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#8E918B] hover:bg-[#F1F2EE] hover:text-[#171719]"
+                    onClick={() => onQueryChange("")}
+                    type="button"
+                  >
+                    <X aria-hidden="true" className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                <StatusChip
+                  active={statusFilter === "All"}
+                  count={searching ? queryFilteredListings.length : segmentListings.length}
+                  label="All"
+                  onClick={() => onStatusChange("All")}
+                />
+                {availableStatuses.map((status) => {
+                  const count = searching
+                    ? (dynamicStatusCounts.get(status) ?? 0)
+                    : segmentListings.filter((l) => l.status === status).length;
+                  return (
+                    <StatusChip
+                      active={statusFilter === status}
+                      count={count}
+                      key={status}
+                      label={status}
+                      onClick={() => onStatusChange(status)}
+                    />
+                  );
+                })}
               </div>
-            </nav>
-          ) : null}
-        </>
-      )}
+            </div>
+          }
+          listings={listingRows}
+          onPageChange={setPage}
+          page={safePage}
+          pageCount={pageCount}
+          pageSize={PAGE_SIZE}
+        />
+      </section>
     </div>
   );
 }
@@ -451,10 +374,10 @@ function KpiTile({
   return (
     <div
       className={cn(
-        "rounded-[24px] border p-5",
+        "rounded-[12px] border p-5",
         tone === "cream"
           ? "border-transparent bg-[#F2EADC] text-[#171719]"
-          : "border-[#E7E7E2] bg-white text-[#171719]",
+          : "border-[#E7E7E7] bg-white text-[#171719]",
       )}
     >
       <p className="bb-mono-label">{label}</p>
@@ -480,12 +403,12 @@ function StatusChip({
     <button
       aria-pressed={active}
       className={cn(
-        "inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
+        "inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border px-2.5 text-[11.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1863dc]",
         active
           ? "border-[#171719] bg-[#171719] text-white"
           : isEmpty
-            ? "cursor-not-allowed border-[#E7E7E2] bg-white text-[#A9ABA5] opacity-50"
-            : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
+            ? "cursor-not-allowed border-[#E7E7E7] bg-white text-[#A9ABA5] opacity-50"
+            : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]",
       )}
       disabled={isEmpty}
       onClick={onClick}
@@ -508,22 +431,8 @@ function StatusChip({
    explainer card showing what the brain will surface once inventory lands. */
 function FirstRunListings() {
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <PageHeader
-        title="Add your first asset"
-        description="Capture specs, documents, comps, buyer fits, and pitch lines in one listing brain."
-        actions={
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
-            href="/voice-crm"
-          >
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-            Capture by voice
-          </Link>
-        }
-      />
-
-      <section aria-labelledby="listings-quick-start" className="mt-12">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+      <section aria-labelledby="listings-quick-start">
         <div className="flex items-baseline justify-between gap-4">
           <div>
             <p className="bb-mono-label">Quick start</p>
@@ -568,7 +477,7 @@ function FirstRunListings() {
         <CardHeader
           title="The brain you'll have on every asset"
         />
-        <ul className="divide-y divide-[#E7E7E2]">
+        <ul className="divide-y divide-[#E7E7E7]">
           <ExplainerRow
             icon={FileText}
             title="Approved documents and missing facts"
@@ -610,7 +519,7 @@ function ListingsActionCard({
 }) {
   return (
     <Link
-      className="group flex h-full flex-col justify-between gap-5 rounded-2xl border border-[#E7E7E2] bg-white p-6 transition-colors hover:border-[#003C33]"
+      className="group flex h-full flex-col justify-between gap-5 rounded-[12px] border border-[#E7E7E7] bg-white p-6 transition-colors hover:border-[#003C33]"
       href={href}
     >
       <div>
@@ -645,7 +554,7 @@ function ExplainerRow({
 }) {
   return (
     <li className="grid gap-4 px-6 py-5 sm:grid-cols-[36px_1fr]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#003C33]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#003C33]">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0">
@@ -653,121 +562,6 @@ function ExplainerRow({
         <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{description}</p>
       </div>
     </li>
-  );
-}
-
-function getListingInitials(listing: YachtListing) {
-  const source = listing.name?.trim() || `${listing.builder} ${listing.model}`.trim();
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "—";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-function ListingListRow({
-  listing,
-  openTasks,
-}: {
-  listing: YachtListing;
-  openTasks: number;
-}) {
-  const completeness = getDocumentCompleteness(listing);
-  const primaryPhoto = listing.photos?.[0];
-  const missingCount = listing.missingInfo.length;
-  const locationLabel = listing.locationLabel ?? listing.location;
-
-  return (
-    <Link
-      className="group grid gap-4 border-b border-[#E7E7E2] px-5 py-4 transition-colors last:border-b-0 hover:bg-[#f4fbf5] focus-visible:bg-[#f4fbf5] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1863dc] lg:grid-cols-[minmax(280px,1.4fr)_minmax(180px,1fr)_180px_140px] lg:items-center"
-      href={`/listings/${listing.id}`}
-    >
-      {/* Asset cell: thumbnail or initials chip + name/builder. */}
-      <div className="min-w-0">
-        <div className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-3.5">
-          {primaryPhoto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt={primaryPhoto.alt}
-              className="h-14 w-14 shrink-0 rounded-[14px] object-cover"
-              loading="lazy"
-              src={primaryPhoto.src}
-            />
-          ) : (
-            <span
-              aria-hidden="true"
-              className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#003C33] font-mono text-[13px] font-semibold tracking-[0.04em] text-[#F2EADC]"
-            >
-              {getListingInitials(listing)}
-            </span>
-          )}
-          <div className="min-w-0">
-            <h2
-              className="truncate text-[14.5px] font-semibold leading-[1.3] text-[#171719] group-hover:text-[#003C33]"
-              title={listing.name}
-            >
-              {listing.name}
-            </h2>
-            <p
-              className="mt-1 truncate text-[12.5px] leading-[1.4] text-[#8E918B]"
-              title={`${listing.builder} ${listing.model}`}
-            >
-              {listing.builder} {listing.model}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Location · specs */}
-      <div className="min-w-0">
-        <p
-          className="truncate text-[12.5px] font-medium leading-[1.4] text-[#5F625E]"
-          title={locationLabel}
-        >
-          {locationLabel}
-        </p>
-        <p
-          className="mt-1 truncate text-[12px] leading-[1.4] text-[#8E918B]"
-          title={getListingSpecSummary(listing)}
-        >
-          {getListingSpecSummary(listing)}
-        </p>
-      </div>
-
-      {/* Status + readiness */}
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge tone={statusTone(listing.status)}>
-            <span className="truncate">{listing.status}</span>
-          </Badge>
-          {missingCount > 0 ? (
-            <Badge tone="coral">
-              <AlertTriangle aria-hidden="true" className="h-3 w-3" />
-              {missingCount} gap{missingCount === 1 ? "" : "s"}
-            </Badge>
-          ) : null}
-          {openTasks > 0 ? (
-            <Badge tone="warning">{openTasks} task{openTasks === 1 ? "" : "s"}</Badge>
-          ) : null}
-        </div>
-        <div className="mt-2 flex items-center gap-2.5">
-          <ProgressBar className="h-1 w-full" value={completeness.percent} />
-          <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-[#5F625E]">
-            {completeness.percent}%
-          </span>
-        </div>
-      </div>
-
-      {/* Price + arrow */}
-      <div className="flex items-center justify-between gap-3 lg:justify-end">
-        <p className="font-mono text-[14px] font-semibold tabular-nums text-[#171719]">
-          {formatCurrency(listing.priceEur)}
-        </p>
-        <ArrowUpRight
-          aria-hidden="true"
-          className="h-3.5 w-3.5 shrink-0 text-[#A9ABA5] transition-all group-hover:translate-x-0.5 group-hover:text-[#003C33]"
-        />
-      </div>
-    </Link>
   );
 }
 
@@ -786,10 +580,10 @@ function ListingDetailHero({
   const specSummary = getListingSpecSummary(listing);
 
   return (
-    <section className="mt-8 overflow-hidden rounded-2xl border border-[#E7E7E2] bg-white shadow-[0_18px_55px_rgba(23,23,28,0.04)]">
+    <section className="mt-8 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white">
       <div className="relative min-w-0 p-6 pb-0 sm:p-8 sm:pb-0">
         <Link
-          className="absolute right-5 top-5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-[#003C33] px-3.5 text-[13px] font-medium text-white shadow-[0_10px_24px_rgba(23,23,28,0.14)] hover:bg-[#0B4A3F] sm:right-6 sm:top-6"
+          className="absolute right-5 top-5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] bg-[#003C33] px-3.5 text-[13px] font-medium text-white hover:bg-[#0B4A3F] sm:right-6 sm:top-6"
           href={`/listings/${listing.id}/edit`}
         >
           <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -798,7 +592,7 @@ function ListingDetailHero({
 
         <div className="max-w-[calc(100%-5.5rem)] sm:max-w-[calc(100%-6.5rem)]">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex min-h-7 items-center rounded-full border border-[#E7E7E2] bg-[#F1F2EE] px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
+            <span className="inline-flex min-h-7 items-center rounded-[8px] border border-[#E7E7E7] bg-[#F1F2EE] px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
               {assetType}
             </span>
             <span className="text-[12px] font-medium text-[#8E918B]">
@@ -820,7 +614,7 @@ function ListingDetailHero({
           <span className="text-[13px] leading-6 text-[#5F625E]">{listing.idealBuyer}</span>
           {sellerHref ? (
             <Link
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[#D9DAD4] bg-white px-3 text-[12px] font-medium text-[#171719] hover:border-[#003C33]"
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[12px] font-medium text-[#171719] hover:border-[#003C33]"
               href={sellerHref}
             >
               Owner context
@@ -830,7 +624,7 @@ function ListingDetailHero({
         </div>
       </div>
 
-      <div className="grid border-t border-[#E7E7E2] bg-[#F1F2EE] sm:grid-cols-3">
+      <div className="grid border-t border-[#E7E7E7] bg-[#F1F2EE] sm:grid-cols-3">
         <HeroMetric label="Ask" value={formatCurrency(listing.priceEur)} />
         <HeroMetric label="Documents" value={percentage(documentPercent)} />
         <HeroMetric label="Top fit" value={percentage(topFitPercent)} />
@@ -841,7 +635,7 @@ function ListingDetailHero({
 
 function HeroMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-b border-[#E7E7E2] px-5 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+    <div className="border-b border-[#E7E7E7] px-5 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B]">{label}</p>
       <p className="mt-1 font-mono text-[17px] font-semibold text-[#171719]">{value}</p>
     </div>
@@ -870,7 +664,7 @@ export function ListingCard({
   ).length;
 
   return (
-    <Card className="overflow-hidden p-0 shadow-[0_12px_35px_rgba(23,23,28,0.04)]">
+    <Card className="overflow-hidden p-0">
       <div className="relative">
         <AssetMedia
           className="min-h-56 !rounded-none border-0"
@@ -878,7 +672,7 @@ export function ListingCard({
           listing={listing}
           showChrome={false}
         />
-        <span className="absolute left-5 top-5 inline-flex h-10 min-w-10 items-center justify-center rounded-full bg-white/85 px-2 font-mono text-lg font-semibold text-[#171719] shadow-[0_6px_18px_rgba(23,23,28,0.12)] backdrop-blur">
+        <span className="absolute left-5 top-5 inline-flex h-10 min-w-10 items-center justify-center rounded-[8px] bg-white/85 px-2 font-mono text-lg font-semibold text-[#171719] backdrop-blur">
           {String(index + 1).padStart(2, "0")}
         </span>
         <div className="absolute right-5 top-5 flex flex-wrap justify-end gap-2">
@@ -912,7 +706,7 @@ export function ListingCard({
           ))}
         </div>
 
-        <div className="mt-5 divide-y divide-[#E7E7E2] border-y border-[#E7E7E2]">
+        <div className="mt-5 divide-y divide-[#E7E7E7] border-y border-[#E7E7E7]">
           <ListingCardRow
             icon={Gauge}
             label="Owner"
@@ -955,7 +749,7 @@ export function ListingCard({
         </div>
 
         <Link
-          className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F] sm:w-auto"
+          className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F] sm:w-auto"
           href={`/listings/${listing.id}`}
         >
           Open listing brain
@@ -1001,9 +795,9 @@ function ListingMiniStat({
   value: string;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-[#F1F2EE] bg-[#F1F2EE] p-3">
+    <div className="min-w-0 rounded-[12px] border border-[#E7E7E7] bg-[#F1F2EE] p-3">
       <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#5F625E] shadow-[0_1px_8px_rgba(23,23,28,0.05)]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#5F625E]">
           <Icon className="h-4 w-4" aria-hidden="true" />
         </span>
         <div className="min-w-0">
@@ -1073,13 +867,7 @@ export function ListingBrain({
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
-        href="/listings"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Back to listings
-      </Link>
+      {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       <ListingDetailHero
         documentPercent={documentCompleteness.percent}
@@ -1090,7 +878,7 @@ export function ListingBrain({
 
       <div className="mt-12 grid gap-8">
         <Card>
-          <div className="grid items-stretch gap-5 border-b border-[#E7E7E2] px-6 py-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+          <div className="grid items-stretch gap-5 border-b border-[#E7E7E7] px-6 py-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
             <ListingMediaGallery listing={listing} />
             <ListingLocationMap listing={listing} />
           </div>
@@ -1108,12 +896,12 @@ export function ListingBrain({
           <div className="grid content-start gap-8">
             <Card>
               <CardHeader eyebrow="Source-aware answers" title="Broker question examples" />
-              <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
                 {questions.map((question) => {
                   const response = answerListingQuestion(listing, question);
                   return (
                     <li key={question} className="grid gap-3 px-6 py-5 sm:grid-cols-[28px_1fr]">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#171719]">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#171719]">
                         <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
@@ -1169,7 +957,7 @@ export function ListingBrain({
                 </CardHeaderIcon>
               }
             />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
               <PitchRow label="30-second pitch" value={pitch.thirtySecond} />
               <PitchRow label="Buyer-safe angle" value={pitch.buyerSafe} />
               <PitchRow label="Internal shorthand" value={pitch.short} />
@@ -1185,7 +973,7 @@ export function ListingBrain({
                 </CardHeaderIcon>
               }
             />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
               {comparison.points.map((point) => (
                 <li key={point} className="px-6 py-3.5 text-sm leading-6 text-[#5F625E]">
                   {point}
@@ -1196,7 +984,7 @@ export function ListingBrain({
 
           <Card>
             <CardHeader eyebrow="Buyer fit" title="Top buyers for this listing" />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
               {fitSignals.topMatches.map(({ buyer, match }) => (
                 <li key={match.id} className="px-6 py-5">
                   <div className="flex items-center justify-between gap-3">
@@ -1226,7 +1014,7 @@ export function ListingBrain({
                 </CardHeaderIcon>
               }
             />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
               {objectionItems.length ? (
                 objectionItems.map((objection) => (
                   <li
@@ -1265,7 +1053,7 @@ function ListingLocationMap({ listing }: { listing: YachtListing }) {
     : undefined;
 
   return (
-    <div className="h-full min-h-48 overflow-hidden rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE]">
+    <div className="h-full min-h-48 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-[#F1F2EE]">
       <div className="relative h-full min-h-48">
         {embedUrl ? (
           <iframe

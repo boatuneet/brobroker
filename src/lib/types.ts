@@ -140,7 +140,30 @@ export interface BuyerProfile {
   nextActionDueAt: string;
   verificationCaseId: string;
   tags: string[];
+  /* Where the lead came from. Optional so existing rows / demo data don't
+     need to be backfilled. The Deal-source donut groups undefined values
+     into "Other / unknown". */
+  source?: BuyerSource;
 }
+
+export type BuyerSource =
+  | "referral"
+  | "website"
+  | "voice_note"
+  | "marketplace"
+  | "email"
+  | "social"
+  | "other";
+
+export const BUYER_SOURCES: ReadonlyArray<{ value: BuyerSource; label: string }> = [
+  { value: "referral", label: "Referral" },
+  { value: "website", label: "Website" },
+  { value: "voice_note", label: "Voice note" },
+  { value: "marketplace", label: "Marketplace" },
+  { value: "email", label: "Email" },
+  { value: "social", label: "Social" },
+  { value: "other", label: "Other" },
+];
 
 export interface SellerProfile {
   id: string;

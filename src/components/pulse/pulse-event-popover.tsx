@@ -70,8 +70,8 @@ export function PulseEventPopover({
       aria-label={`Actions for ${event.label}`}
       style={{ left, top, transform, width: popoverWidth }}
     >
-      <div className="overflow-hidden rounded-2xl border border-[#e3e3e8] bg-white shadow-[0_18px_45px_rgba(23,23,28,0.18)]">
-        <div className="border-b border-[#E7E7E2] px-3.5 py-3">
+      <div className="overflow-hidden rounded-[12px] border border-[#e3e3e8] bg-white">
+        <div className="border-b border-[#E7E7E7] px-3.5 py-3">
           <p className="bb-mono-label text-[#8E918B]">{kindLabel(event.kind)}</p>
           <p className="mt-1 truncate text-[13px] font-semibold text-[#171719]" title={event.label}>
             {event.label}
@@ -113,7 +113,7 @@ export function PulseEventPopover({
           />
           {isDraft ? (
             <Link
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE]"
+              className="flex items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE]"
               href={`/buyers/${buyerId}#drafts`}
               onClick={onClose}
             >
@@ -151,7 +151,7 @@ function ActionItem({
   return (
     <button
       className={
-        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors " +
+        "flex items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13px] font-medium transition-colors " +
         (tone === "danger"
           ? "text-[#A86642] hover:bg-[#F0DDD0]"
           : "text-[#171719] hover:bg-[#F1F2EE]")

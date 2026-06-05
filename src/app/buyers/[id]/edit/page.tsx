@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { BuyerIntakeFlow } from "@/components/buyer-intake/buyer-intake-flow";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { getBuyerMemoryProfile } from "@/lib/services";
 import { getStoredBuyerById } from "@/lib/supabase/buyers";
@@ -53,7 +54,18 @@ export default async function EditBuyerPage({
   const editingSegment = buyer.assetTypes?.[0] ?? segment;
 
   return (
-    <AppShell active="Buyers">
+    <AppShell
+      active="Buyers"
+      breadcrumb={
+        <PageBreadcrumb
+          items={[
+            { label: "Buyers", href: "/buyers" },
+            { label: buyer.name, href: `/buyers/${id}` },
+            { label: "Edit" },
+          ]}
+        />
+      }
+    >
       <BuyerIntakeFlow editingBuyer={buyer} initialSegment={editingSegment} />
     </AppShell>
   );

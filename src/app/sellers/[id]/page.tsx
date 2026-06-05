@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { SellerMemoryProfile } from "@/components/client-memory";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getSellerMemoryProfile } from "@/lib/services";
@@ -47,12 +48,23 @@ export default async function SellerMemoryPage({
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
 
-  if (!includeDemo || !getSellerMemoryProfile(id, segment)) {
+  const sellerProfile = includeDemo ? getSellerMemoryProfile(id, segment) : undefined;
+  if (!sellerProfile) {
     notFound();
   }
 
   return (
-    <AppShell active="Listings">
+    <AppShell
+      active="Listings"
+      breadcrumb={
+        <PageBreadcrumb
+          items={[
+            { label: "Listings", href: "/listings" },
+            { label: sellerProfile.seller.name },
+          ]}
+        />
+      }
+    >
       <SellerMemoryProfile sellerId={id} segment={segment} />
     </AppShell>
   );

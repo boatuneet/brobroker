@@ -19,7 +19,7 @@ export default async function SearchPage({
   const includeDemo = await isDemoModeEnabled();
 
   return (
-    <AppShell active="Dashboard">
+    <AppShell active="Dashboard" pageTitle="Search">
       <GlobalSearch includeDemo={includeDemo} query={query} segment={segment} />
     </AppShell>
   );

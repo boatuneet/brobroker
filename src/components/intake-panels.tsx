@@ -11,7 +11,7 @@ import {
   type SessionBuyer,
 } from "@/lib/browser-persistence";
 import { formatCurrency } from "@/lib/utils";
-import { Badge, Button, Card, CardHeader, CardHeaderIcon, TextInput } from "./ui";
+import { Badge, Button, Card, CardHeader, TextInput } from "./ui";
 import { SelectMenu } from "./select-menu";
 
 // Session buyer store — SSR + first client render must agree, so we emit a
@@ -101,7 +101,7 @@ export function AssetIntakePanel() {
       />
 
       {isOpen ? (
-        <div className="grid gap-4 border-b border-[#E7E7E2] px-6 py-5 lg:grid-cols-3">
+        <div className="grid gap-4 border-b border-[#E7E7E7] px-6 py-5 lg:grid-cols-3">
           <SelectMenu
             label="Asset type"
             onChange={(nextValue) => setAssetType(nextValue as SessionAsset["assetType"])}
@@ -127,7 +127,7 @@ export function AssetIntakePanel() {
       ) : null}
 
       {assets.length ? (
-        <ul className="divide-y divide-[#E7E7E2]">
+        <ul className="divide-y divide-[#E7E7E7]">
           {assets.slice(0, 4).map((asset) => (
             <li key={asset.id} className="grid gap-3 px-6 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div className="min-w-0">
@@ -199,91 +199,170 @@ export function SessionBuyerQueue() {
   }
 
   return (
-    <Card className="mt-8">
-      <CardHeader
-        eyebrow="Captured memory"
-        title="Local CRM captures"
-        description="Drafts created from Voice CRM or matching before they become full buyer profiles."
-        action={
-          <CardHeaderIcon>
-            <Clock3 className="h-4 w-4" aria-hidden="true" />
-          </CardHeaderIcon>
-        }
-      />
-      <ul className="divide-y divide-[#E7E7E2]">
-        {buyers.slice(0, 6).map((buyer) => {
-          const isEditing = editingId === buyer.id && draft;
-
-          return (
-            <li key={buyer.id} className="px-6 py-4">
-              {isEditing ? (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <TextInput
-                    label="Buyer name"
-                    onChange={(event) => updateDraft("name", event.target.value)}
-                    value={draft.name}
-                  />
-                  <TextInput
-                    label="Budget memory"
-                    onChange={(event) => updateDraft("budgetLabel", event.target.value)}
-                    value={draft.budgetLabel ?? ""}
-                  />
-                  <SelectMenu
-                    label="Urgency"
-                    onChange={(value) => updateDraft("urgency", value)}
-                    options={[
-                      { label: "High", value: "High" },
-                      { label: "Medium", value: "Medium" },
-                      { label: "Low", value: "Low" },
-                    ]}
-                    value={draft.urgency ?? "Medium"}
-                  />
-                  <TextInput
-                    label="Summary"
-                    onChange={(event) => updateDraft("summary", event.target.value)}
-                    value={draft.summary}
-                  />
-                  <div className="flex flex-wrap gap-2 lg:col-span-2">
-                    <Button onClick={saveDraft} size="sm" type="button">
-                      <Save className="h-4 w-4" aria-hidden="true" />
-                      Save changes
-                    </Button>
-                    <Button onClick={cancelEdit} size="sm" type="button" variant="secondary">
-                      <X className="h-4 w-4" aria-hidden="true" />
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[14px] font-medium text-[#171719]">{buyer.name}</p>
-                      <Badge tone="success">Saved memory</Badge>
-                      <Badge tone="neutral">{buyer.source}</Badge>
-                    </div>
-                    <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">{buyer.summary}</p>
-                    <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
-                      {[buyer.budgetLabel, buyer.urgency].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => beginEdit(buyer)} size="sm" type="button" variant="secondary">
-                      <Pencil className="h-4 w-4" aria-hidden="true" />
-                      Edit
-                    </Button>
-                    <Button onClick={() => removeBuyer(buyer.id)} size="sm" type="button" variant="danger">
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </li>
-          );
-        })}
+    <article className="mt-8 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white text-[#171719] shadow-[0_14px_38px_rgba(23,31,25,0.05)]">
+      {/* Header — icon + eyebrow + title on the left, descriptor on the right. */}
+      <div className="flex flex-col gap-4 border-b border-[#E7E7E7] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-[8px] bg-[#F1F2EE] text-[#003C33]">
+            <Clock3 className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#8E918B]">
+              Captured memory
+            </p>
+            <h3 className="bb-display mt-1 truncate text-[24px] font-semibold tracking-[-0.03em] text-[#171719]">
+              Local CRM captures
+            </h3>
+          </div>
+        </div>
+        <p className="max-w-xl text-[13px] leading-6 text-[#5F625E] lg:text-right">
+          Drafts created from Voice CRM or matching before they become full buyer profiles.
+        </p>
+      </div>
+      <ul className="divide-y divide-[#E7E7E7]">
+        {buyers.slice(0, 6).map((buyer) => (
+          <li key={buyer.id} className="px-5 py-4">
+            {/* Title + badges on the left; compact icon actions pinned top-right. */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-[17px] font-semibold tracking-[-0.02em] text-[#171719]">
+                  {buyer.name}
+                </h4>
+                <span className="inline-flex items-center rounded-[8px] bg-[#E1F1EA] px-2.5 py-1 text-[12px] font-semibold text-[#0F8F62]">
+                  Saved memory
+                </span>
+                <span className="inline-flex items-center rounded-[8px] border border-[#E7E7E7] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#5F625E]">
+                  {buyer.source}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  aria-label={`Edit ${buyer.name}`}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-[8px] border border-[#E7E7E7] bg-white text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+                  onClick={() => beginEdit(buyer)}
+                  title="Edit"
+                  type="button"
+                >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+                <button
+                  aria-label={`Remove ${buyer.name}`}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#b30000] text-white transition-colors hover:bg-[#8d0000] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b30000]"
+                  onClick={() => removeBuyer(buyer.id)}
+                  title="Remove"
+                  type="button"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <p className="mt-2 line-clamp-2 text-[13px] leading-6 text-[#5F625E]">
+              {buyer.summary}
+            </p>
+            <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#8E918B]">
+              {[buyer.budgetLabel, buyer.urgency].filter(Boolean).join(" · ")}
+            </p>
+          </li>
+        ))}
       </ul>
-    </Card>
+
+      {editingId && draft ? (
+        <EditCaptureDrawer
+          draft={draft}
+          onChange={updateDraft}
+          onClose={cancelEdit}
+          onSave={saveDraft}
+        />
+      ) : null}
+    </article>
+  );
+}
+
+/* Right-side drawer for editing a capture — the dimmed overlay makes it
+   unambiguous which record is being edited. Fields use the 16px-radius
+   inputs (TextInput / SelectMenu / textarea), not pill shapes. */
+function EditCaptureDrawer({
+  draft,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  draft: SessionBuyer;
+  onChange: (key: keyof SessionBuyer, value: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div
+      aria-modal="true"
+      className="bb-overlay-enter fixed inset-0 z-[80] bg-[#171719]/30 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+    >
+      <div
+        className="bb-drawer-enter absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-[#E7E7E7] bg-white shadow-[0_0_64px_rgba(23,31,25,0.18)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E7E7E7] px-5 py-4">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[#171719]">Edit capture</h2>
+            <p className="mt-0.5 text-[12px] text-[#8E918B]">
+              Update this local memory before it becomes a full buyer.
+            </p>
+          </div>
+          <button
+            aria-label="Close"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-[#8E918B] transition-colors hover:bg-[#F1F2EE] hover:text-[#171719]"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <TextInput
+            label="Buyer name"
+            onChange={(event) => onChange("name", event.target.value)}
+            value={draft.name}
+          />
+          <TextInput
+            label="Budget memory"
+            onChange={(event) => onChange("budgetLabel", event.target.value)}
+            value={draft.budgetLabel ?? ""}
+          />
+          <SelectMenu
+            label="Urgency"
+            onChange={(value) => onChange("urgency", value)}
+            options={[
+              { label: "High", value: "High" },
+              { label: "Medium", value: "Medium" },
+              { label: "Low", value: "Low" },
+            ]}
+            value={draft.urgency ?? "Medium"}
+          />
+          <label className="grid gap-1.5 text-sm font-medium text-[#171719]">
+            <span>Summary</span>
+            <textarea
+              className="min-h-28 resize-none rounded-[10px] border border-[#D9DAD4] bg-white px-3 py-2.5 text-[14px] leading-[1.55] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+              onChange={(event) => onChange("summary", event.target.value)}
+              value={draft.summary}
+            />
+          </label>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-[#E7E7E7] px-5 py-4">
+          <Button onClick={onClose} type="button" variant="secondary">
+            <X className="h-4 w-4" aria-hidden="true" />
+            Cancel
+          </Button>
+          <Button onClick={onSave} type="button">
+            <Save className="h-4 w-4" aria-hidden="true" />
+            Save changes
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

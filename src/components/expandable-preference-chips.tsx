@@ -79,7 +79,7 @@ export function ExpandablePreferenceChips({
         ))}
         {isCollapsed ? (
           <button
-            className="shrink-0 rounded-full border border-[#d4d4da] bg-[#f1f1f3] px-2.5 py-1 text-[11px] font-semibold text-[#5F625E] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-colors hover:border-[#A9ABA5] hover:bg-[#E7E7E2] hover:text-[#171719] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            className="shrink-0 rounded-[8px] border border-[#d4d4da] bg-[#f1f1f3] px-2.5 py-1 text-[11px] font-semibold text-[#5F625E] transition-colors hover:border-[#A9ABA5] hover:bg-[#E7E7E7] hover:text-[#171719] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
             onClick={() => setIsExpanded((current) => !current)}
             type="button"
           >
@@ -88,7 +88,7 @@ export function ExpandablePreferenceChips({
         ) : null}
         {isExpanded && hiddenCount > 0 ? (
           <button
-            className="shrink-0 rounded-full border border-[#d4d4da] bg-[#f1f1f3] px-2.5 py-1 text-[11px] font-semibold text-[#5F625E] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-colors hover:border-[#A9ABA5] hover:bg-[#E7E7E2] hover:text-[#171719] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            className="shrink-0 rounded-[8px] border border-[#d4d4da] bg-[#f1f1f3] px-2.5 py-1 text-[11px] font-semibold text-[#5F625E] transition-colors hover:border-[#A9ABA5] hover:bg-[#E7E7E7] hover:text-[#171719] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
             onClick={() => setIsExpanded(false)}
             type="button"
           >
@@ -114,7 +114,7 @@ export function ExpandablePreferenceChips({
           </span>
         ))}
         <button
-          className="shrink-0 rounded-full border border-[#d4d4da] bg-[#f1f1f3] px-2.5 py-1 text-[11px] font-semibold text-[#5F625E]"
+          className="shrink-0 rounded-[8px] border border-[#d4d4da] bg-[#f1f1f3] px-2.5 py-1 text-[11px] font-semibold text-[#5F625E]"
           ref={measuringButtonRef}
           tabIndex={-1}
           type="button"

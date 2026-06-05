@@ -25,13 +25,13 @@ export function AssetMedia({
     type === "Car"
       ? "bg-[#ebe7e0] text-[#3c2f2f]"
       : type === "Real Estate"
-        ? "bg-[#E7EFEA] text-[#263c32]"
+        ? "bg-[#F1F2EE] text-[#263c32]"
         : "bg-[#e7ecef] text-[#233c45]";
 
   return (
     <div
       className={cn(
-        "relative flex aspect-[16/10] min-h-44 w-full overflow-hidden rounded-2xl border border-[#E7E7E2]",
+        "relative flex aspect-[16/10] min-h-44 w-full overflow-hidden rounded-[12px] border border-[#E7E7E7]",
         photo ? "bg-[#edeae3]" : tone,
         className,
       )}

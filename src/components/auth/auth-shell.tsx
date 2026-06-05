@@ -50,7 +50,7 @@ export function AuthShell({
       </aside>
 
       {/* Form panel. */}
-      <main className="flex min-h-dvh flex-col items-center justify-center bg-[#F6F6F3] px-6 py-12 sm:px-12">
+      <main className="flex min-h-dvh flex-col items-center justify-center bg-[#FBFBFB] px-6 py-12 sm:px-12">
         <div className="w-full max-w-[420px]">
           {/* Mobile-only logo — uses the same Fraunces wordmark, just dark. */}
           <Link

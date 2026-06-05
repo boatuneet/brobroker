@@ -1,0 +1,142 @@
+import { NextResponse } from "next/server";
+import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
+import { getListingsForSegment } from "@/lib/broker-segments";
+import { isDemoModeEnabled } from "@/lib/demo-mode-server";
+import { chatComplete, hasOpenAI } from "@/lib/openai-server";
+import { buildRerankGuidance, normalizeRerankConfig } from "@/lib/rerank-config";
+import { generateMatchesForBuyer, getBuyerMemoryProfile } from "@/lib/services";
+import { getStoredBuyerById } from "@/lib/supabase/buyers";
+import { getStoredListingsForSegment } from "@/lib/supabase/listings";
+import type { BuyerProfile, YachtListing } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
+
+const CANDIDATE_LIMIT = 15;
+
+interface RankedMatch {
+  listingId: string;
+  fitScore: number;
+  reason: string;
+}
+
+export async function POST(request: Request) {
+  const body = (await request.json().catch(() => ({}))) as { buyerId?: string; config?: unknown };
+  const buyerId = body.buyerId?.trim();
+  const rerankConfig = normalizeRerankConfig(body.config);
+  if (!buyerId) {
+    return NextResponse.json({ error: "A buyerId is required." }, { status: 400 });
+  }
+
+  const segment = await getActiveBrokerSegment();
+  const includeDemo = await isDemoModeEnabled();
+
+  // Resolve buyer + the inventory it should match against (real buyer → real
+  // listings; demo buyer → demo catalogue) — mirrors the buyer detail page.
+  const demoProfile = includeDemo ? getBuyerMemoryProfile(buyerId, segment) : undefined;
+  const storedBuyer = demoProfile ? undefined : await getStoredBuyerById(buyerId);
+  const buyer: BuyerProfile | undefined = demoProfile?.buyer ?? storedBuyer;
+  if (!buyer) {
+    return NextResponse.json({ error: "Buyer not found." }, { status: 404 });
+  }
+
+  const inventory: YachtListing[] = storedBuyer
+    ? await getStoredListingsForSegment(segment)
+    : includeDemo
+      ? getListingsForSegment(segment)
+      : await getStoredListingsForSegment(segment);
+
+  const candidates = generateMatchesForBuyer(buyer, inventory, CANDIDATE_LIMIT);
+  const byId = new Map(inventory.map((listing) => [listing.id, listing]));
+
+  if (!candidates.length) {
+    return NextResponse.json({ ranked: [] as RankedMatch[], mode: "deterministic" as const });
+  }
+
+  // Rule-based fallback (no key / failure) reuses the deterministic ranking.
+  const deterministic: RankedMatch[] = candidates.map((match) => ({
+    listingId: match.listingId,
+    fitScore: match.fitScore,
+    reason: match.rationale,
+  }));
+
+  if (!hasOpenAI()) {
+    return NextResponse.json({ ranked: deterministic, mode: "deterministic" as const });
+  }
+
+  const buyerBlock = [
+    `Budget: EUR ${buyer.budgetMinEur.toLocaleString("en-GB")} – ${buyer.budgetMaxEur.toLocaleString("en-GB")}`,
+    `Size range: ${buyer.sizeRangeFt[0]}-${buyer.sizeRangeFt[1]} ft`,
+    `Preferred brands: ${buyer.preferredBrands.join(", ") || "—"}`,
+    `Preferred locations: ${buyer.preferredLocations.join(", ") || "—"}`,
+    `Must-haves: ${buyer.mustHaves.join("; ") || "—"}`,
+    `Deal-breakers: ${buyer.dealBreakers.join("; ") || "—"}`,
+    `Lifestyle / taste: ${buyer.lifestylePreferences.join("; ") || "—"}`,
+    `Relationship notes: ${buyer.relationshipNotes.join("; ") || "—"}`,
+    `Urgency: ${buyer.urgency} · Timeline: ${buyer.decisionTimeline}`,
+  ].join("\n");
+
+  const candidateBlock = candidates
+    .map((match) => {
+      const listing = byId.get(match.listingId);
+      if (!listing) return null;
+      return [
+        `- id: ${listing.id}`,
+        `${listing.name}`,
+        `${listing.builder} ${listing.model} ${listing.year}`,
+        `${listing.lengthFt}ft`,
+        `${listing.cabins} cabins`,
+        `EUR ${listing.priceEur.toLocaleString("en-GB")}`,
+        `${listing.vatStatus}`,
+        `${listing.location}`,
+        `highlights: ${listing.highlights.slice(0, 4).join(", ") || "—"}`,
+      ].join(" | ");
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const raw = await chatComplete(
+      [
+        {
+          role: "system",
+          content:
+            "You are a yacht brokerage matching assistant. Rank the candidate listings for the buyer by true fit, " +
+            "weighing budget, size, brand, and location alongside softer signals — must-haves, deal-breakers, lifestyle/taste, " +
+            "and relationship notes. Return STRICT JSON: " +
+            '{"ranked":[{"listingId":"<id>","fitScore":<0-100 integer>,"reason":"<one concise sentence>"}]}, ordered best fit first. ' +
+            "Only use listingId values from the candidate list. Do not invent listings.",
+        },
+        {
+          role: "system",
+          content: `Broker-configured ranking logic — follow it:\n${buildRerankGuidance(rerankConfig)}`,
+        },
+        {
+          role: "user",
+          content: `Buyer profile:\n${buyerBlock}\n\nCandidate listings:\n${candidateBlock}`,
+        },
+      ],
+      { json: true, temperature: 0.2, maxTokens: 900 },
+    );
+
+    if (!raw) {
+      return NextResponse.json({ ranked: deterministic, mode: "deterministic" as const });
+    }
+
+    const parsed = JSON.parse(raw) as { ranked?: Array<{ listingId?: string; fitScore?: number; reason?: string }> };
+    const ranked: RankedMatch[] = (parsed.ranked ?? [])
+      .filter((entry) => entry.listingId && byId.has(entry.listingId))
+      .map((entry) => ({
+        listingId: entry.listingId!,
+        fitScore: Math.max(0, Math.min(100, Math.round(Number(entry.fitScore) || 0))),
+        reason: (entry.reason ?? "").slice(0, 280),
+      }));
+
+    if (!ranked.length) {
+      return NextResponse.json({ ranked: deterministic, mode: "deterministic" as const });
+    }
+    return NextResponse.json({ ranked, mode: "ai" as const });
+  } catch (error) {
+    console.error("buyer-match AI ranking failed", error);
+    return NextResponse.json({ ranked: deterministic, mode: "deterministic" as const });
+  }
+}

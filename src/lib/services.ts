@@ -557,14 +557,24 @@ function parseSizeRangeFt(normalized: string): [number, number] | undefined {
 /* Finds the first "Brand Model" pair mentioned. Falls back to bare brand
    when no model number follows. */
 function parseModel(raw: string): string | undefined {
-  for (const builder of KNOWN_BUILDERS) {
-    const pattern = new RegExp(`\\b${builder}\\b(?:\\s+([A-Za-z0-9]+))?`, "i");
-    const match = raw.match(pattern);
-    if (match) {
-      return match[1] ? `${builder} ${match[1]}` : builder;
-    }
+  // When several brands are listed ("Princess or Sunseeker or Azimut") there is
+  // no single requested model — leave it flexible so no one brand is favoured
+  // (the AI re-rank handles multi-brand preference semantically).
+  const mentioned = KNOWN_BUILDERS.filter((builder) =>
+    new RegExp(`\\b${builder}\\b`, "i").test(raw),
+  );
+  if (mentioned.length > 1) return undefined;
+
+  const builder = mentioned[0];
+  if (!builder) return undefined;
+
+  const match = raw.match(new RegExp(`\\b${builder}\\b(?:\\s+([A-Za-z0-9]+))?`, "i"));
+  const token = match?.[1];
+  // Ignore conjunctions / filler words so we never produce "Princess or".
+  if (token && !/^(or|and|the|a|an)$/i.test(token)) {
+    return `${builder} ${token}`;
   }
-  return undefined;
+  return builder;
 }
 
 export function parseClientBrief(raw: string): ParsedClientBrief {
@@ -781,7 +791,11 @@ export function discoverHiddenOpportunities(
   buyersOverride?: BuyerProfile[],
 ) {
   const inventory = inventoryOverride ?? getListingsForSegment(segment);
-  const listing = getListingById(listingId, segment) ?? inventory[0];
+  // Resolve from the passed inventory first — getListingById only knows the demo
+  // catalogue, so a stored listing would otherwise fall back to inventory[0] and
+  // match buyers against the wrong boat.
+  const listing =
+    inventory.find((entry) => entry.id === listingId) ?? getListingById(listingId, segment) ?? inventory[0];
 
   if (!listing) {
     return [];
@@ -797,8 +811,14 @@ export function discoverHiddenOpportunities(
         )
           ? "Memory taste signal"
           : undefined,
-        listing.priceEur >= buyer.budgetMinEur && listing.priceEur <= buyer.budgetMaxEur ? "Budget overlap" : undefined,
-        listing.lengthFt >= buyer.sizeRangeFt[0] && listing.lengthFt <= buyer.sizeRangeFt[1] ? "Size overlap" : undefined,
+        (buyer.budgetMinEur > 0 || buyer.budgetMaxEur > 0) &&
+        inRangeOrOpen(listing.priceEur, buyer.budgetMinEur, buyer.budgetMaxEur)
+          ? "Budget overlap"
+          : undefined,
+        (buyer.sizeRangeFt[0] > 0 || buyer.sizeRangeFt[1] > 0) &&
+        inRangeOrOpen(listing.lengthFt, buyer.sizeRangeFt[0], buyer.sizeRangeFt[1])
+          ? "Size overlap"
+          : undefined,
         buyer.mustHaves.includes("EU VAT paid") && listing.vatStatus === "EU VAT Paid" ? "VAT must-have" : undefined,
         buyer.urgency === "Immediate" || buyer.urgency === "This Season" ? "Timing pressure" : undefined,
       ].filter(Boolean) as string[];
@@ -933,27 +953,78 @@ export function getBuyerObjectionsForListing(listingId: string, segment?: Broker
   return [...directObjections, ...memoryObjections];
 }
 
+/* Reads a minimum cabin count out of free-text must-haves like
+   "At least 3 cabins", "3+ cabins", "min 4 cabins". Returns null when the
+   buyer hasn't expressed a cabin requirement. */
+function parseRequiredCabins(mustHaves: string[]): number | null {
+  for (const item of mustHaves) {
+    const match = item.match(/(\d+)\s*\+?\s*cabins?/i);
+    if (match) return Number.parseInt(match[1], 10);
+  }
+  return null;
+}
+
+/* Range check where a non-positive bound counts as "open": an empty min means
+   "from 0", an empty max means "to any". When both bounds are unset the range
+   is fully open (always true), so the caller can treat it as "no preference". */
+function inRangeOrOpen(value: number, min: number, max: number): boolean {
+  const lo = min > 0 ? min : 0;
+  const hi = max > 0 ? max : Number.POSITIVE_INFINITY;
+  return value >= lo && value <= hi;
+}
+
+/* True when any must-have mentions VAT (e.g. "EU VAT paid", "VAT cleared"). */
+function requiresEuVat(mustHaves: string[]): boolean {
+  return mustHaves.some((item) => /\bvat\b/i.test(item));
+}
+
+/* Substring match of the listing's location/label against the buyer's
+   preferred locations (e.g. "Monaco" matches "Monaco, Monaco"). */
+function matchesPreferredLocation(listing: YachtListing, preferredLocations: string[]): boolean {
+  if (!preferredLocations.length) return false;
+  const haystack = `${listing.location} ${listing.locationLabel ?? ""}`.toLowerCase();
+  return preferredLocations.some((location) => {
+    const trimmed = location.trim().toLowerCase();
+    return trimmed.length > 0 && haystack.includes(trimmed);
+  });
+}
+
 export function generateMatchesForBuyer(
   buyer: BuyerProfile,
   inventory: YachtListing[] = yachtListings,
+  limit = 4,
 ): MatchResult[] {
+  const requiredCabins = parseRequiredCabins(buyer.mustHaves);
+  const vatRequired = requiresEuVat(buyer.mustHaves);
+
   const scored = inventory.map((listing) => {
     const criteriaMet: string[] = [];
     const missingCriteria: string[] = [];
     let score = 40;
 
-    if (listing.priceEur >= buyer.budgetMinEur && listing.priceEur <= buyer.budgetMaxEur) {
-      score += 14;
-      criteriaMet.push("Inside budget");
-    } else {
-      missingCriteria.push("Budget fit");
+    // Budget — score only when the buyer set a budget AND the listing has a
+    // price. Bounds are independent: empty min = "from 0", empty max = "to any".
+    const buyerHasBudget = buyer.budgetMinEur > 0 || buyer.budgetMaxEur > 0;
+    if (buyerHasBudget && listing.priceEur > 0) {
+      if (inRangeOrOpen(listing.priceEur, buyer.budgetMinEur, buyer.budgetMaxEur)) {
+        score += 14;
+        criteriaMet.push("Inside budget");
+      } else {
+        missingCriteria.push("Budget fit");
+      }
     }
 
-    if (listing.lengthFt >= buyer.sizeRangeFt[0] && listing.lengthFt <= buyer.sizeRangeFt[1]) {
-      score += 12;
-      criteriaMet.push("Size range");
-    } else {
-      missingCriteria.push("Size range");
+    // Size — score only when the buyer set a size AND the listing length is
+    // known. Some listings store length only in their name (lengthFt = 0);
+    // penalising those would wrongly hide good matches, so skip when unknown.
+    const buyerHasSize = buyer.sizeRangeFt[0] > 0 || buyer.sizeRangeFt[1] > 0;
+    if (buyerHasSize && listing.lengthFt > 0) {
+      if (inRangeOrOpen(listing.lengthFt, buyer.sizeRangeFt[0], buyer.sizeRangeFt[1])) {
+        score += 12;
+        criteriaMet.push("Size range");
+      } else {
+        missingCriteria.push("Size range");
+      }
     }
 
     if (buyer.preferredBrands.includes(listing.builder)) {
@@ -961,16 +1032,36 @@ export function generateMatchesForBuyer(
       criteriaMet.push("Preferred brand");
     }
 
-    if (buyer.mustHaves.includes("EU VAT paid") && listing.vatStatus === "EU VAT Paid") {
-      score += 10;
-      criteriaMet.push("EU VAT paid");
-    } else if (buyer.mustHaves.includes("EU VAT paid")) {
-      missingCriteria.push("EU VAT paid");
+    // Preferred location — previously not scored at all, so a buyer's
+    // geography (e.g. Monaco) never influenced the ranking.
+    if (buyer.preferredLocations.length) {
+      if (matchesPreferredLocation(listing, buyer.preferredLocations)) {
+        score += 8;
+        criteriaMet.push("Preferred location");
+      } else {
+        missingCriteria.push("Preferred location");
+      }
     }
 
-    if (buyer.mustHaves.includes("3 cabins") && listing.cabins >= 3) {
-      score += 6;
-      criteriaMet.push("Cabin count");
+    // VAT — matched from any must-have mentioning VAT (not an exact string).
+    if (vatRequired) {
+      if (listing.vatStatus === "EU VAT Paid") {
+        score += 10;
+        criteriaMet.push("EU VAT paid");
+      } else {
+        missingCriteria.push("EU VAT paid");
+      }
+    }
+
+    // Cabins — parsed from free-text ("At least 3 cabins" → min 3) instead of
+    // an exact "3 cabins" string that real buyers never store verbatim.
+    if (requiredCabins != null) {
+      if (listing.cabins >= requiredCabins) {
+        score += 8;
+        criteriaMet.push(`${requiredCabins}+ cabins`);
+      } else {
+        missingCriteria.push(`${requiredCabins} cabins`);
+      }
     }
 
     if (
@@ -1005,7 +1096,7 @@ export function generateMatchesForBuyer(
     } satisfies MatchResult;
   });
 
-  return scored.sort((a, b) => b.fitScore - a.fitScore).slice(0, 4);
+  return scored.sort((a, b) => b.fitScore - a.fitScore).slice(0, limit);
 }
 
 /* Extracts a buyer name from natural broker language. Tries several common
@@ -2046,7 +2137,9 @@ export function generateBuyerSafeBrief(
     headline: `${buyer.name.split(" ")[0]}, I kept the shortlist focused on the criteria you gave me.`,
     body: [
       `Budget fit: ${buyer.budgetMinEur.toLocaleString("en-GB")} to ${buyer.budgetMaxEur.toLocaleString("en-GB")} EUR.`,
-      `Preferences remembered: ${buyer.lifestylePreferences.slice(0, 3).join(", ").toLowerCase()}.`,
+      buyer.lifestylePreferences.length
+        ? `Preferences: ${buyer.lifestylePreferences.slice(0, 3).join(", ").toLowerCase()}.`
+        : "Preferences: Flexible.",
       listing
         ? `Best current fit: ${listing.name}, because it lines up with ${primary.criteriaMet.slice(0, 3).join(", ").toLowerCase()}.`
         : "I am still checking the right current fit before recommending a specific asset.",

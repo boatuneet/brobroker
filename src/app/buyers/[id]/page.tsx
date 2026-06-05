@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { BuyerMemoryProfile } from "@/components/client-memory";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getBuyerMemoryProfile } from "@/lib/services";
@@ -93,8 +94,20 @@ export default async function BuyerMemoryPage({
     notFound();
   }
 
+  const buyerName = profile?.buyer.name ?? storedBuyer?.name ?? "Buyer";
+
   return (
-    <AppShell active="Buyers">
+    <AppShell
+      active="Buyers"
+      breadcrumb={
+        <PageBreadcrumb
+          items={[
+            { label: "Buyers", href: "/buyers" },
+            { label: buyerName },
+          ]}
+        />
+      }
+    >
       <BuyerMemoryProfile
         buyerId={id}
         buyerOverride={storedBuyer}

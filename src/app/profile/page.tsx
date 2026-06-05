@@ -12,7 +12,8 @@ import { AppShell } from "@/components/app-shell";
 import { BrokerSegmentSelector } from "@/components/broker-segment-selector";
 import { DemoModeToggle } from "@/components/profile/demo-mode-toggle";
 import { ProfileEditor } from "@/components/profile/profile-editor";
-import { Badge, Card, CardHeader, PageHeader } from "@/components/ui";
+import { RerankConfigCard } from "@/components/profile/rerank-config-card";
+import { Badge, Card, CardHeader } from "@/components/ui";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -64,17 +65,12 @@ export default async function ProfilePage() {
   const isConnected = Boolean(user);
 
   return (
-    <AppShell active="Profile">
+    <AppShell active="Profile" pageTitle="Profile">
       <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-        <PageHeader
-          title="Your profile"
-          description="Manage your broker identity, market segment, and workspace session."
-        />
-
         {/* Two-column layout: identity editor on the left, account meta on the
             right. The grid collapses to a single column below xl so the editor
             owns full width on smaller screens. */}
-        <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:items-stretch">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:items-stretch">
           <Card className="!p-6">
             {/* Inline header keeps the eyebrow/title flush with the card's own
                 padding — CardHeader would add its own px-6 py-5 on top. */}
@@ -124,7 +120,7 @@ export default async function ProfilePage() {
               </Badge>
             </div>
 
-            <dl className="mt-5 grid gap-5 border-t border-[#E7E7E2] pt-5">
+            <dl className="mt-5 grid gap-5 border-t border-[#E7E7E7] pt-5">
               <DetailRow icon={Mail} label="Email" value={user?.email ?? "Not available"} />
               <DetailRow icon={KeyRound} label="User ID" mono value={user?.id ?? "—"} />
               <DetailRow icon={Calendar} label="Created" value={memberSince} />
@@ -133,14 +129,14 @@ export default async function ProfilePage() {
 
             {/* Demo data toggle — when off the workspace shows only the
                 broker's Supabase-backed buyers / listings / tasks. */}
-            <div className="mt-5 border-t border-[#E7E7E2] pt-5">
+            <div className="mt-5 border-t border-[#E7E7E7] pt-5">
               <DemoModeToggle initialEnabled={demoModeEnabled} />
             </div>
 
             {isConnected ? (
               <form action={signOut} className="mt-auto pt-5">
                 <button
-                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-5 text-[13px] font-semibold text-[#171719] transition-colors hover:bg-[#F1F2EE]"
+                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-5 text-[13px] font-semibold text-[#171719] transition-colors hover:bg-[#F1F2EE]"
                   type="submit"
                 >
                   <LogOut aria-hidden="true" className="h-4 w-4" />
@@ -149,7 +145,7 @@ export default async function ProfilePage() {
               </form>
             ) : (
               <Link
-                className="mt-auto inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[#003C33] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#0B4A3F]"
+                className="mt-auto inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] bg-[#003C33] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#0B4A3F]"
                 href="/login"
               >
                 Sign in
@@ -170,6 +166,11 @@ export default async function ProfilePage() {
             <BrokerSegmentSelector currentSegment={segment} />
           </div>
         </Card>
+
+        {/* AI re-rank agent configuration — broker-tunable ranking logic. */}
+        <div className="mt-5">
+          <RerankConfigCard />
+        </div>
       </div>
     </AppShell>
   );

@@ -30,7 +30,7 @@ export default async function PulsePage() {
   const listings = includeDemo ? getListingsForSegment(segment) : [];
 
   return (
-    <AppShell active="Pulse">
+    <AppShell active="Pulse" pageTitle="Pulse">
       <PulseBoard
         conversations={conversations}
         demoBuyers={demoBuyers}

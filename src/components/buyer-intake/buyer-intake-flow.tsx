@@ -1,17 +1,17 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Save, Sparkles, UserRound } from "lucide-react";
-import { type BrokerSegment, brokerSegments } from "@/lib/broker-segments";
+import { FilePlusIcon, MagicWandIcon, PersonIcon } from "@radix-ui/react-icons";
+import { type BrokerSegment } from "@/lib/broker-segments";
 import {
   generateBuyerSummary,
   getBuyerDraftValuesFromProfile,
   getBuyerIntakeConfig,
   getInitialBuyerDraftValues,
   getSegmentLabel,
+  normalizeBuyerSource,
   normalizeBuyerStage,
   normalizeBuyerUrgency,
   readList,
@@ -21,6 +21,7 @@ import {
   type BuyerDraftValue,
   type BuyerDraftValues,
   type BuyerField,
+  type BuyerIntakeSection,
 } from "@/lib/buyer-intake-config";
 import { saveSessionBuyer } from "@/lib/browser-persistence";
 import { createClient } from "@/lib/supabase/client";
@@ -28,6 +29,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { BuyerProfile } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ToastViewport } from "@/components/app-feedback";
+import { DatePicker } from "@/components/date-picker";
 import { SelectMenu } from "@/components/select-menu";
 import { Badge, Button, Card, CardHeader, TextInput } from "@/components/ui";
 
@@ -62,7 +64,9 @@ export function BuyerIntakeFlow({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const config = getBuyerIntakeConfig(segment);
-  const segmentMeta = brokerSegments.find((item) => item.id === segment) ?? brokerSegments[0];
+  const [activeTab, setActiveTab] = useState(config.sections[0]?.id ?? "");
+  const activeSection =
+    config.sections.find((section) => section.id === activeTab) ?? config.sections[0];
   const requiredFields = config.sections.flatMap((section) =>
     section.fields.filter((field) => field.required),
   );
@@ -125,6 +129,7 @@ export function BuyerIntakeFlow({
           verification_case_id: buyer.verificationCaseId || null,
           next_action_due_at: buyer.nextActionDueAt,
           tags: buyer.tags,
+          source: buyer.source ?? null,
           preferences: {
             assetTypes: buyer.assetTypes,
             metricLabel: config.metricLabel,
@@ -211,90 +216,69 @@ export function BuyerIntakeFlow({
         onDismiss={() => setSaveResult(null)}
       />
 
-      <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
-        href={isEditing && editingBuyer ? `/buyers/${editingBuyer.id}` : "/buyers"}
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        {isEditing && editingBuyer ? `Back to ${editingBuyer.name}` : "Back to buyers"}
-      </Link>
+      {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-        <div className="grid gap-8">
-          <Card className="p-6">
-            <div className="flex flex-wrap items-start justify-between gap-5">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+        <div className="grid gap-6">
+          <Card>
+            <div className="border-b border-[#E7E7E7] px-6 py-5">
               <div className="min-w-0">
-                <p className="bb-mono-label">{isEditing ? "Edit buyer" : "Buyer intake"}</p>
-                <h1 className="bb-display mt-3 text-[2.2rem] font-medium leading-[1.05] text-[#171719]">
-                  {isEditing && editingBuyer
-                    ? `Edit ${editingBuyer.name}`
-                    : config.title}
+                <h1 className="text-2xl font-semibold leading-tight text-[#171719]">
+                  {isEditing && editingBuyer ? `Edit ${editingBuyer.name}` : config.title}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-[#5F625E]">
+                <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[#5F625E]">
                   {isEditing
                     ? "Update criteria, urgency, or relationship memory. Saved changes overwrite the existing profile."
                     : config.description}
                 </p>
               </div>
-              <Badge tone="info">{completion}% complete</Badge>
-            </div>
 
-            {/* Compact "active segment" hint — image kept as small thumbnail,
-                copy condensed to one row so the form gets the visual weight. */}
-            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-2.5">
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#edeae3]">
-                <Image
-                  alt=""
-                  className="object-cover"
-                  fill
-                  sizes="48px"
-                  src={segmentMeta.imageSrc}
+              <div className="mt-5">
+                <BuyerIntakeTabs
+                  activeTab={activeTab}
+                  onChange={setActiveTab}
+                  sections={config.sections}
                 />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="bb-mono-label text-[#8E918B]">
-                  Active segment · {segmentMeta.label}
-                </p>
-                <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#5F625E]">
-                  Follows your broker segment from Profile.
-                </p>
-              </div>
-              <Link
-                className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-[#D9DAD4] bg-white px-3.5 text-[12.5px] font-medium text-[#171719] hover:border-[#003C33]"
-                href="/profile"
-              >
-                Change segment
-              </Link>
             </div>
-          </Card>
 
-          {config.sections.map((section) => (
-            <Card key={section.id}>
-              <CardHeader
-                eyebrow={section.eyebrow}
-                title={section.title}
-                description={section.description}
-              />
-              <div className="grid gap-5 px-6 py-5 lg:grid-cols-3">
-                {section.fields.map((field) => (
-                  <FieldControl
-                    field={field}
-                    key={field.id}
-                    onChange={(value) => updateField(field.id, value)}
-                    value={values[field.id]}
-                  />
-                ))}
-              </div>
-            </Card>
-          ))}
+            {activeSection ? (
+              <>
+                <CardHeader
+                  eyebrow={activeSection.eyebrow}
+                  title={activeSection.title}
+                  description={activeSection.description}
+                />
+                <div
+                  className={cn(
+                    "grid gap-5 px-6 py-5",
+                    activeSection.id === "criteria" ? "lg:grid-cols-2" : "lg:grid-cols-3",
+                  )}
+                >
+                  {activeSection.fields.map((field) => (
+                    <FieldControl
+                      columnCount={activeSection.id === "criteria" ? 2 : 3}
+                      field={field}
+                      key={field.id}
+                      onChange={(value) => updateField(field.id, value)}
+                      value={values[field.id]}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </Card>
         </div>
 
-        <aside className="sticky top-8 grid gap-5">
+        <aside className="grid gap-5 xl:sticky xl:top-28">
           <Card className="p-6">
-            <p className="bb-mono-label">Buyer summary</p>
+            <div className="flex items-start justify-between gap-4">
+              <p className="bb-mono-label">Buyer summary</p>
+              <Badge tone={completion === 100 ? "success" : "info"}>{completion}% complete</Badge>
+            </div>
             <div className="mt-4 flex items-start gap-3">
-              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#003C33] text-white shadow-[0_10px_24px_rgba(0,60,51,0.18)]">
-                <UserRound className="h-5 w-5" aria-hidden="true" />
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#003C33] text-white">
+                <PersonIcon className="h-5 w-5" aria-hidden="true" />
               </span>
               <div className="min-w-0">
                 <h2 className="bb-display text-2xl font-medium leading-tight text-[#171719]">
@@ -305,7 +289,7 @@ export function BuyerIntakeFlow({
                 </p>
               </div>
             </div>
-            <dl className="mt-5 grid gap-3 border-y border-[#E7E7E2] py-5">
+            <dl className="mt-5 grid gap-3 border-y border-[#E7E7E7] py-5">
               <SummaryLine label="Segment" value={getSegmentLabel(segment)} />
               <SummaryLine
                 label="Budget"
@@ -319,7 +303,7 @@ export function BuyerIntakeFlow({
               <SummaryLine label="Save mode" value={saveAsDraft ? "Draft" : "Active buyer"} />
               <SummaryLine label="Required fields" value={`${completedRequired}/${requiredFields.length}`} />
             </dl>
-            <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-4">
+            <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-[8px] border border-[#E7E7E7] bg-[#F1F2EE] p-4">
               <span className="min-w-0">
                 <span className="block text-[13px] font-semibold text-[#171719]">Save as draft</span>
                 <span className="mt-1 block text-[12px] leading-5 text-[#5F625E]">
@@ -334,11 +318,11 @@ export function BuyerIntakeFlow({
               />
               <span
                 aria-hidden="true"
-                className="relative h-7 w-12 shrink-0 rounded-full bg-[#D9DAD4] transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-[#003C33] peer-checked:after:translate-x-5"
+                className="relative h-7 w-12 shrink-0 rounded-full bg-[#D9DAD4] transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-[#003C33] peer-checked:after:translate-x-5"
               />
             </label>
             <Button className="mt-4 w-full" disabled={isSaving} onClick={saveBuyer} type="button">
-              <Save className="h-4 w-4" aria-hidden="true" />
+              <FilePlusIcon className="h-4 w-4" aria-hidden="true" />
               {isSaving
                 ? "Saving..."
                 : isEditing
@@ -348,13 +332,13 @@ export function BuyerIntakeFlow({
                     : "Create buyer"}
             </Button>
             {saveError ? (
-              <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-[13px] leading-6 text-red-700">
+              <div className="mt-4 rounded-[8px] bg-red-50 px-4 py-3 text-[13px] leading-6 text-red-700">
                 {saveError}
               </div>
             ) : (
-              <div className="mt-4 rounded-2xl bg-[#F6F6F3] px-4 py-3 text-[13px] leading-6 text-[#5F625E]">
-                <Sparkles className="mr-1 inline h-4 w-4 align-[-3px] text-[#003C33]" aria-hidden="true" />
-                Saved buyers become rich cards and memory pages for this broker account.
+              <div className="mt-4 flex gap-2 rounded-[8px] border border-[#E7E7E7] bg-[#FBFBFB] px-4 py-3 text-[13px] leading-6 text-[#5F625E]">
+                <MagicWandIcon className="mt-1 h-4 w-4 shrink-0 text-[#003C33]" aria-hidden="true" />
+                <span>Saved buyers become rich cards and memory pages for this broker account.</span>
               </div>
             )}
           </Card>
@@ -365,39 +349,43 @@ export function BuyerIntakeFlow({
 }
 
 function FieldControl({
+  columnCount,
   field,
   value,
   onChange,
 }: {
+  columnCount: 2 | 3;
   field: BuyerField;
   value: BuyerDraftValue | undefined;
   onChange: (value: BuyerDraftValue) => void;
 }) {
   const stringValue = typeof value === "string" ? value : "";
+  const wideClassName = columnCount === 2 ? "lg:col-span-2" : "lg:col-span-3";
 
   if (field.kind === "range") {
     const rangeValue = readRange({ [field.id]: value ?? { from: "", to: "" } }, field.id);
+    const isCurrencyRange = field.id === "budgetRange";
 
     return (
-      <fieldset className={cn("grid gap-1.5", field.wide && "lg:col-span-3")}>
-        <legend className="text-sm font-medium text-[#171719]">{field.label}</legend>
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#D9DAD4] bg-white">
+      <fieldset className={cn("grid", field.wide && wideClassName)}>
+        <legend className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{field.label}</legend>
+        <div className="mt-2 grid h-10 grid-cols-2 overflow-hidden rounded-[8px] border border-[#D9DAD4] bg-white">
           <input
-            className="min-h-11 min-w-0 border-r border-[#E7E7E2] px-3.5 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5]"
-            inputMode="numeric"
-            onChange={(event) => onChange({ ...rangeValue, from: event.target.value })}
-            placeholder={field.fromPlaceholder ?? "From"}
-            value={rangeValue.from}
+            className="h-10 min-h-0 min-w-0 border-r border-[#E7E7E7] px-3 text-[14px] leading-none text-[#171719] outline-none placeholder:text-[#A9ABA5]"
+            inputMode={isCurrencyRange ? "decimal" : "numeric"}
+            onChange={(event) => onChange({ ...rangeValue, from: formatIntakeNumber(event.target.value, isCurrencyRange) })}
+            placeholder={formatIntakeNumber(field.fromPlaceholder ?? "From", isCurrencyRange)}
+            value={formatIntakeNumber(rangeValue.from, isCurrencyRange)}
           />
           <input
-            className="min-h-11 min-w-0 px-3.5 text-[15px] text-[#171719] outline-none placeholder:text-[#A9ABA5]"
-            inputMode="numeric"
-            onChange={(event) => onChange({ ...rangeValue, to: event.target.value })}
-            placeholder={field.toPlaceholder ?? "To"}
-            value={rangeValue.to}
+            className="h-10 min-h-0 min-w-0 px-3 text-[14px] leading-none text-[#171719] outline-none placeholder:text-[#A9ABA5]"
+            inputMode={isCurrencyRange ? "decimal" : "numeric"}
+            onChange={(event) => onChange({ ...rangeValue, to: formatIntakeNumber(event.target.value, isCurrencyRange) })}
+            placeholder={formatIntakeNumber(field.toPlaceholder ?? "To", isCurrencyRange)}
+            value={formatIntakeNumber(rangeValue.to, isCurrencyRange)}
           />
         </div>
-        {field.helper ? <p className="text-xs font-normal text-[#8E918B]">{field.helper}</p> : null}
+        {field.helper ? <p className="mt-1.5 text-xs font-normal text-[#8E918B]">{field.helper}</p> : null}
       </fieldset>
     );
   }
@@ -405,7 +393,8 @@ function FieldControl({
   if (field.kind === "select") {
     return (
       <SelectMenu
-        className={field.wide ? "lg:col-span-3" : undefined}
+        className={field.wide ? wideClassName : undefined}
+        buttonClassName="!h-10 !min-h-10 !rounded-[8px] !px-3 !py-0 !text-[14px]"
         label={field.label}
         onChange={(nextValue) => onChange(nextValue)}
         options={field.options ?? []}
@@ -416,10 +405,10 @@ function FieldControl({
 
   if (field.kind === "textarea") {
     return (
-      <label className={cn("grid gap-1.5 text-sm font-medium text-[#171719]", field.wide && "lg:col-span-3")}>
-        <span>{field.label}</span>
+      <label className={cn("grid gap-1.5", field.wide && wideClassName)}>
+        <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">{field.label}</span>
         <textarea
-          className="min-h-28 rounded-xl border border-[#D9DAD4] bg-white px-3.5 py-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+          className="min-h-24 rounded-[8px] border border-[#D9DAD4] bg-white px-3 py-2.5 text-[14px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
           onChange={(event) => onChange(event.target.value)}
           placeholder={field.placeholder}
           value={stringValue}
@@ -429,15 +418,27 @@ function FieldControl({
     );
   }
 
+  if (field.kind === "date") {
+    return (
+      <DatePicker
+        className={cn("text-[13px]", field.wide && wideClassName)}
+        label={field.label}
+        onChange={onChange}
+        value={stringValue}
+      />
+    );
+  }
+
   return (
     <TextInput
-      className={field.wide ? "lg:col-span-3" : undefined}
+      className={cn("text-[13px]", field.wide && wideClassName)}
       helper={field.helper}
       inputMode={field.kind === "number" ? "numeric" : undefined}
+      inputClassName="!h-10 !min-h-10 !rounded-[8px] !px-3 !text-[14px] !leading-none"
       label={field.label}
       onChange={(event) => onChange(event.target.value)}
       placeholder={field.placeholder}
-      type={field.kind === "date" ? "date" : "text"}
+      type="text"
       value={stringValue}
     />
   );
@@ -445,10 +446,62 @@ function FieldControl({
 
 function SummaryLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[110px_1fr] gap-3 text-sm">
-      <dt className="text-[#8E918B]">{label}</dt>
-      <dd className="min-w-0 font-medium text-[#171719]">{value}</dd>
+    <div className="flex items-center justify-between gap-3">
+      <dt className="bb-mono-label">{label}</dt>
+      <dd className="text-right text-[13px] font-medium text-[#171719]">{value}</dd>
     </div>
+  );
+}
+
+function formatIntakeNumber(value: string, shouldFormat: boolean) {
+  if (!shouldFormat) return value;
+  const normalized = value.replace(/[^\d.]/g, "");
+  if (!normalized) return "";
+  const [integer = "", ...decimalParts] = normalized.split(".");
+  const formattedInteger = integer.replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const decimal = decimalParts.join("");
+  return decimalParts.length ? `${formattedInteger || "0"}.${decimal}` : formattedInteger;
+}
+
+const BUYER_TAB_LABELS: Record<string, string> = {
+  identity: "Identity",
+  criteria: "Criteria",
+  relationship: "Relationship",
+};
+
+function BuyerIntakeTabs({
+  activeTab,
+  onChange,
+  sections,
+}: {
+  activeTab: string;
+  onChange: (next: string) => void;
+  sections: BuyerIntakeSection[];
+}) {
+  return (
+    <nav
+      aria-label="Buyer intake section"
+      className="grid w-full max-w-full gap-1 rounded-[8px] border border-[#D9DAD4] bg-white p-1"
+      style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}
+    >
+      {sections.map((section) => {
+        const active = activeTab === section.id;
+        return (
+          <button
+            aria-pressed={active}
+            className={cn(
+              "inline-flex min-h-9 min-w-0 items-center justify-center rounded-[8px] px-2 py-1.5 text-center text-[12.5px] font-medium leading-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]",
+              active ? "bg-[#171719] text-white" : "text-[#5F625E] hover:bg-[#F1F2EE]",
+            )}
+            key={section.id}
+            onClick={() => onChange(section.id)}
+            type="button"
+          >
+            {BUYER_TAB_LABELS[section.id] ?? section.title}
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -518,5 +571,6 @@ function buildBuyerProfile({
     nextActionDueAt: readText(values, "nextActionDueAt") || createdDate,
     verificationCaseId: "",
     tags,
+    source: normalizeBuyerSource(readText(values, "source")),
   };
 }

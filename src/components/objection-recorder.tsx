@@ -103,7 +103,7 @@ export function ObjectionRecorder({
             <span className="bb-mono-label">Broker note</span>
             <textarea
               aria-label="Broker note"
-              className="min-h-28 rounded-lg border border-[#D9DAD4] bg-white px-3 py-2 text-[14px] leading-6 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+              className="min-h-28 rounded-[8px] border border-[#D9DAD4] bg-white px-3 py-2 text-[14px] leading-6 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
               onChange={(event) => setDetail(event.target.value)}
               value={detail}
             />
@@ -126,7 +126,7 @@ export function ObjectionRecorder({
 
       <div className="min-w-0">
         <p className="bb-mono-label">Listing intelligence and buyer memory</p>
-        <ul className="mt-3 grid gap-0 divide-y divide-[#E7E7E2] border-t border-[#E7E7E2]">
+        <ul className="mt-3 grid gap-0 divide-y divide-[#E7E7E7] border-t border-[#E7E7E7]">
           {objections.map((objection) => (
             <li key={objection.id} className="py-4">
               <div className="flex flex-wrap items-center gap-2">

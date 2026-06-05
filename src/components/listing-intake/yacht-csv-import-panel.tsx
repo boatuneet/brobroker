@@ -160,7 +160,7 @@ export function YachtCsvImportPanel() {
         {parseError ? <ImportNotice tone="error" title="Import issue" detail={parseError} /> : null}
 
         {yachts && images && !yachtHeaderErrors.length && !imageHeaderErrors.length ? (
-          <div className="grid gap-3 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-4 sm:grid-cols-3">
+          <div className="grid gap-3 rounded-[12px] border border-[#E7E7E7] bg-[#F1F2EE] p-4 sm:grid-cols-3">
             <PreviewMetric label="Yachts" value={`${yachts.rows.length}`} />
             <PreviewMetric label="Images" value={`${images.rows.length}`} />
             <PreviewMetric label="Matched images" value={`${matchedImageCount}`} />
@@ -168,7 +168,7 @@ export function YachtCsvImportPanel() {
         ) : null}
 
         {isImporting || stats ? (
-          <div className="rounded-2xl border border-[#E7E7E2] bg-white p-4">
+          <div className="rounded-[12px] border border-[#E7E7E7] bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[#171719]">
@@ -225,9 +225,9 @@ function CsvFileInput({
   value: string;
 }) {
   return (
-    <label className="grid cursor-pointer gap-3 rounded-2xl border border-dashed border-[#D9DAD4] bg-[#F1F2EE] p-5 transition-colors hover:border-[#003C33] hover:bg-[#f7fbf8]">
+    <label className="grid cursor-pointer gap-3 rounded-[12px] border border-dashed border-[#D9DAD4] bg-[#F1F2EE] p-5 transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]">
       <span className="flex items-center gap-3">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#003C33] shadow-[0_8px_24px_rgba(23,23,28,0.08)]">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#003C33]">
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>
         <span>
@@ -235,7 +235,7 @@ function CsvFileInput({
           <span className="mt-0.5 block text-[12px] text-[#8E918B]">{description}</span>
         </span>
       </span>
-      <span className="rounded-xl border border-[#E7E7E2] bg-white px-3 py-2 text-[13px] font-medium text-[#5F625E]">
+      <span className="rounded-[12px] border border-[#E7E7E7] bg-white px-3 py-2 text-[13px] font-medium text-[#5F625E]">
         {value}
       </span>
       <input
@@ -267,7 +267,7 @@ function ImportNotice({
   tone: "error" | "warning";
 }) {
   return (
-    <div className={tone === "error" ? "rounded-2xl bg-red-50 px-4 py-3 text-red-700" : "rounded-2xl bg-[#F0DDD0] px-4 py-3 text-[#A86642]"}>
+    <div className={tone === "error" ? "rounded-[12px] bg-red-50 px-4 py-3 text-red-700" : "rounded-[12px] bg-[#F0DDD0] px-4 py-3 text-[#A86642]"}>
       <p className="text-sm font-semibold">{title}</p>
       <p className="mt-1 text-[13px] leading-6">{detail}</p>
     </div>

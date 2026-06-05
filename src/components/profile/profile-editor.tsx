@@ -123,7 +123,7 @@ export function ProfileEditor({
           <div className="group relative h-16 w-16 shrink-0">
             <button
               aria-label="Change profile picture"
-              className="relative h-full w-full overflow-hidden rounded-full border border-[#E7E7E2] bg-[#F1F2EE] transition-transform duration-300 ease-out hover:scale-[1.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+              className="relative h-full w-full overflow-hidden rounded-full border border-[#E7E7E7] bg-[#F1F2EE] transition-transform duration-300 ease-out hover:scale-[1.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
               disabled={!enabled || uploading}
               onClick={onPickAvatar}
               type="button"
@@ -155,7 +155,7 @@ export function ProfileEditor({
             {avatarUrl ? (
               <button
                 aria-label="Remove avatar"
-                className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#5F625E] transition-all duration-200 hover:scale-110 hover:text-[#A86642]"
+                className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#5F625E] transition-all duration-200 hover:scale-110 hover:text-[#A86642]"
                 disabled={pending || !enabled}
                 onClick={onClearAvatar}
                 type="button"
@@ -188,7 +188,7 @@ export function ProfileEditor({
           <label className="grid gap-1.5">
             <span className="bb-mono-label">Display name</span>
             <input
-              className="h-11 rounded-xl border border-[#D9DAD4] bg-white px-3.5 text-[14px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+              className="h-11 rounded-[10px] border border-[#D9DAD4] bg-white px-3.5 text-[14px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
               disabled={!enabled || pending}
               onChange={(event) => setFullName(event.target.value)}
               placeholder="How clients should hear your name"
@@ -198,7 +198,7 @@ export function ProfileEditor({
           </label>
           <div className="grid gap-1.5">
             <span className="bb-mono-label">Email</span>
-            <div className="flex min-h-11 items-center truncate rounded-xl border border-[#E7E7E2] bg-[#F6F6F3] px-3.5 text-[14px] text-[#5F625E]" title={email}>
+            <div className="flex min-h-11 items-center truncate rounded-[10px] border border-[#E7E7E7] bg-[#FBFBFB] px-3.5 text-[14px] text-[#5F625E]" title={email}>
               {email}
             </div>
           </div>
@@ -215,10 +215,10 @@ export function ProfileEditor({
           </p>
           <button
             className={cn(
-              "inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
+              "inline-flex min-h-10 items-center gap-2 rounded-[8px] px-4 text-[13px] font-semibold transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
               dirty && enabled
                 ? "bg-[#003C33] text-white hover:bg-[#0B4A3F]"
-                : "bg-[#E7E7E2] text-[#8E918B]",
+                : "bg-[#E7E7E7] text-[#8E918B]",
             )}
             disabled={!dirty || !enabled || pending}
             onClick={onSave}

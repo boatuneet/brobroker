@@ -153,8 +153,6 @@ export function GlobalSearch({
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
       <PageHeader
-        title="Search everything"
-        description="Find buyers, listings, owner notes, tasks, tags, and document gaps."
         metrics={[
           { label: "Results", value: normalized ? `${total}` : "—" },
           { label: "Listings", value: `${listingResults.length}` },
@@ -183,7 +181,7 @@ export function GlobalSearch({
             aria-hidden="true"
           />
           <input
-            className="h-11 w-full rounded-full border border-[#D9DAD4] bg-white pl-11 pr-4 text-sm text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+            className="h-11 w-full rounded-[10px] border border-[#D9DAD4] bg-white pl-11 pr-4 text-sm text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
             name="q"
             onChange={(event) => setValue(event.target.value)}
             placeholder="Search buyer memory, listing facts, owner notes..."
@@ -192,7 +190,7 @@ export function GlobalSearch({
           />
         </label>
         <button
-          className="min-h-11 rounded-full bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+          className="min-h-11 rounded-[8px] bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
           type="submit"
         >
           Search
@@ -213,7 +211,7 @@ export function GlobalSearch({
             <div className="mt-5 flex flex-wrap gap-2">
               {SUGGESTIONS.map((term) => (
                 <button
-                  className="inline-flex h-8 items-center rounded-full border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  className="inline-flex h-8 items-center rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
                   key={term}
                   onClick={() => applySuggestion(term)}
                   type="button"
@@ -224,7 +222,7 @@ export function GlobalSearch({
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <Link
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
                 href="/dashboard"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -257,7 +255,7 @@ export function GlobalSearch({
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.map((term) => (
                 <button
-                  className="inline-flex h-8 items-center rounded-full border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                  className="inline-flex h-8 items-center rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
                   key={term}
                   onClick={() => applySuggestion(term)}
                   type="button"
@@ -272,7 +270,7 @@ export function GlobalSearch({
         <div className="mt-12 grid gap-8 xl:grid-cols-2">
           <Card>
             <CardHeader eyebrow="Listings" title="Asset intelligence matches" />
-            <ul className="divide-y divide-[#E7E7E2]">
+            <ul className="divide-y divide-[#E7E7E7]">
               {listingResults.map((listing) => (
                 <li key={listing.id} className="px-6 py-5">
                   <Link
@@ -298,7 +296,7 @@ export function GlobalSearch({
 
           <Card>
             <CardHeader eyebrow="Buyers" title="Client memory matches" />
-            <ul className="divide-y divide-[#E7E7E2]">
+            <ul className="divide-y divide-[#E7E7E7]">
               {buyerResults.map((buyer) => (
                 <li key={buyer.id} className="px-6 py-5">
                   <Link
@@ -326,7 +324,7 @@ export function GlobalSearch({
 
           <Card>
             <CardHeader eyebrow="Tasks" title="Broker actions" />
-            <ul className="divide-y divide-[#E7E7E2]">
+            <ul className="divide-y divide-[#E7E7E7]">
               {taskResults.map((task) => (
                 <li key={task.id} className="px-6 py-5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -345,7 +343,7 @@ export function GlobalSearch({
 
           <Card>
             <CardHeader eyebrow="Owners" title="Seller context" />
-            <ul className="divide-y divide-[#E7E7E2]">
+            <ul className="divide-y divide-[#E7E7E7]">
               {sellerResults.map((seller) => (
                 <li key={seller.id} className="px-6 py-5">
                   <Link

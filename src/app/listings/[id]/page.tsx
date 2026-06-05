@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ListingBrain } from "@/components/listings";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getListingBrain } from "@/lib/services";
@@ -62,8 +63,21 @@ export default async function ListingBrainPage({
     notFound();
   }
 
+  const listingName =
+    storedListing?.name ?? (includeDemo ? getListingBrain(id, segment)?.listing.name : undefined) ?? "Listing";
+
   return (
-    <AppShell active="Listings">
+    <AppShell
+      active="Listings"
+      breadcrumb={
+        <PageBreadcrumb
+          items={[
+            { label: "Listings", href: "/listings" },
+            { label: listingName },
+          ]}
+        />
+      }
+    >
       <ListingBrain
         activeTab={tab}
         includeDemo={includeDemo}

@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/app-shell";
-import { VoiceToCrmWorkspace } from "@/components/voice-to-crm";
+import { VoiceCrmClearButton, VoiceToCrmWorkspace } from "@/components/voice-to-crm";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
@@ -21,7 +21,7 @@ export default async function VoiceCrmPage({
   const prefillBuyerId = Array.isArray(params.buyer) ? params.buyer[0] : params.buyer;
 
   return (
-    <AppShell active="Voice CRM">
+    <AppShell active="Voice CRM" pageActions={<VoiceCrmClearButton />} pageTitle="Voice CRM">
       <VoiceToCrmWorkspace
         key={segment}
         includeDemo={includeDemo}

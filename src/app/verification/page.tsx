@@ -13,7 +13,7 @@ export default async function VerificationPage() {
   const includeDemo = await isDemoModeEnabled();
 
   return (
-    <AppShell active="Verification">
+    <AppShell active="Verification" pageTitle="Verification">
       <VerificationWorkspace key={segment} includeDemo={includeDemo} segment={segment} />
     </AppShell>
   );

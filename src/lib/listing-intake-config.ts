@@ -9,6 +9,7 @@ export type ListingFieldKind =
   | "number"
   | "textarea"
   | "select"
+  | "date"
   | "checkbox"
   | "multi"
   | "color"
@@ -256,7 +257,7 @@ function getListingBrainSections(segment: BrokerSegment, startStep = 5): Listing
         {
           id: "nextOwnerUpdateDueAt",
           label: "Next owner update date",
-          kind: "text",
+          kind: "date",
           placeholder: "2026-06-01",
         },
         {

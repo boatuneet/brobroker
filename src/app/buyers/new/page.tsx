@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { BuyerIntakeFlow } from "@/components/buyer-intake/buyer-intake-flow";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { normalizeBrokerSegment } from "@/lib/broker-segments";
 
@@ -19,7 +20,17 @@ export default async function NewBuyerPage({
   const segment = normalizeBrokerSegment(segmentParam ?? activeSegment);
 
   return (
-    <AppShell active="Buyers">
+    <AppShell
+      active="Buyers"
+      breadcrumb={
+        <PageBreadcrumb
+          items={[
+            { label: "Buyers", href: "/buyers" },
+            { label: "Add buyer" },
+          ]}
+        />
+      }
+    >
       <BuyerIntakeFlow initialSegment={segment} />
     </AppShell>
   );

@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
+  Check,
   CheckCircle2,
   CircleAlert,
   Lightbulb,
   MessageSquareText,
+  Search,
+  Ship,
   Sparkles,
+  Users,
+  X,
 } from "lucide-react";
 import {
   type BrokerSegment,
@@ -20,13 +25,14 @@ import {
   saveSessionBuyer,
   writePersisted,
 } from "@/lib/browser-persistence";
+import { readRerankConfig } from "@/lib/rerank-config";
 import {
   discoverHiddenOpportunities,
   generateClientBriefShortlist,
   generateMatchesForBuyer,
 } from "@/lib/services";
 import type { BuyerProfile, YachtListing } from "@/lib/types";
-import { formatCurrency, percentage } from "@/lib/utils";
+import { cn, formatCurrency, percentage } from "@/lib/utils";
 import {
   Badge,
   Button,
@@ -47,6 +53,12 @@ const exampleBriefs: Record<BrokerSegment, string> = {
   "Real Estate":
     "Private villa or penthouse, EUR 5M to EUR 10M, 4+ bedrooms, strong privacy, turnkey interiors. Prefer France, Monaco, or Dubai with approved viewing documents.",
 };
+
+const SAVED_BRIEFS_KEY = "brobroker:matching:saved-briefs";
+
+type CaptureMode = "buyer" | "listing";
+type AiMatch = { listingId: string; fitScore: number; reason: string };
+type AiBuyer = { buyerId: string; fitScore: number; reason: string };
 
 type PersistedBrief = {
   id: string;
@@ -80,6 +92,26 @@ function categoryTone(category: string): "success" | "info" | "warning" {
   return "warning";
 }
 
+/* Compose an editable, parser-friendly brief from a saved buyer profile so the
+   broker can start matching from CRM memory rather than retyping. */
+function briefFromBuyer(buyer: BuyerProfile): string {
+  const head: string[] = [];
+  if (buyer.preferredBrands.length) head.push(buyer.preferredBrands.join(" or "));
+  // Only mention length when the buyer actually set one ([0,0] = left empty).
+  if (buyer.sizeRangeFt && buyer.sizeRangeFt[1] > 0) {
+    const [lo, hi] = buyer.sizeRangeFt;
+    head.push(lo > 0 ? `${lo} to ${hi} ft` : `up to ${hi} ft`);
+  }
+  if (buyer.budgetMaxEur) head.push(`under EUR ${buyer.budgetMaxEur.toLocaleString("en-GB")}`);
+  if (buyer.mustHaves.length) head.push(buyer.mustHaves.join(", "));
+  const sentence = head.length ? `${head.join(", ")}.` : "";
+  const location = buyer.preferredLocations.length
+    ? ` Prefer ${buyer.preferredLocations.join(" or ")}.`
+    : "";
+  const breakers = buyer.dealBreakers.length ? ` No ${buyer.dealBreakers.join(", no ")}.` : "";
+  return `${sentence}${location}${breakers}`.trim();
+}
+
 export function MatchingWorkspace({
   includeDemo = true,
   segment = "Yacht",
@@ -94,12 +126,43 @@ export function MatchingWorkspace({
   const listings = mergeListings(storedListings, includeDemo ? getListingsForSegment(segment) : []);
   const buyers = mergeBuyers(storedBuyers, includeDemo ? getBuyersForSegment(segment) : []);
   const exampleBrief = exampleBriefs[segment];
+
+  const [mode, setMode] = useState<CaptureMode>("buyer");
   const [brief, setBrief] = useState("");
   const [parsedBrief, setParsedBrief] = useState("");
+  const [sourceBuyerId, setSourceBuyerId] = useState("");
   const [opportunityListingId, setOpportunityListingId] = useState(listings[0]?.id ?? "");
-  const [savedBriefs, setSavedBriefs] = useState<PersistedBrief[]>(() =>
-    readPersisted<PersistedBrief[]>("brobroker:matching:saved-briefs", []),
+  const [listingDrawerOpen, setListingDrawerOpen] = useState(false);
+  const [listingSearch, setListingSearch] = useState("");
+  const [savedBriefs, setSavedBriefs] = useState<PersistedBrief[]>([]);
+
+  // AI re-rank (parity with the Buyers screen) — runs the shortlist candidates
+  // through the matching agent + the broker's rerank config.
+  const [aiMatches, setAiMatches] = useState<AiMatch[] | null>(null);
+  const [aiMode, setAiMode] = useState<"ai" | "deterministic" | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // AI re-rank for the listing → buyers direction (semantic parity with the
+  // buyer → matches re-rank above).
+  const [aiBuyers, setAiBuyers] = useState<AiBuyer[] | null>(null);
+  const [aiBuyersMode, setAiBuyersMode] = useState<"ai" | "deterministic" | null>(null);
+  const [aiBuyersLoading, setAiBuyersLoading] = useState(false);
+  const [aiBuyersError, setAiBuyersError] = useState<string | null>(null);
+
+  // Hydrate saved briefs after mount (localStorage is client-only — seeding in
+  // render would desync the SSR/client first paint). Same pattern as Voice CRM.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
   );
+  const [seeded, setSeeded] = useState(false);
+  if (hydrated && !seeded) {
+    setSeeded(true);
+    const stored = readPersisted<PersistedBrief[]>(SAVED_BRIEFS_KEY, []);
+    if (stored.length) setSavedBriefs(stored);
+  }
 
   const shortlist = useMemo(
     () => generateClientBriefShortlist(parsedBrief, segment, listings),
@@ -114,13 +177,31 @@ export function MatchingWorkspace({
   );
   const selectedListing = listings.find((listing) => listing.id === opportunityListingId);
 
+  const filteredListings = useMemo(() => {
+    const query = listingSearch.trim().toLowerCase();
+    if (!query) return listings;
+    return listings.filter((listing) =>
+      [listing.name, listing.builder, listing.model, listing.location]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(query)),
+    );
+  }, [listings, listingSearch]);
+
   const hasBrief = parsedBrief.trim().length > 0;
   const exactCount = shortlist.matches.filter((match) => match.category === "Exact Match").length;
+
+  function loadBuyerIntoBrief(value: string) {
+    setSourceBuyerId(value);
+    const buyer = buyers.find((candidate) => candidate.id === value);
+    if (buyer) setBrief(briefFromBuyer(buyer));
+  }
 
   function parseBrief() {
     const trimmed = brief.trim();
     if (!trimmed) return;
     setParsedBrief(brief);
+    setAiMatches(null);
+    setAiError(null);
     const nextShortlist = generateClientBriefShortlist(brief, segment, listings);
     saveSessionBuyer({
       id: `brief-buyer-${Date.now()}`,
@@ -141,11 +222,8 @@ export function MatchingWorkspace({
         matchCount: nextShortlist.matches.length,
         createdAt: new Date().toISOString(),
       };
-      const next = [
-        savedBrief,
-        ...current,
-      ].slice(0, 8);
-      writePersisted("brobroker:matching:saved-briefs", next);
+      const next = [savedBrief, ...current].slice(0, 8);
+      writePersisted(SAVED_BRIEFS_KEY, next);
       mirrorWorkflowEvent("matching_brief_generated", savedBrief.id, {
         brief,
         criteria: nextShortlist.criteria,
@@ -159,294 +237,527 @@ export function MatchingWorkspace({
     });
   }
 
-  function resetWorkspace() {
-    setBrief("");
-    setParsedBrief("");
+  async function runAiMatch() {
+    if (aiLoading || !parsedBrief.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/brief-match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief: parsedBrief, config: readRerankConfig() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not run the AI match.");
+      setAiMatches(Array.isArray(data.ranked) ? data.ranked : []);
+      setAiMode(data.mode === "ai" ? "ai" : "deterministic");
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "Could not run the AI match.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function runListingAiMatch() {
+    if (aiBuyersLoading || !opportunityListingId) return;
+    setAiBuyersLoading(true);
+    setAiBuyersError(null);
+    try {
+      const res = await fetch("/api/listing-match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: opportunityListingId, config: readRerankConfig() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not run the AI match.");
+      setAiBuyers(Array.isArray(data.ranked) ? data.ranked : []);
+      setAiBuyersMode(data.mode === "ai" ? "ai" : "deterministic");
+    } catch (error) {
+      setAiBuyersError(error instanceof Error ? error.message : "Could not run the AI match.");
+    } finally {
+      setAiBuyersLoading(false);
+    }
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <PageHeader
-        title="Match from a brief"
-        description="Parse a buyer brief, rank inventory, and surface hidden opportunities."
         metrics={[
-          {
-            label: "Ranked matches",
-            value: hasBrief ? `${shortlist.matches.length}` : "—",
-          },
+          { label: "Ranked matches", value: hasBrief ? `${shortlist.matches.length}` : "—" },
           { label: "Exact matches", value: hasBrief ? `${exactCount}` : "—" },
           {
             label: "Hidden opportunities",
             value: listings.length > 0 ? `${opportunities.length}` : "—",
           },
-          {
-            label: "Saved buyer checks",
-            value: `${buyers.length}`,
-          },
+          { label: "Saved buyers", value: `${buyers.length}` },
         ]}
-        actions={
-          hasBrief ? (
-            <Button onClick={resetWorkspace} type="button" variant="secondary">
-              Start over
-            </Button>
-          ) : null
-        }
       />
 
-      <div className="mt-12 grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.65fr)]">
-        {/* Left column — brief, criteria, ranked matches, comparison */}
-        <div className="grid content-start gap-8">
-          <Card>
-            <CardHeader
-              title="Enter buyer requirements"
-              description="Add budget, size, location, year, brand, or style to sharpen the shortlist."
-              action={
-                <CardHeaderIcon>
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            <div className="grid gap-4 px-6 py-5">
-              <textarea
-                aria-label="Client brief"
-                className="min-h-40 w-full rounded-xl border border-[#D9DAD4] bg-white p-4 text-[15px] leading-7 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
-                onChange={(event) => setBrief(event.target.value)}
-                placeholder="Describe the buyer in your own words — asset type, model, year, size, budget, geography, urgency."
-                value={brief}
-              />
-              <div className="flex flex-wrap items-center gap-3">
-                <Button disabled={!brief.trim()} onClick={parseBrief} type="button">
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  Generate shortlist
-                </Button>
-                <Button onClick={() => setBrief(exampleBrief)} type="button" variant="link">
-                  Load example
-                </Button>
-                {brief && brief !== parsedBrief ? (
-                  <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
-                    Unparsed changes
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </Card>
+      {/* Mode switch — the screen does two opposite jobs; let the broker pick one. */}
+      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div
+          aria-label="Matching mode"
+          className="inline-flex w-fit shrink-0 items-center gap-1 rounded-[8px] border border-[#D9DAD4] bg-white p-1 text-[13px] font-medium"
+          role="tablist"
+        >
+          <button
+            aria-selected={mode === "buyer"}
+            className={cn(
+              "inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] px-3 transition-colors",
+              mode === "buyer" ? "bg-[#171719] text-white" : "text-[#5F625E] hover:bg-[#F1F2EE]",
+            )}
+            onClick={() => setMode("buyer")}
+            role="tab"
+            type="button"
+          >
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            Find boats for a buyer
+          </button>
+          <button
+            aria-selected={mode === "listing"}
+            className={cn(
+              "inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] px-3 transition-colors",
+              mode === "listing" ? "bg-[#171719] text-white" : "text-[#5F625E] hover:bg-[#F1F2EE]",
+            )}
+            onClick={() => setMode("listing")}
+            role="tab"
+            type="button"
+          >
+            <Ship className="h-3.5 w-3.5" aria-hidden="true" />
+            Find buyers for a listing
+          </button>
+        </div>
+        <p className="text-[13px] leading-6 text-[#5F625E]">
+          {mode === "buyer"
+            ? "Turn a buyer brief into a ranked, explainable shortlist."
+            : "Pick a listing and see which saved buyers it fits — with the reasons why."}
+        </p>
+      </div>
 
-          {buyers.length ? (
+      {mode === "buyer" ? (
+        <>
+        <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
+          {/* Left — the 1 → 2 → 3 flow */}
+          <div className="grid content-start gap-8">
             <Card>
               <CardHeader
-                title="Current buyer profiles against inventory"
-                description="Automatically refreshed from saved buyer profiles and current listings."
-              />
-              <div className="grid gap-0 divide-y divide-[#E7E7E2]">
-                {buyers.map((buyer) => {
-                  const matches = generateMatchesForBuyer(buyer, listings);
-                  const topMatch = matches[0];
-                  const topListing = listings.find((listing) => listing.id === topMatch?.listingId);
-
-                  return (
-                    <article key={buyer.id} className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-center">
-                      <div className="min-w-0">
-                        <Link
-                          className="text-[15px] font-semibold text-[#171719] hover:text-[#1863dc]"
-                          href={`/buyers/${buyer.id}`}
-                        >
-                          {buyer.name}
-                        </Link>
-                        <p className="mt-1 text-[13px] leading-6 text-[#5F625E]">
-                          {topListing
-                            ? `Top fit: ${topListing.name}`
-                            : "No listing fit found yet."}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-[#F6F6F3] p-4 lg:text-right">
-                        <p className="bb-mono-label">Top fit</p>
-                        <p className="mt-1 font-mono text-xl font-semibold text-[#171719]">
-                          {topMatch ? percentage(topMatch.fitScore) : "—"}
-                        </p>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </Card>
-          ) : null}
-
-          <Card>
-            <CardHeader
-              title="What the matcher extracted"
-              action={
-                <CardHeaderIcon>
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            {hasBrief ? (
-              <>
-                <dl className="grid gap-x-10 gap-y-5 px-6 py-5 sm:grid-cols-2">
-                  <CriteriaRow label="Model" value={shortlist.criteria.model ?? "Flexible"} />
-                  <CriteriaRow
-                    label="Budget cap"
-                    value={
-                      shortlist.criteria.budgetMaxEur
-                        ? formatCurrency(shortlist.criteria.budgetMaxEur)
-                        : "Not specified"
-                    }
-                  />
-                  <CriteriaRow
-                    label="Year"
-                    value={shortlist.criteria.minYear ? `${shortlist.criteria.minYear}+` : "Flexible"}
-                  />
-                  <CriteriaRow
-                    label="Cabins"
-                    value={shortlist.criteria.cabins ? `${shortlist.criteria.cabins}+` : "Flexible"}
-                  />
-                  <CriteriaRow
-                    label="Interior"
-                    value={shortlist.criteria.interiorStyle ?? "Flexible"}
-                  />
-                  <CriteriaRow label="VAT" value={shortlist.criteria.vatStatus ?? "Flexible"} />
-                  <CriteriaRow
-                    label="Size"
-                    value={
-                      shortlist.criteria.sizeRangeFt
-                        ? `${shortlist.criteria.sizeRangeFt[0]} – ${shortlist.criteria.sizeRangeFt[1]} ft`
-                        : "Flexible"
-                    }
-                  />
-                  <CriteriaRow
-                    label="Location"
-                    value={shortlist.criteria.preferredLocations?.join(", ") || "Flexible"}
-                  />
-                </dl>
-
-                <div className="grid gap-6 border-t border-[#E7E7E2] px-6 py-5 sm:grid-cols-2">
-                  <TagRow
-                    title="Must-haves"
-                    items={shortlist.criteria.mustHaves ?? []}
-                    empty="No explicit must-haves parsed."
-                  />
-                  <TagRow
-                    title="Deal breakers"
-                    items={shortlist.criteria.dealBreakers ?? []}
-                    empty="No explicit deal breakers parsed."
-                  />
-                </div>
-              </>
-            ) : (
-              <EmptyState
-                title="No brief parsed yet"
-                description="Type or paste a brief, then run Generate shortlist to extract criteria."
+                eyebrow="Step 1"
+                title="Describe the buyer"
+                description="Start from a saved buyer, or type the requirements yourself — budget, size, location, year, brand, or style."
                 action={
-                  <Button
-                    onClick={() => setBrief(exampleBrief)}
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                  >
-                    Load an example
-                  </Button>
+                  <CardHeaderIcon>
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  </CardHeaderIcon>
                 }
               />
-            )}
-          </Card>
+              <div className="grid gap-4 px-6 py-5">
+                {buyers.length ? (
+                  <SelectMenu
+                    label="Start from a saved buyer (optional)"
+                    onChange={loadBuyerIntoBrief}
+                    options={[
+                      { value: "", label: "Free text — no saved buyer", meta: "Type the brief yourself" },
+                      ...buyers.map((buyer) => ({
+                        value: buyer.id,
+                        label: buyer.name,
+                        meta: [buyer.company, buyer.country].filter(Boolean).join(" · "),
+                      })),
+                    ]}
+                    value={sourceBuyerId}
+                  />
+                ) : null}
 
-          {hasBrief ? (
+                <div className="grid gap-1.5">
+                  <span className="block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+                    Buyer brief
+                  </span>
+                  <textarea
+                    aria-label="Client brief"
+                    className="min-h-40 w-full rounded-[12px] border border-[#D9DAD4] bg-white p-4 text-[15px] leading-7 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+                    onChange={(event) => setBrief(event.target.value)}
+                    placeholder="Describe the buyer in your own words — asset type, model, year, size, budget, geography, urgency."
+                    value={brief}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button disabled={!brief.trim()} onClick={parseBrief} type="button">
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    Generate shortlist
+                  </Button>
+                  <Button onClick={() => setBrief(exampleBrief)} type="button" variant="link">
+                    Load example
+                  </Button>
+                  {brief && brief !== parsedBrief ? (
+                    <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
+                      Unparsed changes
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </Card>
+
             <Card>
               <CardHeader
-                title="Ranked recommendations"
+                eyebrow="Step 2"
+                title="Review extracted criteria"
+                description="Confirm the matcher read the brief correctly before trusting the shortlist."
+                action={
+                  <CardHeaderIcon>
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  </CardHeaderIcon>
+                }
+              />
+              {hasBrief ? (
+                <>
+                  <dl className="grid gap-x-10 gap-y-5 px-6 py-5 sm:grid-cols-2">
+                    <CriteriaRow label="Model" value={shortlist.criteria.model ?? "Flexible"} />
+                    <CriteriaRow
+                      label="Budget cap"
+                      value={
+                        shortlist.criteria.budgetMaxEur
+                          ? formatCurrency(shortlist.criteria.budgetMaxEur)
+                          : "Not specified"
+                      }
+                    />
+                    <CriteriaRow
+                      label="Year"
+                      value={shortlist.criteria.minYear ? `${shortlist.criteria.minYear}+` : "Flexible"}
+                    />
+                    <CriteriaRow
+                      label="Cabins"
+                      value={shortlist.criteria.cabins ? `${shortlist.criteria.cabins}+` : "Flexible"}
+                    />
+                    <CriteriaRow label="Interior" value={shortlist.criteria.interiorStyle ?? "Flexible"} />
+                    <CriteriaRow label="VAT" value={shortlist.criteria.vatStatus ?? "Flexible"} />
+                    <CriteriaRow
+                      label="Size"
+                      value={
+                        shortlist.criteria.sizeRangeFt
+                          ? `${shortlist.criteria.sizeRangeFt[0]} – ${shortlist.criteria.sizeRangeFt[1]} ft`
+                          : "Flexible"
+                      }
+                    />
+                    <CriteriaRow
+                      label="Location"
+                      value={shortlist.criteria.preferredLocations?.join(", ") || "Flexible"}
+                    />
+                  </dl>
+
+                  <div className="grid gap-6 border-t border-[#E7E7E7] px-6 py-5 sm:grid-cols-2">
+                    <TagRow
+                      title="Must-haves"
+                      items={shortlist.criteria.mustHaves ?? []}
+                      empty="No explicit must-haves parsed."
+                    />
+                    <TagRow
+                      title="Deal breakers"
+                      items={shortlist.criteria.dealBreakers ?? []}
+                      empty="No explicit deal breakers parsed."
+                    />
+                  </div>
+                </>
+              ) : (
+                <EmptyState
+                  title="Criteria appear after Step 1"
+                  description="Type or load a brief, then run Generate shortlist to extract structured criteria."
+                  action={
+                    <Button onClick={() => setBrief(exampleBrief)} type="button" size="sm" variant="secondary">
+                      Load an example
+                    </Button>
+                  }
+                />
+              )}
+            </Card>
+
+            <Card>
+              <CardHeader
+                eyebrow="Step 3"
+                title="Ranked matches"
+                description="Best-fit inventory with the reasons, gaps, and talking points for each."
                 action={
                   <CardHeaderIcon>
                     <Lightbulb className="h-4 w-4" aria-hidden="true" />
                   </CardHeaderIcon>
                 }
               />
-              <div className="grid gap-0 divide-y divide-[#E7E7E2]">
-                {shortlist.matches.length ? (
-                  shortlist.matches.map((match) => (
-                    <article key={match.id} className="px-6 py-6">
-                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-start">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge tone={categoryTone(match.category)}>{match.category}</Badge>
-                            <span className="bb-mono-label">
-                              {percentage(match.fitScore)} fit
-                            </span>
-                          </div>
-                          <Link
-                            className="bb-display mt-3 inline-block text-lg font-medium text-[#171719] hover:text-[#1863dc]"
-                            href={`/listings/${match.listing.id}`}
-                          >
-                            {match.listing.name}
-                            <span className="text-[#8E918B]">
-                              {" "}
-                              · {match.listing.builder} {match.listing.model}
-                            </span>
-                          </Link>
-                          <p className="mt-2 text-sm leading-6 text-[#5F625E]">{match.rationale}</p>
-                        </div>
-                        <div className="rounded-xl bg-[#F6F6F3] p-4 lg:text-right">
-                          <p className="bb-mono-label">Fit</p>
-                          <p className="bb-display mt-2 text-2xl font-medium text-[#171719]">
-                            {percentage(match.fitScore)}
-                          </p>
-                          <ProgressBar className="mt-3" value={match.fitScore} />
-                        </div>
-                      </div>
-                      <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                        <ListBlock
-                          icon={CheckCircle2}
-                          title="Criteria met"
-                          items={match.criteriaMet}
-                        />
-                        <ListBlock
-                          icon={CircleAlert}
-                          title="Missing / uncertain"
-                          items={
-                            match.missingCriteria.length
-                              ? match.missingCriteria
-                              : ["No blockers flagged"]
-                          }
-                        />
-                        <ListBlock
-                          icon={Lightbulb}
-                          title="Broker talking points"
-                          items={match.talkingPoints}
-                        />
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <EmptyState
-                    title={
-                      listings.length === 0
-                        ? "No inventory to score against"
-                        : "Brief parsed but no listings matched"
-                    }
-                    description={
-                      listings.length === 0
-                        ? "The brief is structured and ready — add inventory and the matcher will rank it against these criteria."
-                        : "Try widening budget, size, or location. The matcher needs at least one listing inside the requested band."
-                    }
-                    action={
-                      listings.length === 0 ? (
-                        <Link
-                          className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
-                          href="/listings"
+              {!hasBrief ? (
+                <EmptyState
+                  title="Your shortlist will appear here"
+                  description="Complete Step 1 to rank inventory against the brief."
+                />
+              ) : shortlist.matches.length ? (
+                <div className="px-6 py-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="bb-mono-label">
+                      {shortlist.matches.length} ranked match{shortlist.matches.length === 1 ? "" : "es"}
+                    </p>
+                    <button
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={aiLoading}
+                      onClick={() => void runAiMatch()}
+                      type="button"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                      {aiLoading ? "Ranking…" : aiMatches ? "Re-run AI ranking" : "Re-rank with AI"}
+                    </button>
+                  </div>
+
+                  {aiError ? (
+                    <p className="mt-3 rounded-[8px] bg-[#F0DDD0]/60 px-3 py-2 text-[12.5px] text-[#A86642]">
+                      {aiError}
+                    </p>
+                  ) : null}
+
+                  {aiMatches ? (
+                    <div className="mt-3 overflow-hidden rounded-[12px] border border-[#E7EFEA] bg-[#f4fbf5]">
+                      <div className="flex items-center justify-between gap-3 border-b border-[#E7EFEA] px-4 py-2.5">
+                        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#3F5249]">
+                          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                          {aiMode === "ai" ? "AI semantic ranking" : "Rule-based ranking (no OpenAI key)"}
+                        </p>
+                        <button
+                          className="text-[12px] font-medium text-[#5F7A6F] transition-colors hover:text-[#003C33]"
+                          onClick={() => setAiMatches(null)}
+                          type="button"
                         >
-                          Open listings
-                        </Link>
-                      ) : null
+                          Hide
+                        </button>
+                      </div>
+                      {aiMatches.length ? (
+                        <ul className="divide-y divide-[#E7EFEA]">
+                          {aiMatches.map((item) => {
+                            const listing = listings.find((entry) => entry.id === item.listingId);
+                            return (
+                              <li className="px-4 py-3" key={item.listingId}>
+                                <div className="flex items-center justify-between gap-3">
+                                  <Link
+                                    className="truncate text-[14px] font-medium text-[#171719] hover:text-[#003C33] hover:underline"
+                                    href={`/listings/${item.listingId}`}
+                                  >
+                                    {listing?.name ?? item.listingId}
+                                  </Link>
+                                  <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-[#003C33]">
+                                    {item.fitScore}%
+                                  </span>
+                                </div>
+                                {item.reason ? (
+                                  <p className="mt-1 text-[12.5px] leading-[1.55] text-[#5F625E]">{item.reason}</p>
+                                ) : null}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="px-4 py-3 text-[12.5px] text-[#5F625E]">No candidates to rank.</p>
+                      )}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3 max-h-[900px] divide-y divide-[#E7E7E7] overflow-y-auto rounded-[12px] border border-[#E7E7E7]">
+                    {shortlist.matches.map((match) => (
+                      <article key={match.id} className="px-5 py-5">
+                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px] lg:items-start">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge tone={categoryTone(match.category)}>{match.category}</Badge>
+                              <span className="bb-mono-label">{percentage(match.fitScore)} fit</span>
+                            </div>
+                            <Link
+                              className="bb-display mt-3 inline-block text-lg font-medium text-[#171719] hover:text-[#1863dc]"
+                              href={`/listings/${match.listing.id}`}
+                            >
+                              {match.listing.name}
+                              <span className="text-[#8E918B]">
+                                {" "}· {match.listing.builder} {match.listing.model}
+                              </span>
+                            </Link>
+                            <p className="mt-2 text-sm leading-6 text-[#5F625E]">{match.rationale}</p>
+                          </div>
+                          <div className="rounded-[12px] bg-[#FBFBFB] p-4 lg:text-right">
+                            <p className="bb-mono-label">Fit</p>
+                            <p className="bb-display mt-2 text-2xl font-medium text-[#171719]">
+                              {percentage(match.fitScore)}
+                            </p>
+                            <ProgressBar className="mt-3" value={match.fitScore} />
+                          </div>
+                        </div>
+                        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                          <ListBlock icon={CheckCircle2} title="Criteria met" items={match.criteriaMet} />
+                          <ListBlock
+                            icon={CircleAlert}
+                            title="Missing / uncertain"
+                            items={match.missingCriteria.length ? match.missingCriteria : ["No blockers flagged"]}
+                          />
+                          <ListBlock icon={Lightbulb} title="Broker talking points" items={match.talkingPoints} />
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <EmptyState
+                  title={
+                    listings.length === 0 ? "No inventory to score against" : "Brief parsed but no listings matched"
+                  }
+                  description={
+                    listings.length === 0
+                      ? "The brief is structured and ready — add inventory and the matcher will rank it against these criteria."
+                      : "Try widening budget, size, or location. The matcher needs at least one listing inside the requested band."
+                  }
+                  action={
+                    listings.length === 0 ? (
+                      <Link
+                        className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
+                        href="/listings"
+                      >
+                        Open listings
+                      </Link>
+                    ) : null
+                  }
+                />
+              )}
+            </Card>
+
+          </div>
+
+          {/* Right rail — saved buyers to load + post-shortlist guidance */}
+          <div className="grid content-start gap-8">
+            {buyers.length ? (
+              <Card>
+                <CardHeader
+                  title="Your saved buyers"
+                  description="Click a buyer to load their requirements into the brief."
+                  action={
+                    <CardHeaderIcon>
+                      <Users className="h-4 w-4" aria-hidden="true" />
+                    </CardHeaderIcon>
+                  }
+                />
+                <div className="grid gap-0 divide-y divide-[#E7E7E7]">
+                  {buyers.map((buyer) => {
+                    const matches = generateMatchesForBuyer(buyer, listings);
+                    const topMatch = matches[0];
+                    const topListing = listings.find((listing) => listing.id === topMatch?.listingId);
+                    return (
+                      <button
+                        className={cn(
+                          "flex items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-[#FBFBFB]",
+                          sourceBuyerId === buyer.id && "bg-[#F1F2EE] hover:bg-[#F1F2EE]",
+                        )}
+                        key={buyer.id}
+                        onClick={() => loadBuyerIntoBrief(buyer.id)}
+                        type="button"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-[14px] font-semibold text-[#171719]">{buyer.name}</p>
+                          <p className="mt-0.5 truncate text-[12.5px] leading-5 text-[#8E918B]">
+                            {topListing ? `Top fit: ${topListing.name}` : "No listing fit found yet."}
+                          </p>
+                        </div>
+                        <span className="shrink-0 font-mono text-[15px] font-semibold tabular-nums text-[#171719]">
+                          {topMatch ? percentage(topMatch.fitScore) : "—"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
+            ) : null}
+
+            {hasBrief && shortlist.matches.length > 0 ? (
+              <>
+                <Card>
+                  <CardHeader
+                    title="Verify before sending"
+                    action={
+                      <CardHeaderIcon className="bg-[#F0DDD0] text-[#b45309]">
+                        <CircleAlert className="h-4 w-4" aria-hidden="true" />
+                      </CardHeaderIcon>
                     }
                   />
-                )}
-              </div>
-            </Card>
-          ) : null}
+                  {shortlist.missingCriteria.length ? (
+                    <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
+                      {shortlist.missingCriteria.map((item) => (
+                        <li key={item} className="flex items-start gap-3 px-6 py-4">
+                          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#b45309]" aria-hidden="true" />
+                          <p className="text-sm leading-6 text-[#5F625E]">{item}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyState
+                      title="No criteria blockers"
+                      description="The current shortlist has nothing flagged by the matcher."
+                    />
+                  )}
+                </Card>
 
-          {hasBrief && shortlist.matches.length > 0 ? (
+                <Card>
+                  <CardHeader
+                    title="Talking points"
+                    action={
+                      <CardHeaderIcon>
+                        <Lightbulb className="h-4 w-4" aria-hidden="true" />
+                      </CardHeaderIcon>
+                    }
+                  />
+                  {shortlist.tradeOffs.length ? (
+                    <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
+                      {shortlist.tradeOffs.map((tradeOff) => (
+                        <li key={tradeOff} className="px-6 py-4 text-sm leading-6 text-[#5F625E]">
+                          {tradeOff}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyState
+                      title="No trade-offs to frame"
+                      description="The current shortlist has no headline trade-offs flagged."
+                    />
+                  )}
+                </Card>
+              </>
+            ) : null}
+
+            {savedBriefs.length ? (
+              <Card>
+                <CardHeader
+                  title="Recent shortlists"
+                  action={
+                    <CardHeaderIcon>
+                      <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+                    </CardHeaderIcon>
+                  }
+                />
+                <ul className="divide-y divide-[#E7E7E7]">
+                  {savedBriefs.slice(0, 4).map((item) => (
+                    <li key={item.id} className="px-6 py-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-[14px] font-medium text-[#171719]">
+                          {item.topListing ?? "No top fit yet"}
+                        </p>
+                        <Badge tone="success">Saved</Badge>
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-[13px] leading-6 text-[#5F625E]">{item.raw}</p>
+                      <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
+                        {item.matchCount} ranked matches
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Comparison & outreach — full width below the flow, listings-style table. */}
+        {hasBrief && shortlist.matches.length > 0 ? (
+          <div className="mt-8">
             <Card>
               <CardHeader
-                title="Comparison table and outreach copy"
+                title="Comparison & outreach"
+                description="Side-by-side trade-offs and a ready-to-edit message for the buyer."
                 action={
                   <CardHeaderIcon>
                     <MessageSquareText className="h-4 w-4" aria-hidden="true" />
@@ -454,120 +765,68 @@ export function MatchingWorkspace({
                 }
               />
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[920px] text-left text-sm">
-                  <thead className="border-b border-[#E7E7E2] text-[11px] uppercase tracking-[0.16em] text-[#8E918B]">
-                    <tr>
-                      <th className="px-6 py-3 font-medium">Asset</th>
-                      <th className="px-6 py-3 font-medium">Category</th>
-                      <th className="px-6 py-3 font-medium">Fit</th>
-                      <th className="px-6 py-3 font-medium">Price</th>
-                      <th className="px-6 py-3 font-medium">Size / Year</th>
-                      <th className="px-6 py-3 font-medium">VAT</th>
-                      <th className="px-6 py-3 font-medium">Top trade-off</th>
+                <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-[#E7E7E7] bg-[#FBFBFB] text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
+                      <th className="px-5 py-3 font-medium">Asset</th>
+                      <th className="px-5 py-3 font-medium">Category</th>
+                      <th className="px-5 py-3 font-medium">Fit</th>
+                      <th className="px-5 py-3 font-medium">Price</th>
+                      <th className="px-5 py-3 font-medium">Size / Year</th>
+                      <th className="px-5 py-3 font-medium">VAT</th>
+                      <th className="px-5 py-3 font-medium">Top trade-off</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E7E7E2]">
+                  <tbody className="divide-y divide-[#E7E7E7]">
                     {shortlist.comparisonRows.map((row) => (
-                      <tr key={row.listing.id} className="align-top">
-                        <td className="px-6 py-4 font-medium text-[#171719]">{row.listing.name}</td>
-                        <td className="px-6 py-4">
+                      <tr key={row.listing.id} className="align-top transition-colors hover:bg-[#FBFBFB]">
+                        <td className="px-5 py-4 font-medium text-[#171719]">{row.listing.name}</td>
+                        <td className="px-5 py-4">
                           <Badge tone={categoryTone(row.category)}>{row.category}</Badge>
                         </td>
-                        <td className="px-6 py-4 font-mono font-medium text-[#171719]">
+                        <td className="px-5 py-4 font-mono font-medium text-[#171719]">
                           {percentage(row.fitScore)}
                         </td>
-                        <td className="px-6 py-4 text-[#5F625E]">{formatCurrency(row.priceEur)}</td>
-                        <td className="px-6 py-4 text-[#5F625E]">
-                          {row.sizeFt}ft / {row.year}
+                        <td className="px-5 py-4 text-[#5F625E]">{formatCurrency(row.priceEur)}</td>
+                        <td className="px-5 py-4 text-[#5F625E]">
+                          {row.sizeFt > 0 ? `${Math.round(row.sizeFt)}ft` : "—"} / {row.year}
                         </td>
-                        <td className="px-6 py-4 text-[#5F625E]">{row.vatStatus}</td>
-                        <td className="px-6 py-4 text-[#5F625E]">{row.topTradeOff}</td>
+                        <td className="px-5 py-4 text-[#5F625E]">{row.vatStatus}</td>
+                        <td className="px-5 py-4 text-[#5F625E]">{row.topTradeOff}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="border-t border-[#E7E7E2] px-6 py-5">
-                <div className="rounded-2xl bg-[#003C33] p-5 text-white">
+              <div className="border-t border-[#E7E7E7] px-6 py-5">
+                <div className="rounded-[12px] bg-[#003C33] p-5 text-white">
                   <div className="flex items-center gap-2">
                     <MessageSquareText className="h-4 w-4" aria-hidden="true" />
                     <p className="bb-mono-label !text-white/70">Suggested outreach</p>
                   </div>
-                  <p className="mt-3 text-sm leading-7 text-white/90">
-                    {shortlist.outreachMessage}
-                  </p>
+                  <p className="mt-3 text-sm leading-7 text-white/90">{shortlist.outreachMessage}</p>
                 </div>
               </div>
             </Card>
-          ) : null}
-        </div>
-
-        {/* Right column — missing criteria, trade-offs, hidden opportunities */}
-        <div className="grid content-start gap-8">
-          {hasBrief && shortlist.matches.length > 0 ? (
-            <>
-              <Card>
-                <CardHeader
-                  title="What to verify before sending"
-                  action={
-                    <CardHeaderIcon className="bg-[#F0DDD0] text-[#b45309]">
-                      <CircleAlert className="h-4 w-4" aria-hidden="true" />
-                    </CardHeaderIcon>
-                  }
-                />
-                {shortlist.missingCriteria.length ? (
-                  <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
-                    {shortlist.missingCriteria.map((item) => (
-                      <li key={item} className="flex items-start gap-3 px-6 py-4">
-                        <CircleAlert
-                          className="mt-0.5 h-4 w-4 shrink-0 text-[#b45309]"
-                          aria-hidden="true"
-                        />
-                        <p className="text-sm leading-6 text-[#5F625E]">{item}</p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyState
-                    title="No criteria blockers"
-                    description="The current shortlist has nothing flagged by the deterministic matcher."
-                  />
-                )}
-              </Card>
-
-              <Card>
-                <CardHeader
-                  title="Broker framing notes"
-                  action={
-                    <CardHeaderIcon>
-                      <Lightbulb className="h-4 w-4" aria-hidden="true" />
-                    </CardHeaderIcon>
-                  }
-                />
-                {shortlist.tradeOffs.length ? (
-                  <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
-                    {shortlist.tradeOffs.map((tradeOff) => (
-                      <li key={tradeOff} className="px-6 py-4 text-sm leading-6 text-[#5F625E]">
-                        {tradeOff}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyState
-                    title="No trade-offs to frame"
-                    description="The current shortlist has no headline trade-offs flagged for broker framing."
-                  />
-                )}
-              </Card>
-            </>
-          ) : null}
-
+          </div>
+        ) : null}
+        </>
+      ) : (
+        /* Listing → buyers mode */
+        <div
+          className={cn(
+            "mt-8 grid gap-8",
+            listings.length ? "lg:grid-cols-2 lg:items-start" : "lg:max-w-2xl",
+          )}
+        >
           <Card>
             <CardHeader
-              title="Who should hear about it"
+              eyebrow="Step 1"
+              title="Pick a listing"
+              description="Choose a new or updated listing to check against your saved buyers."
               action={
                 <CardHeaderIcon>
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <Ship className="h-4 w-4" aria-hidden="true" />
                 </CardHeaderIcon>
               }
             />
@@ -577,7 +836,7 @@ export function MatchingWorkspace({
                 description="Add a listing to check it against buyer memory, timing, budget, and objections."
                 action={
                   <Link
-                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
+                    className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
                     href="/listings"
                   >
                     Open listings
@@ -586,29 +845,118 @@ export function MatchingWorkspace({
               />
             ) : (
               <div className="grid gap-4 px-6 py-5">
-                <SelectMenu
-                  label="New or updated listing"
-                  onChange={setOpportunityListingId}
-                  options={listings.map((listing) => ({
-                    label: `${listing.name} · ${listing.builder} ${listing.model}`,
-                    value: listing.id,
-                    meta: `${listing.assetType ?? "Yacht"} · ${listing.location}`,
-                  }))}
-                  value={opportunityListingId}
-                />
-
+                <div className="grid gap-1.5">
+                  <span className="block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+                    Listing
+                  </span>
+                  <button
+                    className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-[10px] border border-[#D9DAD4] bg-white px-3.5 py-2.5 text-left text-[14px] font-medium text-[#171719] transition-colors hover:border-[#A9ABA5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+                    onClick={() => setListingDrawerOpen(true)}
+                    type="button"
+                  >
+                    <span className="min-w-0 truncate">
+                      {selectedListing
+                        ? `${selectedListing.name} · ${selectedListing.builder} ${selectedListing.model}`
+                        : "Select a listing"}
+                    </span>
+                    <Search className="h-4 w-4 shrink-0 text-[#8E918B]" aria-hidden="true" />
+                  </button>
+                </div>
                 {selectedListing ? (
                   <p className="text-[13px] leading-6 text-[#8E918B]">
-                    <span className="font-medium text-[#171719]">{selectedListing.name}</span> is
-                    checked against buyer memory, timing, budget range, VAT needs, and known
-                    objections.
+                    <span className="font-medium text-[#171719]">{selectedListing.name}</span> is checked
+                    against buyer memory, timing, budget range, VAT needs, and known objections.
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </Card>
+
+          {listings.length > 0 ? (
+            <Card>
+              <CardHeader
+                eyebrow="Step 2"
+                title="Matched buyers"
+                description="Saved buyers whose memory crosses the opportunity threshold for this listing."
+                action={
+                  <CardHeaderIcon>
+                    <Users className="h-4 w-4" aria-hidden="true" />
+                  </CardHeaderIcon>
+                }
+              />
+              <div className="px-6 py-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="bb-mono-label">
+                    {opportunities.length} matched buyer{opportunities.length === 1 ? "" : "s"}
+                  </p>
+                  {buyers.length ? (
+                    <button
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={aiBuyersLoading}
+                      onClick={() => void runListingAiMatch()}
+                      type="button"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                      {aiBuyersLoading ? "Ranking…" : aiBuyers ? "Re-run AI ranking" : "Re-rank with AI"}
+                    </button>
+                  ) : null}
+                </div>
+
+                {aiBuyersError ? (
+                  <p className="mt-3 rounded-[8px] bg-[#F0DDD0]/60 px-3 py-2 text-[12.5px] text-[#A86642]">
+                    {aiBuyersError}
                   </p>
                 ) : null}
 
+                {aiBuyers ? (
+                  <div className="mt-3 overflow-hidden rounded-[12px] border border-[#E7EFEA] bg-[#f4fbf5]">
+                    <div className="flex items-center justify-between gap-3 border-b border-[#E7EFEA] px-4 py-2.5">
+                      <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#3F5249]">
+                        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                        {aiBuyersMode === "ai" ? "AI semantic ranking" : "Rule-based ranking (no OpenAI key)"}
+                      </p>
+                      <button
+                        className="text-[12px] font-medium text-[#5F7A6F] transition-colors hover:text-[#003C33]"
+                        onClick={() => setAiBuyers(null)}
+                        type="button"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                    {aiBuyers.length ? (
+                      <ul className="divide-y divide-[#E7EFEA]">
+                        {aiBuyers.map((item) => {
+                          const buyer = buyers.find((entry) => entry.id === item.buyerId);
+                          return (
+                            <li className="px-4 py-3" key={item.buyerId}>
+                              <div className="flex items-center justify-between gap-3">
+                                <Link
+                                  className="truncate text-[14px] font-medium text-[#171719] hover:text-[#003C33] hover:underline"
+                                  href={`/buyers/${item.buyerId}`}
+                                >
+                                  {buyer?.name ?? item.buyerId}
+                                </Link>
+                                <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-[#003C33]">
+                                  {item.fitScore}%
+                                </span>
+                              </div>
+                              {item.reason ? (
+                                <p className="mt-1 text-[12.5px] leading-[1.55] text-[#5F625E]">{item.reason}</p>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="px-4 py-3 text-[12.5px] text-[#5F625E]">No buyers ranked.</p>
+                    )}
+                  </div>
+                ) : null}
+
                 {opportunities.length ? (
-                  <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+                  <ul className="mt-3 grid gap-0 divide-y divide-[#E7E7E7] overflow-hidden rounded-[12px] border border-[#E7E7E7]">
                     {opportunities.map((opportunity) => (
-                      <li key={opportunity.buyer.id} className="py-4">
+                      <li key={opportunity.buyer.id} className="px-4 py-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0">
                             <Link
@@ -639,47 +987,110 @@ export function MatchingWorkspace({
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[13px] leading-6 text-[#8E918B]">
-                    No buyer memory profile currently crosses the opportunity threshold for this
-                    listing.
+                  <p className="mt-3 rounded-[12px] border border-dashed border-[#E7E7E7] bg-white px-4 py-4 text-[13px] leading-6 text-[#8E918B]">
+                    No saved buyer crosses the rule-based threshold for this listing yet. Try “Re-rank with
+                    AI” for a semantic pass over your saved buyers.
                   </p>
                 )}
               </div>
-            )}
-          </Card>
-
-          {savedBriefs.length ? (
-            <Card>
-              <CardHeader
-                title="Saved shortlist runs"
-                action={
-                  <CardHeaderIcon>
-                    <MessageSquareText className="h-4 w-4" aria-hidden="true" />
-                  </CardHeaderIcon>
-                }
-              />
-              <ul className="divide-y divide-[#E7E7E2]">
-                {savedBriefs.slice(0, 4).map((item) => (
-                  <li key={item.id} className="px-6 py-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-[14px] font-medium text-[#171719]">
-                        {item.topListing ?? "No top fit yet"}
-                      </p>
-                      <Badge tone="success">Saved</Badge>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-[13px] leading-6 text-[#5F625E]">
-                      {item.raw}
-                    </p>
-                    <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
-                      {item.matchCount} ranked matches
-                    </p>
-                  </li>
-                ))}
-              </ul>
             </Card>
           ) : null}
         </div>
-      </div>
+      )}
+
+      {/* Searchable listing picker — a right-side drawer so a long inventory is
+          actually findable (the inline dropdown was hard to scan). */}
+      {listingDrawerOpen ? (
+        <div
+          aria-modal="true"
+          className="bb-overlay-enter fixed inset-0 z-[80] flex justify-end bg-[#171719]/30 backdrop-blur-sm"
+          onClick={() => setListingDrawerOpen(false)}
+          role="dialog"
+        >
+          <div
+            className="bb-drawer-enter flex h-full w-full max-w-md flex-col bg-white shadow-[0_24px_64px_rgba(23,31,25,0.18)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="flex items-center justify-between gap-3 border-b border-[#E7E7E7] px-5 py-4">
+              <div>
+                <h2 className="text-[15px] font-semibold text-[#171719]">Choose a listing</h2>
+                <p className="mt-0.5 text-[12px] text-[#8E918B]">{listings.length} in inventory</p>
+              </div>
+              <button
+                aria-label="Close"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-[#8E918B] transition-colors hover:bg-[#F1F2EE] hover:text-[#171719]"
+                onClick={() => setListingDrawerOpen(false)}
+                type="button"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </header>
+            <div className="border-b border-[#E7E7E7] px-5 py-3">
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
+                  aria-hidden="true"
+                />
+                <input
+                  aria-label="Search listings"
+                  autoFocus
+                  className="min-h-10 w-full rounded-[10px] border border-[#D9DAD4] bg-white pl-9 pr-3 text-[14px] text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+                  onChange={(event) => setListingSearch(event.target.value)}
+                  placeholder="Search by name, builder, model, or location"
+                  value={listingSearch}
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-2">
+              {filteredListings.length ? (
+                <ul className="grid gap-0.5">
+                  {filteredListings.map((listing) => {
+                    const active = listing.id === opportunityListingId;
+                    return (
+                      <li key={listing.id}>
+                        <button
+                          className={cn(
+                            "flex w-full items-start justify-between gap-3 rounded-[10px] px-3 py-3 text-left transition-colors hover:bg-[#F1F2EE]",
+                            active && "bg-[#F1F2EE]",
+                          )}
+                          onClick={() => {
+                            setOpportunityListingId(listing.id);
+                            setAiBuyers(null);
+                            setAiBuyersError(null);
+                            setListingDrawerOpen(false);
+                            setListingSearch("");
+                          }}
+                          type="button"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-[14px] font-medium text-[#171719]">{listing.name}</p>
+                            <p className="mt-0.5 truncate text-[12.5px] text-[#8E918B]">
+                              {[
+                                `${listing.builder} ${listing.model}`.trim(),
+                                listing.lengthFt > 0 ? `${listing.lengthFt}ft` : null,
+                                listing.location,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          </div>
+                          {active ? (
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#003C33]" aria-hidden="true" />
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="px-3 py-8 text-center text-[13px] text-[#8E918B]">
+                  No listings match “{listingSearch}”.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

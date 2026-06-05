@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { ListingIntakeFlow } from "@/components/listing-intake/listing-intake-flow";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { normalizeBrokerSegment } from "@/lib/broker-segments";
 
@@ -19,7 +20,17 @@ export default async function NewListingPage({
   const segment = normalizeBrokerSegment(segmentParam ?? activeSegment);
 
   return (
-    <AppShell active="Listings">
+    <AppShell
+      active="Listings"
+      breadcrumb={
+        <PageBreadcrumb
+          items={[
+            { label: "Listings", href: "/listings" },
+            { label: "Add listing" },
+          ]}
+        />
+      }
+    >
       <ListingIntakeFlow initialSegment={segment} />
     </AppShell>
   );

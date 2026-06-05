@@ -15,7 +15,6 @@ import {
   Coins,
   Eye,
   FileText,
-  Flame,
   Mail,
   MessageSquareText,
   ShieldCheck,
@@ -39,7 +38,6 @@ import type {
   YachtListing,
 } from "@/lib/types";
 import { cn, daysUntil, formatDate } from "@/lib/utils";
-import { PageHeader } from "@/components/ui";
 import {
   DEMO_NOW,
   STAGES,
@@ -196,10 +194,6 @@ export function PulseBoard({
 
   const window = useMemo(() => buildWindow(extended), [extended]);
 
-  const needsMeCount = lanes.filter(
-    (l) => l.health === "overdue" || l.health === "urgent",
-  ).length;
-
   const selectedLane = selectedBuyerId
     ? lanes.find((lane) => lane.buyer.id === selectedBuyerId) ?? null
     : null;
@@ -244,18 +238,7 @@ export function PulseBoard({
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <PageHeader
-        title="Pulse"
-        description="Live timeline of every deal — what's coming, what's late, what's stalled."
-        actions={
-          <span className="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#F0DDD0] px-3.5 text-[12.5px] font-semibold text-[#A86642]">
-            <Flame aria-hidden="true" className="h-3.5 w-3.5" />
-            Needs me · {needsMeCount}
-          </span>
-        }
-      />
-
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Pipeline value strip — Feature 4. */}
       <PipelineValueStrip data={pipelineValue} lanesTotal={lanes.length} />
 
@@ -285,10 +268,10 @@ export function PulseBoard({
             <button
               aria-pressed={isActive}
               className={cn(
-                "group relative overflow-hidden rounded-2xl border p-5 text-left transition-colors",
+                "group relative overflow-hidden rounded-[12px] border p-5 text-left transition-colors",
                 isActive
                   ? "border-[#003C33] bg-[#003C33] text-white"
-                  : "border-[#E7E7E2] bg-white text-[#171719] hover:border-[#003C33]",
+                  : "border-[#E7E7E7] bg-white text-[#171719] hover:border-[#003C33]",
               )}
               key={stage}
               onClick={() => setStageFilter(isActive ? "All" : stage)}
@@ -314,7 +297,7 @@ export function PulseBoard({
               <p
                 className={cn(
                   "bb-mono-label",
-                  isActive ? "text-[#E7EFEA]" : "text-[#8E918B]",
+                  isActive ? "text-[#F1F2EE]" : "text-[#8E918B]",
                 )}
               >
                 {stage}
@@ -325,7 +308,7 @@ export function PulseBoard({
               <div
                 className={cn(
                   "mt-3 h-1 w-full overflow-hidden rounded-full",
-                  isActive ? "bg-white/20" : "bg-[#E7E7E2]",
+                  isActive ? "bg-white/20" : "bg-[#E7E7E7]",
                 )}
               >
                 <div
@@ -372,10 +355,10 @@ export function PulseBoard({
       >
         <button
           className={cn(
-            "inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-[12.5px] font-medium transition-colors",
+            "inline-flex min-h-9 items-center gap-2 rounded-[8px] border px-3.5 text-[12.5px] font-medium transition-colors",
             stageFilter !== "All"
               ? "border-[#171719] bg-[#171719] text-white"
-              : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
+              : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]",
           )}
           onClick={() => setStageFilter("All")}
           type="button"
@@ -387,10 +370,10 @@ export function PulseBoard({
         <button
           aria-pressed={urgencyOnly}
           className={cn(
-            "inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-[12.5px] font-medium transition-colors",
+            "inline-flex min-h-9 items-center gap-2 rounded-[8px] border px-3.5 text-[12.5px] font-medium transition-colors",
             urgencyOnly
               ? "border-[#F0DDD0] bg-[#F0DDD0] text-[#A86642]"
-              : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
+              : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]",
           )}
           onClick={() => setUrgencyOnly((current) => !current)}
           type="button"
@@ -405,10 +388,10 @@ export function PulseBoard({
           <button
             aria-pressed={!extended}
             className={cn(
-              "inline-flex min-h-9 items-center rounded-full border px-3.5 text-[12.5px] font-medium transition-colors",
+              "inline-flex min-h-9 items-center rounded-[8px] border px-3.5 text-[12.5px] font-medium transition-colors",
               !extended
                 ? "border-[#171719] bg-[#171719] text-white"
-                : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
+                : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]",
             )}
             onClick={() => setExtended(false)}
             type="button"
@@ -418,10 +401,10 @@ export function PulseBoard({
           <button
             aria-pressed={extended}
             className={cn(
-              "inline-flex min-h-9 items-center rounded-full border px-3.5 text-[12.5px] font-medium transition-colors",
+              "inline-flex min-h-9 items-center rounded-[8px] border px-3.5 text-[12.5px] font-medium transition-colors",
               extended
                 ? "border-[#171719] bg-[#171719] text-white"
-                : "border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]",
+                : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]",
             )}
             onClick={() => setExtended(true)}
             type="button"
@@ -434,7 +417,7 @@ export function PulseBoard({
       {/* Lane grid. */}
       <section
         aria-label="Pulse lanes"
-        className="mt-6 overflow-hidden rounded-[24px] border border-[#E7E7E2] bg-white"
+        className="mt-6 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white"
       >
         <LaneAxis window={window} />
         {visibleLanes.length === 0 ? (
@@ -442,7 +425,7 @@ export function PulseBoard({
             No buyers match the current filter.
           </div>
         ) : (
-          <ul className="divide-y divide-[#E7E7E2]">
+          <ul className="divide-y divide-[#E7E7E7]">
             {visibleLanes.map((lane) => (
               <li key={lane.buyer.id}>
                 <PulseLaneRow
@@ -503,7 +486,7 @@ function PipelineValueStrip({
   return (
     <section
       aria-label="Pipeline value"
-      className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4"
+      className="grid grid-cols-2 gap-4 md:grid-cols-4"
     >
       <ValueTile
         icon={Wallet}
@@ -554,18 +537,18 @@ function ValueTile({
   return (
     <div
       className={cn(
-        "rounded-2xl border p-3.5",
+        "rounded-[12px] border p-5",
         tone === "cream"
           ? "border-transparent bg-[#F2EADC] text-[#171719]"
-          : "border-[#E7E7E2] bg-white text-[#171719]",
+          : "border-[#E7E7E7] bg-white text-[#171719]",
       )}
     >
       <div className="flex items-center justify-between">
         <p className="bb-mono-label text-[#8E918B]">{label}</p>
-        <Icon aria-hidden="true" className="h-3.5 w-3.5 text-[#8E918B]" />
+        <Icon aria-hidden="true" className="h-4 w-4 text-[#8E918B]" />
       </div>
-      <p className="mt-1.5 text-[1.5rem] font-medium tabular-nums leading-none">{value}</p>
-      <p className="mt-2 text-[11px] leading-4 text-[#8E918B]">{detail}</p>
+      <p className="bb-display mt-3 text-[28px] font-medium leading-none tabular-nums">{value}</p>
+      <p className="mt-2 text-[12.5px] leading-[1.5] text-[#5F625E]">{detail}</p>
     </div>
   );
 }
@@ -681,7 +664,7 @@ function ChangeFeedStrip({
     return (
       <section
         aria-label="Since last visit"
-        className="mt-4 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] px-4 py-3"
+        className="mt-4 rounded-[12px] border border-[#E7E7E7] bg-[#F1F2EE] px-4 py-3"
       >
         <div className="flex items-center gap-2">
           <ClipboardCheck className="h-3.5 w-3.5 text-[#0F8F62]" aria-hidden="true" />
@@ -695,7 +678,7 @@ function ChangeFeedStrip({
   return (
     <section
       aria-label="Since last visit"
-      className="mt-4 grid gap-2 rounded-2xl border border-[#E7E7E2] bg-white px-4 py-3"
+      className="mt-4 grid gap-2 rounded-[12px] border border-[#E7E7E7] bg-white px-4 py-3"
     >
       <div className="flex items-center justify-between gap-2">
         <p className="bb-mono-label text-[#8E918B]">
@@ -709,7 +692,7 @@ function ChangeFeedStrip({
         {changes.map((item) => (
           <li key={item.id}>
             <button
-              className="group flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[#F1F2EE]"
+              className="group flex w-full items-center gap-3 rounded-[8px] px-2 py-1.5 text-left transition-colors hover:bg-[#F1F2EE]"
               onClick={() => (item.buyerId ? onOpenBuyer(item.buyerId) : undefined)}
               type="button"
             >
@@ -772,7 +755,7 @@ function LaneAxis({ window }: { window: Window }) {
   const back = Math.round((DEMO_NOW.getTime() - window.startMs) / 86_400_000);
   const ahead = Math.round((window.endMs - DEMO_NOW.getTime()) / 86_400_000);
   return (
-    <div className="grid grid-cols-[220px_minmax(0,1fr)_140px] border-b border-[#E7E7E2] bg-[#F1F2EE] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B]">
+    <div className="grid grid-cols-[220px_minmax(0,1fr)_140px] border-b border-[#E7E7E7] bg-[#F1F2EE] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E918B]">
       <span>Buyer</span>
       <div className="relative">
         <span className="absolute left-0">-{back}d</span>
@@ -883,11 +866,11 @@ function PulseLaneRow({
         ref={laneRef}
       >
         {/* Background lane */}
-        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#E7E7E2]" />
+        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#E7E7E7]" />
 
         {/* Stage history tint */}
         <div
-          className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#E7EFEA]"
+          className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#F1F2EE]"
           style={{
             left: `${Math.max(0, stageStartPct)}%`,
             width: `${Math.max(0, todayPct - Math.max(0, stageStartPct))}%`,
@@ -947,7 +930,7 @@ function PulseLaneRow({
         {primary ? (
           <span
             className={cn(
-              "pointer-events-none absolute top-[calc(50%+10px)] -translate-x-1/2 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium",
+              "pointer-events-none absolute top-[calc(50%+10px)] -translate-x-1/2 whitespace-nowrap rounded-[8px] bg-white px-1.5 py-0.5 text-[10px] font-medium",
               TONE_STYLES[primary.tone].label,
             )}
             style={{
@@ -1015,7 +998,7 @@ function ScrubTooltip({
 
   return (
     <div
-      className="pointer-events-none fixed z-[55] rounded-xl border border-[#e3e3e8] bg-white px-3 py-2 text-[11.5px] shadow-[0_12px_30px_rgba(23,23,28,0.16)]"
+      className="pointer-events-none fixed z-[55] rounded-[12px] border border-[#e3e3e8] bg-white px-3 py-2 text-[11.5px]"
       style={{ left, top, width: tooltipWidth, transform }}
     >
       <p className="font-semibold text-[#171719]">{formatDate(date.toISOString())}</p>
@@ -1053,7 +1036,7 @@ function HealthPill({
   if (health === "overdue" && primary) {
     const overdueDays = Math.abs(daysUntil(primary.date));
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#F0DDD0] px-2.5 py-1 text-[11px] font-semibold text-[#A86642]">
+      <span className="inline-flex items-center gap-1 rounded-[8px] bg-[#F0DDD0] px-2.5 py-1 text-[11px] font-semibold text-[#A86642]">
         Overdue {overdueDays}d
       </span>
     );
@@ -1061,27 +1044,27 @@ function HealthPill({
   if (health === "urgent" && primary) {
     const days = daysUntil(primary.date);
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#F0DDD0] px-2.5 py-1 text-[11px] font-semibold text-[#A86642]">
+      <span className="inline-flex items-center gap-1 rounded-[8px] bg-[#F0DDD0] px-2.5 py-1 text-[11px] font-semibold text-[#A86642]">
         {days <= 0 ? "Due today" : days === 1 ? "Due tomorrow" : `Due in ${days}d`}
       </span>
     );
   }
   if (health === "dormant") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#F1F2EE] px-2.5 py-1 text-[11px] font-semibold text-[#8E918B]">
+      <span className="inline-flex items-center gap-1 rounded-[8px] bg-[#F1F2EE] px-2.5 py-1 text-[11px] font-semibold text-[#8E918B]">
         Dormant {contactDays}d
       </span>
     );
   }
   if (health === "scheduled" && primary) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#E0ECF2] px-2.5 py-1 text-[11px] font-semibold text-[#3D6F8F]">
+      <span className="inline-flex items-center gap-1 rounded-[8px] bg-[#E0ECF2] px-2.5 py-1 text-[11px] font-semibold text-[#3D6F8F]">
         In {daysUntil(primary.date)}d
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[#E1F1EA] px-2.5 py-1 text-[11px] font-semibold text-[#0F8F62]">
+    <span className="inline-flex items-center gap-1 rounded-[8px] bg-[#E1F1EA] px-2.5 py-1 text-[11px] font-semibold text-[#0F8F62]">
       On track
     </span>
   );
@@ -1096,7 +1079,7 @@ function Legend() {
     { tone: "dormant", label: "Dormant" },
   ];
   return (
-    <div className="flex flex-wrap items-center gap-4 border-t border-[#E7E7E2] bg-[#F1F2EE] px-5 py-2.5 text-[10.5px] text-[#8E918B]">
+    <div className="flex flex-wrap items-center gap-4 border-t border-[#E7E7E7] bg-[#F1F2EE] px-5 py-2.5 text-[10.5px] text-[#8E918B]">
       {items.map((item) => (
         <span className="inline-flex items-center gap-1.5" key={item.tone}>
           <span className={cn("h-2 w-2 rounded-full", TONE_STYLES[item.tone].dot)} />
@@ -1104,7 +1087,7 @@ function Legend() {
         </span>
       ))}
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-1 w-6 rounded-full bg-[#E7EFEA]" />
+        <span className="h-1 w-6 rounded-full bg-[#F1F2EE]" />
         Stage history
       </span>
       <span className="inline-flex items-center gap-1.5 text-[#1863dc]">
@@ -1164,9 +1147,9 @@ function PulseSidePanel({
       />
       <aside
         aria-label={`${buyer.name} pulse detail`}
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[560px] flex-col overflow-hidden border-l border-[#E7E7E2] bg-white shadow-[0_24px_80px_rgba(23,23,28,0.18)]"
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[560px] flex-col overflow-hidden border-l border-[#E7E7E7] bg-white"
       >
-        <header className="flex items-start justify-between gap-3 border-b border-[#E7E7E2] px-6 py-5">
+        <header className="flex items-start justify-between gap-3 border-b border-[#E7E7E7] px-6 py-5">
           <div className="min-w-0">
             <p className="bb-mono-label text-[#8E918B]">{buyer.currentStage} · {buyer.urgency}</p>
             <h2 className="bb-display mt-1 truncate text-[1.4rem] font-medium text-[#171719]">
@@ -1178,7 +1161,7 @@ function PulseSidePanel({
           </div>
           <div className="flex items-center gap-2">
             <Link
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] hover:border-[#003C33]"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] hover:border-[#003C33]"
               href={`/buyers/${buyer.id}`}
             >
               Open buyer
@@ -1186,7 +1169,7 @@ function PulseSidePanel({
             </Link>
             <button
               aria-label="Close"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E2] bg-white text-[#5F625E] hover:border-[#003C33]"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#003C33]"
               onClick={onClose}
               type="button"
             >
@@ -1204,12 +1187,12 @@ function PulseSidePanel({
             })}
 
             {linkedListings.length ? (
-              <section className="grid gap-2 rounded-2xl border border-[#E7E7E2] bg-[#F1F2EE] p-4">
+              <section className="grid gap-2 rounded-[12px] border border-[#E7E7E7] bg-[#F1F2EE] p-4">
                 <div className="flex items-center gap-2">
                   <ClipboardList className="h-3.5 w-3.5 text-[#003C33]" aria-hidden="true" />
                   <p className="bb-mono-label">Linked listings · seller events surface here</p>
                 </div>
-                <ul className="grid divide-y divide-[#E7E7E2]">
+                <ul className="grid divide-y divide-[#E7E7E7]">
                   {linkedListings.map((listing) => (
                     <li className="flex items-center justify-between gap-3 py-2.5 text-[13px]" key={listing.id}>
                       <Link
@@ -1228,7 +1211,7 @@ function PulseSidePanel({
             ) : null}
 
             {lane.health === "dormant" ? (
-              <section className="grid gap-1 rounded-2xl border border-dashed border-[#E7E7E2] bg-[#F1F2EE] p-4 text-[13px] leading-6 text-[#5F625E]">
+              <section className="grid gap-1 rounded-[12px] border border-dashed border-[#E7E7E7] bg-[#F1F2EE] p-4 text-[13px] leading-6 text-[#5F625E]">
                 <div className="flex items-center gap-2">
                   <CircleAlert className="h-3.5 w-3.5 text-[#A86642]" aria-hidden="true" />
                   <p className="bb-mono-label text-[#A86642]">Dormant signal</p>
@@ -1259,7 +1242,7 @@ function TrackSection({
   const Icon = TRACK_ICONS[kind];
   const todayPct = todayPercent(window);
   return (
-    <section aria-label={TRACK_LABELS[kind]} className="rounded-2xl border border-[#E7E7E2] bg-white">
+    <section aria-label={TRACK_LABELS[kind]} className="rounded-[12px] border border-[#E7E7E7] bg-white">
       <button
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
@@ -1269,7 +1252,7 @@ function TrackSection({
         <div className="flex items-center gap-2">
           <Icon aria-hidden="true" className="h-3.5 w-3.5 text-[#003C33]" />
           <p className="bb-mono-label">{TRACK_LABELS[kind]}</p>
-          <span className="rounded-full bg-[#F1F2EE] px-2 py-0.5 text-[10.5px] font-semibold text-[#8E918B]">
+          <span className="rounded-[8px] bg-[#F1F2EE] px-2 py-0.5 text-[10.5px] font-semibold text-[#8E918B]">
             {events.length}
           </span>
         </div>
@@ -1280,9 +1263,9 @@ function TrackSection({
         )}
       </button>
       {open ? (
-        <div className="border-t border-[#E7E7E2] px-4 py-4">
+        <div className="border-t border-[#E7E7E7] px-4 py-4">
           <div className="relative h-7">
-            <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[#E7E7E2]" />
+            <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[#E7E7E7]" />
             <div
               className="absolute top-0 bottom-0 w-px bg-[#171719]/40"
               style={{ left: `${todayPct}%` }}
@@ -1304,7 +1287,7 @@ function TrackSection({
               );
             })}
           </div>
-          <ul className="mt-3 grid divide-y divide-[#E7E7E2]">
+          <ul className="mt-3 grid divide-y divide-[#E7E7E7]">
             {events.map((event) => (
               <li key={event.id} className="grid gap-1 py-2.5">
                 <div className="flex items-start justify-between gap-3">
@@ -1318,7 +1301,7 @@ function TrackSection({
                   </div>
                   <span
                     className={cn(
-                      "inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#F1F2EE] px-2.5 py-1 text-[11px] font-medium",
+                      "inline-flex shrink-0 items-center gap-1.5 rounded-[8px] bg-[#F1F2EE] px-2.5 py-1 text-[11px] font-medium",
                       TONE_STYLES[event.tone].label,
                     )}
                   >

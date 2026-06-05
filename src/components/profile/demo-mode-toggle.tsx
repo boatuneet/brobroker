@@ -43,7 +43,7 @@ export function DemoModeToggle({ initialEnabled }: { initialEnabled: boolean }) 
           <span
             aria-hidden="true"
             className={cn(
-              "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200",
+              "inline-block h-5 w-5 transform rounded-full bg-white  transition-transform duration-200",
               enabled ? "translate-x-[22px]" : "translate-x-0.5",
             )}
           />

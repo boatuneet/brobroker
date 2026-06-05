@@ -122,7 +122,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
               <CardHeader
                 title="Recommended assets and trade-offs"
               />
-              <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
                 {model.comparisonRows.map((row) => (
                   <li key={row.listing.id} className="px-6 py-6">
                     <div className="grid gap-5 lg:grid-cols-[140px_minmax(0,1fr)_160px]">
@@ -139,7 +139,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
                           Trade-off: {row.tradeOff}
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-[#F6F6F3] p-4 lg:text-right">
+                      <div className="rounded-[12px] bg-[#FBFBFB] p-4 lg:text-right">
                         <p className="bb-mono-label">Fit</p>
                         <p className="bb-display mt-2 text-2xl font-medium text-[#171719]">
                           {percentage(row.fitScore)}
@@ -159,7 +159,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
               <CardHeader eyebrow="Comparison" title="Shortlist at a glance" />
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="border-b border-[#E7E7E2] text-[11px] uppercase tracking-[0.16em] text-[#8E918B]">
+                  <thead className="border-b border-[#E7E7E7] text-[11px] uppercase tracking-[0.16em] text-[#8E918B]">
                     <tr>
                       <th className="px-6 py-3 font-medium">Asset</th>
                       <th className="px-6 py-3 font-medium">Price</th>
@@ -168,7 +168,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
                       <th className="px-6 py-3 font-medium">Docs</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E7E7E2]">
+                  <tbody className="divide-y divide-[#E7E7E7]">
                     {model.comparisonRows.map((row) => (
                       <tr key={row.listing.id}>
                         <td className="px-6 py-4 font-medium text-[#171719]">{row.listing.name}</td>
@@ -201,7 +201,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
                   </CardHeaderIcon>
                 }
               />
-              <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
                 {[...model.room.itinerary, ...model.nextSteps].map((step) => (
                   <li key={step} className="px-6 py-3.5 text-sm leading-6 text-[#5F625E]">
                     {step}
@@ -221,7 +221,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
               />
               <div className="grid gap-0">
                 {model.approvedDocuments.length ? (
-                  <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+                  <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
                     {model.approvedDocuments.map((document) => (
                       <li key={document.id} className="px-6 py-4">
                         <p className="text-[14px] font-medium text-[#171719]">{document.title}</p>
@@ -255,7 +255,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
               <div className="grid gap-4 px-6 py-5">
                 <textarea
                   aria-label="Question"
-                  className="min-h-24 w-full rounded-xl border border-[#D9DAD4] bg-white p-3 text-[14px] leading-7 text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+                  className="min-h-24 w-full rounded-[12px] border border-[#D9DAD4] bg-white p-3 text-[14px] leading-7 text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
                   onChange={(event) => setQuestion(event.target.value)}
                   value={question}
                 />
@@ -265,7 +265,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
                   </Button>
                 </div>
                 {answers.length ? (
-                  <ul className="grid gap-0 divide-y divide-[#E7E7E2]">
+                  <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
                     {answers.map((item) => (
                       <li
                         key={`${item.question}-${item.answer}`}
@@ -296,7 +296,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
                   />
                 )}
                 {followUpTasks.length ? (
-                  <div className="rounded-2xl bg-[#fff7ed] p-4">
+                  <div className="rounded-[12px] bg-[#fff7ed] p-4">
                     <p className="bb-mono-label">Broker follow-ups saved</p>
                     <ul className="mt-2 grid gap-2">
                       {followUpTasks.slice(0, 3).map((task) => (

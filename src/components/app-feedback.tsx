@@ -30,15 +30,15 @@ export function ToastViewport({
     <div className="bb-toast-enter fixed right-5 top-5 z-50 max-w-[360px]">
       <div
         className={cn(
-          "flex items-start gap-3 rounded-2xl border bg-white px-4 py-3 text-[13px] leading-6 text-[#171719] shadow-[0_18px_55px_rgba(23,23,28,0.14)]",
-          tone === "error" ? "border-[#F0DDD0]" : "border-[#E7EFEA]",
+          "flex items-start gap-3 rounded-[12px] border bg-white px-4 py-3 text-[13px] leading-6 text-[#171719]",
+          tone === "error" ? "border-[#F0DDD0]" : "border-[#E7E7E7]",
         )}
         role="status"
       >
         <span
           className={cn(
             "mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-            tone === "error" ? "bg-[#F0DDD0] text-[#A86642]" : "bg-[#f4fbf5] text-[#003C33]",
+            tone === "error" ? "bg-[#F0DDD0] text-[#A86642]" : "bg-[#F1F2EE] text-[#003C33]",
           )}
         >
           <Icon className="h-4 w-4" aria-hidden="true" />
@@ -50,7 +50,7 @@ export function ToastViewport({
         {onDismiss ? (
           <button
             aria-label="Dismiss notification"
-            className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#8E918B] transition hover:bg-[#F6F6F3] hover:text-[#171719]"
+            className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#8E918B] transition hover:bg-[#FBFBFB] hover:text-[#171719]"
             onClick={onDismiss}
             type="button"
           >
@@ -91,7 +91,7 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#171719]/32 px-5 backdrop-blur-sm">
       <div
         aria-modal="true"
-        className="bb-toast-enter w-full max-w-md rounded-2xl border border-[#E7E7E2] bg-white p-6 shadow-[0_24px_80px_rgba(23,23,28,0.22)]"
+        className="bb-toast-enter w-full max-w-md rounded-[12px] border border-[#E7E7E7] bg-white p-6"
         role="dialog"
       >
         <div className="flex items-start gap-4">
@@ -110,7 +110,7 @@ export function ConfirmDialog({
         </div>
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <button
-            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-10 items-center justify-center rounded-[8px] border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={confirmDisabled}
             onClick={onCancel}
             type="button"
@@ -119,7 +119,7 @@ export function ConfirmDialog({
           </button>
           <button
             className={cn(
-              "inline-flex min-h-10 items-center justify-center rounded-full px-5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60",
+              "inline-flex min-h-10 items-center justify-center rounded-[8px] px-5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60",
               isDestructive
                 ? "bg-[#A86642] hover:bg-[#A86642]"
                 : "bg-[#003C33] hover:bg-[#0B4A3F]",

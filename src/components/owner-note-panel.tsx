@@ -38,7 +38,7 @@ export function OwnerNotePanel({ sellerId }: { sellerId: string }) {
       <div className="grid gap-4 px-6 py-5">
         <textarea
           aria-label="Owner note"
-          className="min-h-28 rounded-xl border border-[#D9DAD4] bg-white p-3 text-[14px] leading-7 text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+          className="min-h-28 rounded-[10px] border border-[#D9DAD4] bg-white p-3 text-[14px] leading-7 text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
           onChange={(event) => setDetail(event.target.value)}
           value={detail}
         />
@@ -50,7 +50,7 @@ export function OwnerNotePanel({ sellerId }: { sellerId: string }) {
         </div>
       </div>
       {notes.length ? (
-        <ul className="divide-y divide-[#E7E7E2] border-t border-[#E7E7E2]">
+        <ul className="divide-y divide-[#E7E7E7] border-t border-[#E7E7E7]">
           {notes.slice(0, 3).map((note) => (
             <li key={note.id} className="px-6 py-4">
               <Badge tone="success">Saved</Badge>

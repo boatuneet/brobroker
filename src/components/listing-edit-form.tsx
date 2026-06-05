@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import type { BrokerSegment } from "@/lib/broker-segments";
 import {
   getListingIntakeConfig,
@@ -69,15 +68,7 @@ export function ListingEditForm({
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-      <Link
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#5F625E] hover:text-[#171719]"
-        href={`/listings/${listing.id}`}
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Back to listing
-      </Link>
-
-      <div className="mt-8 rounded-[24px] border border-[#E7E7E2] bg-white p-6 shadow-[0_24px_80px_rgba(23,23,28,0.06)]">
+      <div className="rounded-[12px] border border-[#E7E7E7] bg-white p-6">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div>
             <div className="flex flex-wrap gap-2">
@@ -97,7 +88,7 @@ export function ListingEditForm({
           </Button>
         </div>
         {error ? (
-          <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-[13px] leading-6 text-red-700">
+          <div className="mt-5 rounded-[12px] bg-red-50 px-4 py-3 text-[13px] leading-6 text-red-700">
             {error}
           </div>
         ) : null}
@@ -142,7 +133,7 @@ function EditFieldControl({
       <label className="grid gap-1.5 text-sm font-medium text-[#171719] lg:col-span-3">
         <span>{field.label}</span>
         <textarea
-          className="min-h-28 rounded-xl border border-[#D9DAD4] bg-white px-3.5 py-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+          className="min-h-28 rounded-[10px] border border-[#D9DAD4] bg-white px-3.5 py-3 text-[15px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
           onChange={(event) => onChange(event.target.value)}
           placeholder={field.placeholder}
           value={stringValue}
@@ -166,12 +157,12 @@ function EditFieldControl({
     return (
       <fieldset className="grid gap-1.5">
         <legend className="text-sm font-medium text-[#171719]">{field.label}</legend>
-        <div className="flex overflow-hidden rounded-xl border border-[#D9DAD4] bg-white">
+        <div className="flex overflow-hidden rounded-[12px] border border-[#D9DAD4] bg-white">
           {field.options?.map((option) => (
             <button
               className={cn(
-                "min-h-11 flex-1 border-r border-[#E7E7E2] px-3 text-sm font-medium last:border-r-0",
-                stringValue === option.value ? "bg-[#171719] text-white" : "text-[#171719] hover:bg-[#F6F6F3]",
+                "min-h-11 flex-1 border-r border-[#E7E7E7] px-3 text-sm font-medium last:border-r-0",
+                stringValue === option.value ? "bg-[#171719] text-white" : "text-[#171719] hover:bg-[#FBFBFB]",
               )}
               key={option.value}
               onClick={() => onChange(option.value)}
@@ -195,7 +186,7 @@ function EditFieldControl({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {field.options?.map((option) => (
             <label
-              className="flex min-h-11 items-center gap-3 rounded-xl border border-[#D9DAD4] bg-white px-3.5 text-sm font-medium text-[#171719]"
+              className="flex min-h-11 items-center gap-3 rounded-[10px] border border-[#D9DAD4] bg-white px-3.5 text-sm font-medium text-[#171719]"
               key={option.value}
             >
               <input
@@ -220,7 +211,7 @@ function EditFieldControl({
 
   if (field.kind === "checkbox") {
     return (
-      <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[#D9DAD4] bg-white px-3.5 text-sm font-medium text-[#171719]">
+      <label className="flex min-h-11 items-center gap-3 rounded-[10px] border border-[#D9DAD4] bg-white px-3.5 text-sm font-medium text-[#171719]">
         <input
           checked={value === true}
           className="h-4 w-4"
