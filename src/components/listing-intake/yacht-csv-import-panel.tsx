@@ -1,9 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
-import { Database, FileSpreadsheet, UploadCloud } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Database,
+  FileSpreadsheet,
+  RotateCcw,
+  TriangleAlert,
+  UploadCloud,
+} from "lucide-react";
 import {
   YACHT_CSV_REQUIRED_HEADERS,
   YACHT_IMAGE_CSV_REQUIRED_HEADERS,
@@ -38,6 +46,12 @@ export function YachtCsvImportPanel() {
   const [isImporting, setIsImporting] = useState(false);
   const [completedBatches, setCompletedBatches] = useState(0);
   const [stats, setStats] = useState<ImportStats | null>(null);
+  /* Show a completion dialog once an import run finishes, so it's
+     unmistakable the work is done and the broker doesn't re-trigger it. */
+  const [showCompletion, setShowCompletion] = useState(false);
+  /* Bumping this key remounts the file inputs, which clears the native
+     selected-file state so a fresh import starts clean. */
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const yachtHeaderErrors = yachts ? validateHeaders(yachts.headers, YACHT_CSV_REQUIRED_HEADERS) : [];
   const imageHeaderErrors = images ? validateHeaders(images.headers, YACHT_IMAGE_CSV_REQUIRED_HEADERS) : [];
@@ -111,11 +125,24 @@ export function YachtCsvImportPanel() {
       }
 
       router.refresh();
+      setShowCompletion(true);
     } catch (error) {
       setParseError(error instanceof Error ? error.message : "Import failed.");
     } finally {
       setIsImporting(false);
     }
+  }
+
+  /* "New import" — dismiss the dialog and reset the panel to a blank slate
+     (clears parsed CSVs, stats, and the native file inputs). */
+  function resetForNewImport() {
+    setShowCompletion(false);
+    setYachts(null);
+    setImages(null);
+    setStats(null);
+    setParseError(null);
+    setCompletedBatches(0);
+    setFileInputKey((key) => key + 1);
   }
 
   return (
@@ -129,6 +156,7 @@ export function YachtCsvImportPanel() {
       <div className="grid gap-5 px-6 py-5">
         <div className="grid gap-4 lg:grid-cols-2">
           <CsvFileInput
+            key={`yachts-${fileInputKey}`}
             description="Expected file: public/new_yachts_rows.csv"
             icon={FileSpreadsheet}
             label="Yacht rows CSV"
@@ -136,6 +164,7 @@ export function YachtCsvImportPanel() {
             value={yachts ? `${yachts.rows.length} yachts loaded` : "No file selected"}
           />
           <CsvFileInput
+            key={`images-${fileInputKey}`}
             description="Expected file: public/new_yacht_images_rows.csv"
             icon={UploadCloud}
             label="Yacht image rows CSV"
@@ -201,13 +230,118 @@ export function YachtCsvImportPanel() {
           <p className="max-w-2xl text-[13px] leading-6 text-[#5F625E]">
             The importer stores only current BroBroker listing fields plus the raw source metadata for future cleanup.
           </p>
-          <Button disabled={!canImport} onClick={() => void startImport()} type="button">
-            <Database className="h-4 w-4" aria-hidden="true" />
-            {isImporting ? "Importing..." : "Import active yachts"}
+          {stats && !isImporting ? (
+            <Button onClick={resetForNewImport} type="button" variant="secondary">
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
+              New import
+            </Button>
+          ) : (
+            <Button disabled={!canImport} onClick={() => void startImport()} type="button">
+              <Database className="h-4 w-4" aria-hidden="true" />
+              {isImporting ? "Importing..." : "Import active yachts"}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {showCompletion && stats ? (
+        <ImportCompleteDialog
+          onClose={() => setShowCompletion(false)}
+          onNewImport={resetForNewImport}
+          onSeeListings={() => router.push("/listings")}
+          stats={stats}
+        />
+      ) : null}
+    </Card>
+  );
+}
+
+/* Modal shown once an import run finishes. Confirms the outcome and routes
+   the broker to either review the imported listings or start a fresh import
+   (which clears the selected CSVs). */
+function ImportCompleteDialog({
+  onClose,
+  onNewImport,
+  onSeeListings,
+  stats,
+}: {
+  onClose: () => void;
+  onNewImport: () => void;
+  onSeeListings: () => void;
+  stats: ImportStats;
+}) {
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const hadFailures = stats.failureCount > 0;
+  const allFailed = stats.imported === 0;
+  const Icon = allFailed ? TriangleAlert : CheckCircle2;
+
+  return (
+    <div
+      aria-labelledby="import-complete-title"
+      aria-modal="true"
+      className="bb-overlay-enter fixed inset-0 z-[80] flex items-center justify-center bg-[#171719]/30 p-5 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+    >
+      <div
+        className="bb-dialog-enter w-full max-w-md rounded-[16px] border border-[#E7E7E7] bg-white p-7 shadow-[0_24px_64px_rgba(23,25,28,0.18)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <span
+          className={
+            allFailed
+              ? "inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#F0DDD0] text-[#A86642]"
+              : "inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#E1F1EA] text-[#0F8F62]"
+          }
+        >
+          <Icon className="h-6 w-6" aria-hidden="true" />
+        </span>
+
+        <h3
+          id="import-complete-title"
+          className="bb-display mt-5 text-xl font-medium text-[#171719]"
+        >
+          {allFailed ? "Import didn’t add any listings" : "Import complete"}
+        </h3>
+        <p className="mt-2 text-sm leading-6 text-[#5F625E]">
+          {allFailed
+            ? `None of the ${stats.requested} yachts could be saved. Review the errors below the dialog, then try again.`
+            : `Created or updated ${stats.imported} of ${stats.requested} yachts and copied ${stats.imagesCopied} image${stats.imagesCopied === 1 ? "" : "s"}.`}
+        </p>
+
+        {!allFailed && hadFailures ? (
+          <p className="mt-3 flex items-start gap-2 rounded-[10px] bg-[#F0DDD0] px-3 py-2.5 text-[13px] leading-6 text-[#A86642]">
+            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {stats.failureCount} row{stats.failureCount === 1 ? "" : "s"} were skipped. Details are listed below the dialog.
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex flex-col gap-2.5 sm:flex-row-reverse">
+          {!allFailed ? (
+            <Button className="sm:flex-1" onClick={onSeeListings} type="button">
+              See listings
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          ) : null}
+          <Button
+            className="sm:flex-1"
+            onClick={onNewImport}
+            type="button"
+            variant="secondary"
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            New import
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 

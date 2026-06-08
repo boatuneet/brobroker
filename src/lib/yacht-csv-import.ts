@@ -82,7 +82,15 @@ export const YACHT_IMAGE_CSV_REQUIRED_HEADERS = [
   "position",
 ];
 
-export function normalizeYachtImport(row: YachtCsvRow): NormalizedYachtImport | null {
+export function normalizeYachtImport(
+  row: YachtCsvRow,
+  /* The owning broker's user id. The asset id is namespaced with it so two
+     brokers importing the same public dataset get independent rows instead
+     of colliding on a shared `imported-yacht-<sourceId>` id — a collision
+     that fails the assets RLS update policy (the existing row belongs to the
+     other owner) and hides the listing from whoever lost the race. */
+  ownerKey?: string,
+): NormalizedYachtImport | null {
   const sourceId = clean(row.id);
   if (!sourceId) return null;
 
@@ -142,7 +150,7 @@ export function normalizeYachtImport(row: YachtCsvRow): NormalizedYachtImport | 
 
   return {
     sourceId,
-    assetId: `imported-yacht-${sourceId}`,
+    assetId: ownerKey ? `imported-yacht-${ownerKey}-${sourceId}` : `imported-yacht-${sourceId}`,
     name,
     builder,
     model,

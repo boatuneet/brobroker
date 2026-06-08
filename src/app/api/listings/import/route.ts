@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   let imagesFailed = 0;
 
   for (const row of yachtRows) {
-    const normalized = normalizeYachtImport(row);
+    const normalized = normalizeYachtImport(row, user.id);
     if (!normalized) {
       failures.push({ id: clean(row.id) || "unknown-row", reason: "Missing yacht id." });
       continue;

@@ -45,6 +45,18 @@ describe("yacht CSV import mapping", () => {
     expect(yacht?.coreFacts.map((fact) => fact.label)).toContain("Propulsion");
   });
 
+  test("namespaces the asset id per owner so brokers don't collide on shared CSV ids", () => {
+    const row = { id: "000dcfdc-eec1-4fd8-90e3-fe9a6e37721b", manufacturer: "Galeon", model: "350HTC" };
+    const broker = normalizeYachtImport(row, "user-abc");
+    const other = normalizeYachtImport(row, "user-xyz");
+
+    expect(broker?.assetId).toBe("imported-yacht-user-abc-000dcfdc-eec1-4fd8-90e3-fe9a6e37721b");
+    expect(other?.assetId).toBe("imported-yacht-user-xyz-000dcfdc-eec1-4fd8-90e3-fe9a6e37721b");
+    expect(broker?.assetId).not.toBe(other?.assetId);
+    // Source id is preserved for traceability back to the CSV.
+    expect(broker?.sourceId).toBe("000dcfdc-eec1-4fd8-90e3-fe9a6e37721b");
+  });
+
   test("groups image rows by source yacht id and preserves position order", () => {
     const grouped = normalizeYachtImageRows([
       { id: "image-2", yacht_id: "yacht-1", image_url: "https://example.com/2.jpg", position: "2" },
