@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -9,11 +17,14 @@ import {
   CheckCircle2,
   FileText,
   Gauge,
+  ListChecks,
   MessageSquareText,
+  ScrollText,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import type { BrokerTask, SellerProfile, YachtListing } from "@/lib/types";
+import { formatSpecSheet } from "@/lib/spec-format";
 import { cn, formatDate, percentage } from "@/lib/utils";
 import { Badge, CardHeader, EmptyState, ProgressBar } from "./ui";
 
@@ -214,6 +225,21 @@ function ListingOverviewPanel({
         </section>
       </div>
 
+      {listing.description || listing.specifications ? (
+        <div className="grid gap-5 border-t border-[#E7E7E7] px-6 py-5 lg:grid-cols-2">
+          {listing.description ? (
+            <ProseBlock icon={ScrollText} text={listing.description} title="Description" />
+          ) : null}
+          {listing.specifications ? (
+            <SpecSheet
+              icon={ListChecks}
+              text={listing.specifications}
+              title="Specifications & equipment"
+            />
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 border-t border-[#E7E7E7] px-6 py-5 lg:grid-cols-3">
         <CompactSignalCard
           icon={FileText}
@@ -405,6 +431,73 @@ function PanelKicker({ icon: Icon, title }: { icon: LucideIcon; title: string })
       <Icon className="h-3.5 w-3.5 text-[#003C33]" aria-hidden="true" />
       <p className="bb-mono-label">{title}</p>
     </div>
+  );
+}
+
+/* Long free-text block (description). Preserves the source line breaks and
+   stays scannable with a soft surface + capped height. */
+function ProseBlock({ icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  return (
+    <section className="min-w-0 rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-4">
+      <PanelKicker icon={icon} title={title} />
+      <p className="mt-3 max-h-72 overflow-y-auto whitespace-pre-line text-[13px] leading-6 text-[#5F625E]">
+        {text}
+      </p>
+    </section>
+  );
+}
+
+/* Structured spec/equipment sheet — turns the raw PDF specs text into headed
+   sections with key/value rows and bullet lists. Same surface + height as the
+   description block so the two read as a pair. */
+function SpecSheet({ icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  const sections = formatSpecSheet(text);
+
+  return (
+    <section className="min-w-0 rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-4">
+      <PanelKicker icon={icon} title={title} />
+      <div className="mt-3 max-h-72 space-y-4 overflow-y-auto pr-1">
+        {sections.length === 0 ? (
+          <p className="whitespace-pre-line text-[13px] leading-6 text-[#5F625E]">{text}</p>
+        ) : (
+          sections.map((section, index) => (
+            <div key={`${section.title}-${index}`}>
+              {section.title ? (
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#171719]">
+                  {section.title}
+                </p>
+              ) : null}
+              {section.rows.length ? (
+                <dl className="mt-2 grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-4 gap-y-1">
+                  {section.rows.map((row, rowIndex) => (
+                    <Fragment key={`${row.label}-${rowIndex}`}>
+                      <dt className="text-[13px] text-[#8E918B]">{row.label}</dt>
+                      <dd className="text-[13px] font-medium text-[#2f2f37]">{row.value}</dd>
+                    </Fragment>
+                  ))}
+                </dl>
+              ) : null}
+              {section.bullets.length ? (
+                <ul className="mt-2 grid gap-1.5">
+                  {section.bullets.map((bullet, bulletIndex) => (
+                    <li
+                      key={`${bullet}-${bulletIndex}`}
+                      className="flex gap-2 text-[13px] leading-6 text-[#5F625E]"
+                    >
+                      <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-[#A9ABA5]" />
+                      <span className="min-w-0">{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {section.paragraph ? (
+                <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{section.paragraph}</p>
+              ) : null}
+            </div>
+          ))
+        )}
+      </div>
+    </section>
   );
 }
 

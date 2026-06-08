@@ -12,6 +12,11 @@ export const dynamic = "force-dynamic";
 
 const CANDIDATE_LIMIT = 15;
 
+function truncate(value: string, max: number): string {
+  const text = value.replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 interface RankedMatch {
   listingId: string;
   fitScore: number;
@@ -76,7 +81,11 @@ export async function POST(request: Request) {
         `${listing.vatStatus}`,
         `${listing.location}`,
         `highlights: ${listing.highlights.slice(0, 4).join(", ") || "—"}`,
-      ].join(" | ");
+        listing.description ? `description: ${truncate(listing.description, 600)}` : "",
+        listing.specifications ? `specs: ${truncate(listing.specifications, 600)}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
     })
     .filter(Boolean)
     .join("\n");
@@ -89,6 +98,7 @@ export async function POST(request: Request) {
           content:
             "You are a yacht brokerage matching assistant. Rank the candidate listings against the buyer's free-text brief by true fit, " +
             "weighing budget, size, brand, model, year, and location alongside softer language about taste, must-haves, and deal-breakers. " +
+            "Read each listing's description and specs and reason semantically about whether they satisfy the brief, not just keyword overlap. " +
             "Return STRICT JSON: " +
             '{"ranked":[{"listingId":"<id>","fitScore":<0-100 integer>,"reason":"<one concise sentence>"}]}, ordered best fit first. ' +
             "Only use listingId values from the candidate list. Do not invent listings.",

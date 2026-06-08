@@ -28,6 +28,8 @@ export type StoredAssetRow = {
   status: ListingStatus | null;
   seller_id: string | null;
   spec_summary: string | null;
+  description: string | null;
+  specifications: string | null;
   documents: unknown;
   comps: unknown;
   faqs: unknown;
@@ -56,6 +58,8 @@ export type StoredListingPayload = {
   coreFacts?: ListingFact[];
   photos?: ListingPhoto[];
   ownerProfile?: SellerProfile;
+  description?: string;
+  specifications?: string;
   fields?: Record<string, unknown>;
 };
 
@@ -126,6 +130,18 @@ export function mapStoredAssetToListing(
     photos,
     specSummary: row.spec_summary ?? undefined,
     ownerProfile: payload.ownerProfile,
+    // Prefer the first-class columns; fall back to payload for rows created
+    // before the columns existed.
+    description:
+      readString(row.description) ??
+      payload.description ??
+      readString(fields.description) ??
+      undefined,
+    specifications:
+      readString(row.specifications) ??
+      readString(fields.equipment) ??
+      readString(fields.specifications) ??
+      undefined,
   };
 }
 

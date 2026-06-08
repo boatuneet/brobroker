@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  CheckIcon,
   Cross2Icon,
   FilePlusIcon,
   ImageIcon,
@@ -58,6 +59,9 @@ type SaveResult = {
   status: ListingStatus;
   storage: "database" | "local";
   savedAt: string;
+  /* True when this save updated an already-created listing rather than
+     creating a new one. */
+  updated: boolean;
 };
 
 const mediaTabId = "media";
@@ -72,6 +76,12 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
   const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  /* After the first successful save we keep the created listing's id (and its
+     original timestamp) so further saves update the same record instead of
+     creating a duplicate each time the broker hits Save. */
+  const [savedListingId, setSavedListingId] = useState<string | null>(null);
+  const [savedCreatedAt, setSavedCreatedAt] = useState<string | null>(null);
+  const hasSaved = Boolean(savedListingId);
   const config = getListingIntakeConfig(segment);
   const [activeTab, setActiveTab] = useState(config.sections[0]?.id ?? mediaTabId);
   const requiredFields = config.sections.flatMap((section) =>
@@ -121,8 +131,13 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
       readText(values, "country") ||
       "Private location";
 
-    const createdAt = new Date().toISOString();
-    const assetId = `listing-${segment.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID()}`;
+    // Reuse the id + timestamp from the first save so repeat saves update the
+    // same listing rather than inserting a duplicate.
+    const createdAt = savedCreatedAt ?? new Date().toISOString();
+    const assetId =
+      savedListingId ??
+      `listing-${segment.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID()}`;
+    const isUpdate = Boolean(savedListingId);
     const status: ListingStatus = saveAsDraft ? "Draft" : "Active";
     const coreFacts = buildCoreFacts(segment, values, selectedLocation?.label ?? location);
     const documents = buildListingDocuments(values, assetId, createdAt);
@@ -202,7 +217,8 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
           userId: user.id,
         });
 
-        const { error } = await supabase.from("assets").insert({
+        const { error } = await supabase.from("assets").upsert(
+          {
           id: assetId,
           asset_type: segment,
           name: draftName,
@@ -217,6 +233,8 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
           status,
           seller_id: ownerProfile?.id ?? null,
           spec_summary: specSummary || null,
+          description: readText(values, "description") || null,
+          specifications: readText(values, "specifications") || null,
           documents,
           missing_info: missingInfo,
           owner_notes: ownerNotes,
@@ -235,21 +253,44 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
             weaknesses,
             idealBuyer,
             coreFacts,
+            description: readText(values, "description") || undefined,
             photos: storedPhotos,
             ownerProfile,
             fields: values,
           },
-        });
+          },
+          { onConflict: "id" },
+        );
 
         if (error) throw new Error(error.message);
 
-        setSaveResult({ id: assetId, status, storage: "database", savedAt: new Date().toISOString() });
+        if (!savedListingId) {
+          setSavedListingId(assetId);
+          setSavedCreatedAt(createdAt);
+        }
+        setSaveResult({
+          id: assetId,
+          status,
+          storage: "database",
+          savedAt: new Date().toISOString(),
+          updated: isUpdate,
+        });
         router.refresh();
         return;
       }
 
       saveSessionAsset(sessionAsset);
-      setSaveResult({ id: assetId, status, storage: "local", savedAt: new Date().toISOString() });
+      if (!savedListingId) {
+        setSavedListingId(assetId);
+        setSavedCreatedAt(createdAt);
+      }
+      setSaveResult({
+        id: assetId,
+        status,
+        storage: "local",
+        savedAt: new Date().toISOString(),
+        updated: isUpdate,
+      });
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Could not save this listing.");
     } finally {
@@ -270,10 +311,14 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
         message={
           saveResult
             ? saveResult.storage === "database"
-              ? saveResult.status === "Draft"
-                ? "Listing draft saved."
-                : "Listing created."
-              : `${saveResult.status} saved on this device. Sign in to keep it with your workspace.`
+              ? saveResult.updated
+                ? saveResult.status === "Draft"
+                  ? "Draft updated."
+                  : "Listing updated."
+                : saveResult.status === "Draft"
+                  ? "Listing draft saved."
+                  : "Listing created."
+              : `${saveResult.status} ${saveResult.updated ? "updated" : "saved"} on this device. Sign in to keep it with your workspace.`
             : null
         }
         onDismiss={() => setSaveResult(null)}
@@ -388,11 +433,22 @@ export function ListingIntakeFlow({ initialSegment }: { initialSegment: BrokerSe
             </label>
             <Button className="mt-4 w-full" disabled={isSaving} onClick={saveListing} type="button">
               <FilePlusIcon className="h-4 w-4" aria-hidden="true" />
-              {isSaving ? "Saving..." : saveAsDraft ? "Save draft" : "Create listing"}
+              {isSaving
+                ? "Saving..."
+                : hasSaved
+                  ? "Save changes"
+                  : saveAsDraft
+                    ? "Save draft"
+                    : "Create listing"}
             </Button>
             {saveError ? (
               <div className="mt-4 rounded-[8px] bg-red-50 px-4 py-3 text-[13px] leading-6 text-red-700">
                 {saveError}
+              </div>
+            ) : hasSaved ? (
+              <div className="mt-4 flex gap-2 rounded-[8px] border border-[#CDE7DC] bg-[#E1F1EA] px-4 py-3 text-[13px] leading-6 text-[#0F6B4B]">
+                <CheckIcon className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>This listing is saved. Keep filling the other tabs and press Save changes to update the same listing.</span>
               </div>
             ) : (
               <div className="mt-4 flex gap-2 rounded-[8px] border border-[#E7E7E7] bg-[#FBFBFB] px-4 py-3 text-[13px] leading-6 text-[#5F625E]">

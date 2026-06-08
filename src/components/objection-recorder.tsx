@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, UserRoundCheck } from "lucide-react";
+import { Inbox, Lightbulb, Plus, UserRoundCheck } from "lucide-react";
 import { mirrorWorkflowEvent, mergeById, readPersisted, writePersisted } from "@/lib/browser-persistence";
 import { Badge, Button, TextInput } from "./ui";
 import { SelectMenu } from "./select-menu";
@@ -45,11 +45,10 @@ export function ObjectionRecorder({
     () => buyers.find((buyer) => buyer.id === buyerId),
     [buyerId, buyers],
   );
+  const canAdd = Boolean(label.trim() && detail.trim());
 
   function addObjection() {
-    if (!label.trim() || !detail.trim()) {
-      return;
-    }
+    if (!canAdd) return;
 
     const today = new Intl.DateTimeFormat("en-CA").format(new Date());
 
@@ -63,22 +62,22 @@ export function ObjectionRecorder({
         raisedAt: today,
         source: "Session capture",
       };
-      const next = [
-        objection,
-        ...current,
-      ];
-      writePersisted(storageKey, next.filter((objection) => objection.source === "Session capture"));
+      const next = [objection, ...current];
+      writePersisted(storageKey, next.filter((entry) => entry.source === "Session capture"));
       mirrorWorkflowEvent("listing_objection_recorded", objection.id, { listingId, objection });
       return next;
     });
+    setLabel("");
+    setDetail("");
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2 text-sm font-medium text-[#171719]">
-          <UserRoundCheck className="h-3.5 w-3.5 text-[#003C33]" aria-hidden="true" />
-          Record buyer objection
+    <div className="grid items-start gap-6 lg:grid-cols-2">
+      {/* Capture form — on a soft surface so it reads as one task block. */}
+      <div className="min-w-0 rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-5">
+        <div className="flex items-center gap-2">
+          <UserRoundCheck className="h-4 w-4 text-[#003C33]" aria-hidden="true" />
+          <p className="bb-mono-label">Record buyer objection</p>
         </div>
 
         <div className="mt-4 grid gap-4">
@@ -96,52 +95,83 @@ export function ObjectionRecorder({
           <TextInput
             label="Objection label"
             onChange={(event) => setLabel(event.target.value)}
+            placeholder="Interior concern"
             value={label}
           />
 
-          <label className="grid gap-1.5 text-[13px] font-medium text-[#171719]">
-            <span className="bb-mono-label">Broker note</span>
+          <label className="grid gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+              Broker note
+            </span>
             <textarea
               aria-label="Broker note"
-              className="min-h-28 rounded-[8px] border border-[#D9DAD4] bg-white px-3 py-2 text-[14px] leading-6 text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+              className="min-h-28 rounded-[8px] border border-[#D9DAD4] bg-white px-3 py-2.5 text-[14px] leading-6 text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
               onChange={(event) => setDetail(event.target.value)}
+              placeholder="What the buyer raised, in their words."
               value={detail}
             />
           </label>
 
           <div>
-            <Button onClick={addObjection} type="button">
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            <Button disabled={!canAdd} onClick={addObjection} type="button">
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Add objection
             </Button>
           </div>
         </div>
 
-        {selectedBuyer ? (
-          <p className="mt-4 text-[13px] leading-6 text-[#8E918B]">
-            Buyer memory impact: {selectedBuyer.memoryNote}
-          </p>
+        {selectedBuyer?.memoryNote ? (
+          <div className="mt-4 flex items-start gap-2 rounded-[10px] border border-[#E7E7E7] bg-white px-3 py-2.5">
+            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A86642]" aria-hidden="true" />
+            <p className="text-[12px] leading-5 text-[#5F625E]">
+              <span className="font-medium text-[#171719]">Buyer memory:</span> {selectedBuyer.memoryNote}
+            </p>
+          </div>
         ) : null}
       </div>
 
+      {/* Recorded objections list. */}
       <div className="min-w-0">
-        <p className="bb-mono-label">Listing intelligence and buyer memory</p>
-        <ul className="mt-3 grid gap-0 divide-y divide-[#E7E7E7] border-t border-[#E7E7E7]">
-          {objections.map((objection) => (
-            <li key={objection.id} className="py-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge tone="warning">{objection.label}</Badge>
-                <span className="text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
-                  {objection.source}
-                </span>
-              </div>
-              <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{objection.detail}</p>
-              <p className="mt-2 text-[12px] text-[#8E918B]">
-                {[objection.buyerName, objection.raisedAt].filter(Boolean).join(" · ")}
-              </p>
-            </li>
-          ))}
-        </ul>
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="bb-mono-label">Recorded objections</p>
+          <span className="text-[12px] tabular-nums text-[#8E918B]">
+            {objections.length} total
+          </span>
+        </div>
+
+        {objections.length === 0 ? (
+          <div className="mt-3 grid place-items-center rounded-[12px] border border-dashed border-[#D9DAD4] bg-[#FBFBFB] px-6 py-10 text-center">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#8E918B]">
+              <Inbox className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <p className="mt-3 text-[14px] font-medium text-[#171719]">No objections recorded yet</p>
+            <p className="mt-1 max-w-xs text-[13px] leading-6 text-[#8E918B]">
+              Capture what buyers raise on the left — they appear here and feed buyer memory.
+            </p>
+          </div>
+        ) : (
+          <ul className="mt-3 grid gap-3">
+            {objections.map((objection) => (
+              <li
+                key={objection.id}
+                className="rounded-[12px] border border-[#E7E7E7] bg-white p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Badge tone="warning">{objection.label}</Badge>
+                  <span className="text-[11px] uppercase tracking-[0.14em] text-[#A9ABA5]">
+                    {objection.source}
+                  </span>
+                </div>
+                <p className="mt-2.5 text-[13px] leading-6 text-[#5F625E]">{objection.detail}</p>
+                {objection.buyerName || objection.raisedAt ? (
+                  <p className="mt-2.5 border-t border-[#F1F2EE] pt-2.5 text-[12px] text-[#8E918B]">
+                    {[objection.buyerName, objection.raisedAt].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

@@ -53,6 +53,7 @@ import {
   StatusDot,
 } from "./ui";
 import { ObjectionRecorder, type BuyerOption, type RecordedObjection } from "./objection-recorder";
+import { ListingDeleteButton } from "./listing-delete-button";
 import { AssetMedia } from "./asset-media";
 import { ListingBrainTabs } from "./listing-brain-tabs";
 import { ListingMediaGallery } from "./listing-media-gallery";
@@ -566,11 +567,13 @@ function ExplainerRow({
 }
 
 function ListingDetailHero({
+  canDelete = false,
   documentPercent,
   listing,
   sellerHref,
   topFitPercent,
 }: {
+  canDelete?: boolean;
   documentPercent: number;
   listing: YachtListing;
   sellerHref?: string;
@@ -582,15 +585,20 @@ function ListingDetailHero({
   return (
     <section className="overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white">
       <div className="relative min-w-0 p-6 pb-0 sm:p-8 sm:pb-0">
-        <Link
-          className="absolute right-5 top-5 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] bg-[#003C33] px-3.5 text-[13px] font-medium text-white hover:bg-[#0B4A3F] sm:right-6 sm:top-6"
-          href={`/listings/${listing.id}/edit`}
-        >
-          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-          Edit
-        </Link>
+        <div className="absolute right-5 top-5 flex items-center gap-2 sm:right-6 sm:top-6">
+          <Link
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] bg-[#003C33] px-3.5 text-[13px] font-medium text-white hover:bg-[#0B4A3F]"
+            href={`/listings/${listing.id}/edit`}
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            Edit
+          </Link>
+          {canDelete ? (
+            <ListingDeleteButton listingId={listing.id} listingName={listing.name} />
+          ) : null}
+        </div>
 
-        <div className="max-w-[calc(100%-5.5rem)] sm:max-w-[calc(100%-6.5rem)]">
+        <div className="max-w-[calc(100%-8.5rem)] sm:max-w-[calc(100%-9.5rem)]">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex min-h-7 items-center rounded-[8px] border border-[#E7E7E7] bg-[#F1F2EE] px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
               {assetType}
@@ -870,6 +878,7 @@ export function ListingBrain({
       {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       <ListingDetailHero
+        canDelete={Boolean(listingOverride)}
         documentPercent={documentCompleteness.percent}
         listing={listing}
         sellerHref={seller && !seller.id.startsWith("seller-listing-") ? `/sellers/${seller.id}` : undefined}
@@ -890,6 +899,17 @@ export function ListingBrain({
             ownerTasks={ownerTasks}
             seller={seller}
           />
+        </Card>
+
+        <Card>
+          <CardHeader title="Record and surface buyer objections" />
+          <div className="px-6 py-5">
+            <ObjectionRecorder
+              buyers={buyerOptions}
+              initialObjections={objectionItems}
+              listingId={listing.id}
+            />
+          </div>
         </Card>
 
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
@@ -932,19 +952,6 @@ export function ListingBrain({
                 })}
               </ul>
             </Card>
-
-          <Card>
-            <CardHeader
-              title="Record and surface buyer objections"
-            />
-            <div className="px-6 py-5">
-              <ObjectionRecorder
-                buyers={buyerOptions}
-                initialObjections={objectionItems}
-                listingId={listing.id}
-              />
-            </div>
-          </Card>
         </div>
 
         <div className="grid content-start gap-8">

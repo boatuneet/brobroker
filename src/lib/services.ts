@@ -1006,8 +1006,50 @@ const MATCH_WEIGHTS = {
   size: 20,
   mustHaves: 15,
   location: 10,
+  specText: 10,
   taste: 5,
 } as const;
+
+/* Common words to ignore when matching a buyer's free-text intent against a
+   listing's description / specifications. */
+const SPEC_STOPWORDS = new Set([
+  "the", "and", "for", "with", "without", "want", "wants", "wanted", "need",
+  "needs", "needed", "looking", "would", "like", "likes", "prefer", "prefers",
+  "must", "have", "has", "should", "boat", "yacht", "vessel", "from", "that",
+  "this", "their", "they", "some", "any", "more", "very", "good", "great",
+  "nice", "ideal", "buyer", "asset", "asset",
+]);
+
+/* Distinct meaningful keywords from a set of free-text buyer signals. */
+function extractIntentTerms(...sources: string[]): string[] {
+  const terms = new Set<string>();
+  for (const source of sources) {
+    for (const token of source.toLowerCase().split(/[^a-z0-9]+/)) {
+      if (token.length > 3 && !SPEC_STOPWORDS.has(token)) terms.add(token);
+    }
+  }
+  return [...terms];
+}
+
+/* 0–1 keyword-overlap of the buyer's free-text intent against a listing's
+   description, specifications, and other free text. A practical proxy for
+   semantic fit in the deterministic scorer; the AI routes do the deeper
+   semantic reasoning over the same text. */
+function specDescriptionFit(listing: YachtListing, terms: string[]): number {
+  if (terms.length === 0) return 0;
+  const haystack = [
+    listing.description ?? "",
+    listing.specifications ?? "",
+    listing.highlights.join(" "),
+    listing.interiorStyle,
+    listing.refitHistory.join(" "),
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (!haystack.trim()) return 0;
+  const hits = terms.filter((term) => haystack.includes(term)).length;
+  return hits / terms.length;
+}
 
 /* Budget fit (0–1) with ±10% margins. When only a max is given we imply a
    floor of 50% of max (so a €10M-max buyer isn't shown €500k boats); when only
@@ -1073,6 +1115,11 @@ export function generateMatchesForBuyer(
   // Only machine-checkable must-haves count toward scoring; free-text we can't
   // verify is ignored rather than penalised.
   const checkableMustHaves = (requiredCabins != null ? 1 : 0) + (vatRequired ? 1 : 0);
+  // Free-text intent keywords, matched against listing description + specs.
+  const intentTerms = extractIntentTerms(
+    buyer.mustHaves.join(" "),
+    buyer.lifestylePreferences.join(" "),
+  );
 
   const scored = inventory.map((listing) => {
     const criteriaMet: string[] = [];
@@ -1152,6 +1199,18 @@ export function generateMatchesForBuyer(
         : 0;
       factors.push({ label: "Taste signal", match: m, weight: MATCH_WEIGHTS.taste });
       if (m >= 1) criteriaMet.push("Taste signal");
+    }
+
+    // Spec & description fit: how much of the buyer's free-text intent
+    // (must-haves + lifestyle/taste) is reflected in the listing's
+    // description and specifications. Only scored when the buyer expressed
+    // free-text intent, so listings aren't penalised when there's nothing
+    // to match against.
+    if (intentTerms.length) {
+      const m = specDescriptionFit(listing, intentTerms);
+      factors.push({ label: "Spec & description fit", match: m, weight: MATCH_WEIGHTS.specText });
+      if (m >= 0.5) criteriaMet.push("Spec & description fit");
+      else if (m > 0) criteriaMet.push("Partial spec match");
     }
 
     // Normalise: % fit over the criteria the buyer actually specified. No flat

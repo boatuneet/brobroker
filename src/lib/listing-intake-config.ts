@@ -359,6 +359,12 @@ const carConfig: ListingIntakeConfig = {
             (value) => ({ label: value, value }),
           ),
         },
+        {
+          id: "description",
+          label: "Description",
+          kind: "textarea",
+          placeholder: "Buyer-facing description: positioning, specification highlights, and condition.",
+        },
       ],
     },
     {
@@ -434,6 +440,12 @@ const yachtConfig: ListingIntakeConfig = {
         { id: "vatStatus", label: "VAT status", kind: "select", options: ["EU VAT Paid", "Not Paid", "Unknown", "Commercial"].map((value) => ({ label: value, value })) },
         { id: "priceEur", label: "Asking price EUR", kind: "number", placeholder: "3450000" },
         { id: "location", label: "Location / marina", kind: "location", placeholder: "Palma" },
+        {
+          id: "description",
+          label: "Description",
+          kind: "textarea",
+          placeholder: "Buyer-facing description: positioning, layout, standout features, and condition highlights.",
+        },
       ],
     },
     {
@@ -467,6 +479,12 @@ const realEstateConfig: ListingIntakeConfig = {
         { id: "municipality", label: "Municipality", kind: "text", placeholder: "Vilnius city" },
         { id: "address", label: "Address / private location label", kind: "location", placeholder: "Street, district, or private label" },
         { id: "name", label: "Listing name", kind: "text", placeholder: "Old Town apartment", required: true },
+        {
+          id: "description",
+          label: "Description",
+          kind: "textarea",
+          placeholder: "Buyer-facing description: positioning, layout, and standout features.",
+        },
       ],
     },
     {

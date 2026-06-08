@@ -225,6 +225,17 @@ function assetMetricValue(listing: YachtListing) {
   return `${listing.lengthFt}ft`;
 }
 
+/* Turn a free-text specs/equipment block into a handful of scannable bullets
+   for the knowledge page (split on line breaks or bullet separators, trimmed
+   and capped so the vault page stays readable). */
+function splitSpecLines(specifications: string): string[] {
+  return specifications
+    .split(/\n|•|·|;|(?:\s-\s)/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 1)
+    .slice(0, 12);
+}
+
 function buyerMetricValue(buyer: BuyerProfile, segment: BrokerSegment) {
   const suffix = segment === "Car" ? "km" : segment === "Real Estate" ? "sqm" : "ft";
   return `${buyer.sizeRangeFt[0].toLocaleString("en-GB")}-${buyer.sizeRangeFt[1].toLocaleString("en-GB")} ${suffix}`;
@@ -330,6 +341,17 @@ function buildListingPage(
         ],
         bullets: getListingCoreFacts(listing).map(([label, value]) => `${label}: ${value}`),
       },
+      ...(listing.description || listing.specifications
+        ? [
+            {
+              title: "Description And Specifications",
+              body: listing.description,
+              bullets: listing.specifications
+                ? splitSpecLines(listing.specifications)
+                : undefined,
+            } satisfies KnowledgeSection,
+          ]
+        : []),
       {
         title: "Compiled Positioning",
         body: listing.idealBuyer,

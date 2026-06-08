@@ -107,6 +107,10 @@ export interface YachtListing {
   specSummary?: string;
   imagePrompt?: string;
   ownerProfile?: SellerProfile;
+  /* Buyer-facing description and a free-text specs/equipment block —
+     populated by manual intake and the PDF importer. */
+  description?: string;
+  specifications?: string;
 }
 
 export interface RejectedAsset {

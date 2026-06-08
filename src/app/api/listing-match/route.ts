@@ -13,6 +13,11 @@ export const dynamic = "force-dynamic";
 
 const CANDIDATE_LIMIT = 12;
 
+function truncate(value: string, max: number): string {
+  const text = value.replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 interface RankedBuyer {
   buyerId: string;
   fitScore: number;
@@ -83,7 +88,11 @@ export async function POST(request: Request) {
     `${listing.vatStatus}`,
     `${listing.location}`,
     `highlights: ${listing.highlights.slice(0, 5).join(", ") || "—"}`,
-  ].join(" | ");
+    listing.description ? `description: ${truncate(listing.description, 900)}` : "",
+    listing.specifications ? `specs: ${truncate(listing.specifications, 900)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
 
   const candidateBlock = candidates
     .map(({ buyer }) =>
@@ -109,6 +118,7 @@ export async function POST(request: Request) {
           content:
             "You are a yacht brokerage matching assistant. Given one listing, rank which saved buyers it best fits, " +
             "weighing budget, size, brand, and location alongside softer signals — must-haves, deal-breakers, and urgency. " +
+            "Read the listing's description and specs and reason semantically about which buyers' needs and taste they satisfy. " +
             "Return STRICT JSON: " +
             '{"ranked":[{"buyerId":"<id>","fitScore":<0-100 integer>,"reason":"<one concise sentence>"}]}, best fit first. ' +
             "Only use buyerId values from the candidate list. Do not invent buyers. Omit buyers that clearly do not fit.",

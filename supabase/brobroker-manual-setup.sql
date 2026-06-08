@@ -46,6 +46,8 @@ create table if not exists public.assets (
   status text check (status in ('Draft', 'Active', 'Pre-Market', 'Under Offer', 'Coming Soon')),
   seller_id text,
   spec_summary text,
+  description text,
+  specifications text,
   documents jsonb not null default '[]'::jsonb,
   comps jsonb not null default '[]'::jsonb,
   faqs jsonb not null default '[]'::jsonb,
