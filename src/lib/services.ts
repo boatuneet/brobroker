@@ -1698,17 +1698,243 @@ export function getEditableSellerReports(
   });
 }
 
-export function createDealRoomFromBuyer(buyerId: string, selectedListingIds?: string[], segment?: BrokerSegment): DealRoom | undefined {
-  const buyer = getBuyerById(buyerId, segment);
+/* ---- Reports performance summary -------------------------------------- */
+
+export interface ReportTrendDelta {
+  current: number;
+  previous: number;
+  delta: number;
+  /* Percent change vs the previous period, or null when there's no prior
+     period or the previous value was zero (avoids divide-by-zero / ∞%). */
+  pct: number | null;
+}
+
+export interface ReportFunnelStage {
+  label: string;
+  value: number;
+  /* Share of the previous stage (0..1), or null for the first stage. */
+  ofPrevious: number | null;
+  /* Share of the top of the funnel (inquiries), 0..1 — used for bar width. */
+  ofTop: number;
+}
+
+export interface ReportPriceComp {
+  name: string;
+  priceEur: number;
+  note: string;
+  /* Position on the padded min→max scale, 0..1. */
+  fraction: number;
+}
+
+export interface ReportPricePosition {
+  askingEur: number;
+  median: number;
+  min: number;
+  max: number;
+  /* (asking − comp median) / comp median, or null if no comps. */
+  pctVsMedian: number | null;
+  askFraction: number;
+  comps: ReportPriceComp[];
+}
+
+export interface ReportPerformance {
+  inquiries: number;
+  qualifiedLeads: number;
+  viewings: number;
+  qualifiedRate: number; // qualified / inquiries, 0..1
+  viewingRate: number; // viewings / qualified, 0..1
+  funnel: ReportFunnelStage[];
+  trend: {
+    period: string;
+    inquiries: ReportTrendDelta;
+    qualifiedLeads: ReportTrendDelta;
+    viewings: ReportTrendDelta;
+  } | null;
+  series: {
+    labels: string[];
+    inquiries: number[];
+    qualifiedLeads: number[];
+    viewings: number[];
+  };
+  price: ReportPricePosition | null;
+}
+
+function safeRate(part: number, whole: number): number {
+  return whole > 0 ? part / whole : 0;
+}
+
+function trendDelta(current: number, previous: number): ReportTrendDelta {
+  const delta = current - previous;
+  return {
+    current,
+    previous,
+    delta,
+    pct: previous > 0 ? delta / previous : null,
+  };
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/* Turns a single seller-report input + its listing into the numbers the
+   Reports screen visualises: conversion funnel, week-over-week trend, a
+   small time series for the sparkline, and where the asking price sits
+   against comparable listings. Pure and deterministic so it can be unit
+   tested without touching React. */
+export function summarizeReportPerformance(
+  input: SellerReportInput,
+  listing?: YachtListing,
+): ReportPerformance {
+  const { inquiries, qualifiedLeads, viewings } = input;
+
+  const funnel: ReportFunnelStage[] = [
+    { label: "Inquiries", value: inquiries, ofPrevious: null, ofTop: 1 },
+    {
+      label: "Qualified leads",
+      value: qualifiedLeads,
+      ofPrevious: safeRate(qualifiedLeads, inquiries),
+      ofTop: safeRate(qualifiedLeads, inquiries),
+    },
+    {
+      label: "Viewings",
+      value: viewings,
+      ofPrevious: safeRate(viewings, qualifiedLeads),
+      ofTop: safeRate(viewings, inquiries),
+    },
+  ];
+
+  const history = input.history ?? [];
+  const previous = history[history.length - 1];
+  const trend = previous
+    ? {
+        period: previous.period,
+        inquiries: trendDelta(inquiries, previous.inquiries),
+        qualifiedLeads: trendDelta(qualifiedLeads, previous.qualifiedLeads),
+        viewings: trendDelta(viewings, previous.viewings),
+      }
+    : null;
+
+  const ordered = [...history, { period: input.period, inquiries, qualifiedLeads, viewings }];
+  const series = {
+    labels: ordered.map((week) => week.period),
+    inquiries: ordered.map((week) => week.inquiries),
+    qualifiedLeads: ordered.map((week) => week.qualifiedLeads),
+    viewings: ordered.map((week) => week.viewings),
+  };
+
+  let price: ReportPricePosition | null = null;
+  if (listing && listing.priceEur > 0) {
+    const comps = (listing.comps ?? []).filter((comp) => comp.priceEur > 0);
+    const askingEur = listing.priceEur;
+    const compPrices = comps.map((comp) => comp.priceEur);
+    const allPrices = [askingEur, ...compPrices];
+    const min = Math.min(...allPrices);
+    const max = Math.max(...allPrices);
+    const span = max - min;
+    // Pad the scale so the extreme markers aren't pinned to the very edges.
+    const pad = span > 0 ? span * 0.12 : Math.max(askingEur * 0.1, 1);
+    const lo = min - pad;
+    const hi = max + pad;
+    const fractionOf = (value: number) => (hi > lo ? (value - lo) / (hi - lo) : 0.5);
+    const med = compPrices.length ? median(compPrices) : askingEur;
+
+    price = {
+      askingEur,
+      median: med,
+      min,
+      max,
+      pctVsMedian: compPrices.length && med > 0 ? (askingEur - med) / med : null,
+      askFraction: fractionOf(askingEur),
+      comps: comps.map((comp) => ({
+        name: comp.name,
+        priceEur: comp.priceEur,
+        note: comp.note,
+        fraction: fractionOf(comp.priceEur),
+      })),
+    };
+  }
+
+  return {
+    inquiries,
+    qualifiedLeads,
+    viewings,
+    qualifiedRate: safeRate(qualifiedLeads, inquiries),
+    viewingRate: safeRate(viewings, qualifiedLeads),
+    funnel,
+    trend,
+    series,
+    price,
+  };
+}
+
+/* Broker-stored (Supabase) records to consider alongside the demo dataset.
+   Every deal-room helper accepts this optionally — omitted, behavior is
+   identical to before, so demo flows and tests are unaffected. Set
+   includeDemo: false to work exclusively with stored data. */
+export interface DealRoomDataPools {
+  buyers?: BuyerProfile[];
+  listings?: YachtListing[];
+  includeDemo?: boolean;
+}
+
+function poolBuyers(segment?: BrokerSegment, pools?: DealRoomDataPools): BuyerProfile[] {
+  const demo = pools?.includeDemo === false ? [] : getBuyersForSegment(segment);
+  const seen = new Set<string>();
+  return [...(pools?.buyers ?? []), ...demo].filter((buyer) => {
+    if (seen.has(buyer.id)) return false;
+    seen.add(buyer.id);
+    return true;
+  });
+}
+
+function poolListings(segment?: BrokerSegment, pools?: DealRoomDataPools): YachtListing[] {
+  const demo = pools?.includeDemo === false ? [] : getListingsForSegment(segment);
+  const seen = new Set<string>();
+  return [...(pools?.listings ?? []), ...demo].filter((listing) => {
+    if (seen.has(listing.id)) return false;
+    seen.add(listing.id);
+    return true;
+  });
+}
+
+function resolveBuyer(id: string, segment?: BrokerSegment, pools?: DealRoomDataPools) {
+  return pools?.buyers?.find((buyer) => buyer.id === id) ?? getBuyerById(id, segment);
+}
+
+function resolveListing(id: string, segment?: BrokerSegment, pools?: DealRoomDataPools) {
+  return pools?.listings?.find((listing) => listing.id === id) ?? getListingById(id, segment);
+}
+
+function poolFilterExtras(pools?: DealRoomDataPools) {
+  if (!pools?.listings?.length) return undefined;
+  return {
+    listingIds: new Set(pools.listings.map((listing) => listing.id)),
+    documentIds: new Set(
+      pools.listings.flatMap((listing) => listing.documents.map((document) => document.id)),
+    ),
+  };
+}
+
+export function createDealRoomFromBuyer(
+  buyerId: string,
+  selectedListingIds?: string[],
+  segment?: BrokerSegment,
+  pools?: DealRoomDataPools,
+): DealRoom | undefined {
+  const buyer = resolveBuyer(buyerId, segment, pools);
 
   if (!buyer) {
     return undefined;
   }
 
   const verification = getVerificationForBuyer(buyer.id, segment);
-  const matches = generateMatchesForBuyer(buyer, getListingsForSegment(segment));
+  const matches = generateMatchesForBuyer(buyer, poolListings(segment, pools));
   const listingIds = selectedListingIds?.length ? selectedListingIds : matches.slice(0, 2).map((match) => match.listingId);
-  const listings = listingIds.map((id) => getListingById(id, segment)).filter((listing): listing is YachtListing => Boolean(listing));
+  const listings = listingIds.map((id) => resolveListing(id, segment, pools)).filter((listing): listing is YachtListing => Boolean(listing));
   const approvedDocumentIds = listings.flatMap((listing) =>
     listing.documents
       .filter((document) => document.status === "Approved")
@@ -1735,23 +1961,42 @@ export function createDealRoomFromBuyer(buyerId: string, selectedListingIds?: st
   } satisfies DealRoom;
 }
 
-export function getBrokerDealRoomWorkspace(extraRooms: DealRoom[] = [], segment?: BrokerSegment) {
-  const generatedRooms = getBuyersForSegment(segment)
-    .map((buyer) => createDealRoomFromBuyer(buyer.id, undefined, segment))
-    .filter((room): room is DealRoom => Boolean(room));
-  const roomIds = new Set<string>();
-  const rooms = [...extraRooms, ...getDealRoomsForSegment(segment), ...generatedRooms]
-    .map((room) => filterDealRoomForSegment(room, segment))
-    .filter((room): room is DealRoom => Boolean(room))
-    .filter((room) => {
-    if (roomIds.has(room.id)) return false;
-    roomIds.add(room.id);
-    return true;
-  });
+export type DealRoomOrigin = "saved" | "seeded" | "suggested";
 
-  return rooms.map((room) => {
-    const buyer = getBuyerById(room.buyerId, segment);
-    const listings = room.listingIds.map((id) => getListingById(id, segment)).filter((listing): listing is YachtListing => Boolean(listing));
+export function getBrokerDealRoomWorkspace(
+  extraRooms: DealRoom[] = [],
+  segment?: BrokerSegment,
+  pools?: DealRoomDataPools,
+) {
+  const filterExtras = poolFilterExtras(pools);
+  const generatedRooms = poolBuyers(segment, pools)
+    .map((buyer) => createDealRoomFromBuyer(buyer.id, undefined, segment, pools))
+    .filter((room): room is DealRoom => Boolean(room));
+  /* Tag each room by where it came from so the UI can separate rooms the
+     broker actually created/seeded ("Active") from per-buyer auto-matches
+     ("Suggested"). Saved rooms win over seeded/suggested on id collision. */
+  const seededRooms = pools?.includeDemo === false ? [] : getDealRoomsForSegment(segment);
+  const tagged: Array<{ room: DealRoom; origin: DealRoomOrigin }> = [
+    ...extraRooms.map((room) => ({ room, origin: "saved" as const })),
+    ...seededRooms.map((room) => ({ room, origin: "seeded" as const })),
+    ...generatedRooms.map((room) => ({ room, origin: "suggested" as const })),
+  ];
+  const roomIds = new Set<string>();
+  const rooms = tagged
+    .map((entry) => {
+      const room = filterDealRoomForSegment(entry.room, segment, filterExtras);
+      return room ? { room, origin: entry.origin } : null;
+    })
+    .filter((entry): entry is { room: DealRoom; origin: DealRoomOrigin } => Boolean(entry))
+    .filter((entry) => {
+      if (roomIds.has(entry.room.id)) return false;
+      roomIds.add(entry.room.id);
+      return true;
+    });
+
+  return rooms.map(({ room, origin }) => {
+    const buyer = resolveBuyer(room.buyerId, segment, pools);
+    const listings = room.listingIds.map((id) => resolveListing(id, segment, pools)).filter((listing): listing is YachtListing => Boolean(listing));
     const verification = buyer ? getVerificationForBuyer(buyer.id, segment) : undefined;
     const matches = buyer ? generateMatchesForBuyer(buyer, listings) : [];
     const accessWarning =
@@ -1760,6 +2005,7 @@ export function getBrokerDealRoomWorkspace(extraRooms: DealRoom[] = [], segment?
         : "Require explicit broker approval before activating or sharing sensitive material.";
 
     return {
+      origin,
       room,
       buyer,
       listings,
@@ -1769,17 +2015,63 @@ export function getBrokerDealRoomWorkspace(extraRooms: DealRoom[] = [], segment?
         listing.documents.filter((document) => room.approvedDocumentIds.includes(document.id)),
       ),
       accessWarning,
-      buyerSafeRationale: buyer ? generateBuyerSafeBrief(buyer, matches.length ? matches : generateMatchesForBuyer(buyer, getListingsForSegment(segment))) : undefined,
+      buyerSafeRationale: buyer ? generateBuyerSafeBrief(buyer, matches.length ? matches : generateMatchesForBuyer(buyer, poolListings(segment, pools))) : undefined,
     };
   });
 }
 
-export function getDealRoomById(roomId: string, extraRooms: DealRoom[] = [], segment?: BrokerSegment) {
-  const generatedRooms = getBuyersForSegment(segment)
-    .map((buyer) => createDealRoomFromBuyer(buyer.id, undefined, segment))
+export interface DealRoomReadinessCheck {
+  label: string;
+  done: boolean;
+}
+
+export interface DealRoomReadiness {
+  checks: DealRoomReadinessCheck[];
+  readyCount: number;
+  total: number;
+  /* A room is shareable once the buyer is verified, the broker has approved
+     it, and at least one listing is curated in. Approved documents are
+     recommended (shown as a check) but don't hard-block sharing. */
+  isShareable: boolean;
+  avgFit: number;
+}
+
+export function getDealRoomReadiness(entry: {
+  room: DealRoom;
+  listings: YachtListing[];
+  matches: MatchResult[];
+  approvedDocuments: { id: string }[];
+}): DealRoomReadiness {
+  const checks: DealRoomReadinessCheck[] = [
+    { label: "Buyer verified", done: entry.room.verificationStatus === "Verified" },
+    { label: "Broker approved", done: entry.room.brokerApprovalStatus === "Approved" },
+    { label: "Listings added", done: entry.listings.length > 0 },
+    { label: "Approved docs", done: entry.approvedDocuments.length > 0 },
+  ];
+  const readyCount = checks.filter((check) => check.done).length;
+  const isShareable =
+    entry.room.verificationStatus === "Verified" &&
+    entry.room.brokerApprovalStatus === "Approved" &&
+    entry.listings.length > 0;
+  const avgFit = entry.matches.length
+    ? Math.round(entry.matches.reduce((sum, match) => sum + match.fitScore, 0) / entry.matches.length)
+    : 0;
+  return { checks, readyCount, total: checks.length, isShareable, avgFit };
+}
+
+export function getDealRoomById(
+  roomId: string,
+  extraRooms: DealRoom[] = [],
+  segment?: BrokerSegment,
+  pools?: DealRoomDataPools,
+) {
+  const filterExtras = poolFilterExtras(pools);
+  const generatedRooms = poolBuyers(segment, pools)
+    .map((buyer) => createDealRoomFromBuyer(buyer.id, undefined, segment, pools))
     .filter((candidate): candidate is DealRoom => Boolean(candidate));
-  const room = [...extraRooms, ...getDealRoomsForSegment(segment), ...generatedRooms]
-    .map((candidate) => filterDealRoomForSegment(candidate, segment))
+  const seededRooms = pools?.includeDemo === false ? [] : getDealRoomsForSegment(segment);
+  const room = [...extraRooms, ...seededRooms, ...generatedRooms]
+    .map((candidate) => filterDealRoomForSegment(candidate, segment, filterExtras))
     .filter((candidate): candidate is DealRoom => Boolean(candidate))
     .find((candidate) => candidate.id === roomId);
 
@@ -1787,8 +2079,8 @@ export function getDealRoomById(roomId: string, extraRooms: DealRoom[] = [], seg
     return undefined;
   }
 
-  const buyer = getBuyerById(room.buyerId, segment);
-  const listings = room.listingIds.map((id) => getListingById(id, segment)).filter((listing): listing is YachtListing => Boolean(listing));
+  const buyer = resolveBuyer(room.buyerId, segment, pools);
+  const listings = room.listingIds.map((id) => resolveListing(id, segment, pools)).filter((listing): listing is YachtListing => Boolean(listing));
   const matches = buyer ? generateMatchesForBuyer(buyer, listings) : [];
   const approvedDocuments = listings.flatMap((listing) =>
     listing.documents.filter((document) => room.approvedDocumentIds.includes(document.id)),
@@ -1812,7 +2104,7 @@ export function getDealRoomById(roomId: string, extraRooms: DealRoom[] = [], seg
     matches,
     approvedDocuments,
     comparisonRows,
-    buyerSafeBrief: buyer ? generateBuyerSafeBrief(buyer, matches.length ? matches : generateMatchesForBuyer(buyer)) : undefined,
+    buyerSafeBrief: buyer ? generateBuyerSafeBrief(buyer, matches.length ? matches : generateMatchesForBuyer(buyer, poolListings(segment, pools))) : undefined,
     brokerContact: {
       name: "Elena Markovic",
       role: "Senior High-Ticket Broker",
@@ -1831,8 +2123,14 @@ export function getDealRoomIds() {
   return getBrokerDealRoomWorkspace().map(({ room }) => room.id);
 }
 
-export function answerScopedDealRoomQuestion(roomId: string, question: string, extraRooms: DealRoom[] = []) {
-  const model = getDealRoomById(roomId, extraRooms);
+export function answerScopedDealRoomQuestion(
+  roomId: string,
+  question: string,
+  extraRooms: DealRoom[] = [],
+  segment?: BrokerSegment,
+  pools?: DealRoomDataPools,
+) {
+  const model = getDealRoomById(roomId, extraRooms, segment, pools);
   const listing = model?.listings[0];
 
   if (!model || !listing) {

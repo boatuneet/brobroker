@@ -11,10 +11,19 @@ import {
   generateClientBriefShortlist,
   generateMatchesForBuyer,
   generateVoiceToCrmDrafts,
+  getDealRoomReadiness,
   parseClientBrief,
   scoreVerification,
+  summarizeReportPerformance,
 } from "./services";
-import type { BuyerProfile, VerificationCase, YachtListing } from "./types";
+import type {
+  BuyerProfile,
+  DealRoom,
+  MatchResult,
+  SellerReportInput,
+  VerificationCase,
+  YachtListing,
+} from "./types";
 
 const sampleListing = (): YachtListing => ({
   id: "listing-test-alba",
@@ -184,6 +193,111 @@ describe("buyer-safe content and drafting", () => {
       "Negotiation Update",
     ]);
     expect(drafts.every((draft) => draft.status === "Draft")).toBe(true);
+  });
+});
+
+describe("report performance summary", () => {
+  const sampleReport = (): SellerReportInput => ({
+    id: "report-test",
+    sellerId: "seller-test",
+    listingId: "listing-test-alba",
+    period: "Week ending May 24",
+    inquiries: 20,
+    qualifiedLeads: 5,
+    viewings: 2,
+    commonObjections: ["No stabilizers"],
+    marketMovement: ["Supply scarce"],
+    nextWeekPlan: ["Clear survey"],
+    history: [
+      { period: "Week ending May 17", inquiries: 16, qualifiedLeads: 4, viewings: 1 },
+    ],
+  });
+
+  test("computes conversion rates and a decreasing funnel", () => {
+    const perf = summarizeReportPerformance(sampleReport());
+
+    expect(perf.qualifiedRate).toBeCloseTo(0.25);
+    expect(perf.viewingRate).toBeCloseTo(0.4);
+    expect(perf.funnel.map((stage) => stage.value)).toEqual([20, 5, 2]);
+    expect(perf.funnel[0].ofTop).toBe(1);
+    expect(perf.funnel[2].ofTop).toBeCloseTo(0.1);
+  });
+
+  test("derives a period-over-period trend from history", () => {
+    const perf = summarizeReportPerformance(sampleReport());
+
+    expect(perf.trend?.inquiries.delta).toBe(4);
+    expect(perf.trend?.inquiries.pct).toBeCloseTo(0.25);
+    // Series appends the current period after the history entries.
+    expect(perf.series.inquiries).toEqual([16, 20]);
+  });
+
+  test("returns no trend when there is no history", () => {
+    const perf = summarizeReportPerformance({ ...sampleReport(), history: undefined });
+    expect(perf.trend).toBeNull();
+    expect(perf.series.inquiries).toEqual([20]);
+  });
+
+  test("positions the asking price against comps", () => {
+    const listing: YachtListing = {
+      ...sampleListing(),
+      priceEur: 1_400_000,
+      comps: [
+        { name: "Comp A", priceEur: 1_200_000, note: "Cheaper" },
+        { name: "Comp B", priceEur: 1_600_000, note: "Pricier" },
+      ],
+    };
+    const perf = summarizeReportPerformance(sampleReport(), listing);
+
+    expect(perf.price?.median).toBe(1_400_000);
+    expect(perf.price?.pctVsMedian).toBeCloseTo(0);
+    expect(perf.price?.comps).toHaveLength(2);
+    // All markers land strictly inside the padded scale.
+    expect(perf.price?.askFraction).toBeGreaterThan(0);
+    expect(perf.price?.askFraction).toBeLessThan(1);
+  });
+});
+
+describe("deal room readiness", () => {
+  const baseRoom = (): DealRoom => ({
+    id: "room-test",
+    buyerId: "buyer-test-daniel",
+    title: "Test room",
+    status: "Draft",
+    verificationStatus: "Verified",
+    brokerApprovalStatus: "Approved",
+    listingIds: ["listing-test-alba"],
+    itinerary: [],
+    approvedDocumentIds: ["doc-survey"],
+    lastUpdatedAt: "2026-05-24",
+  });
+  const matches = (): MatchResult[] => [
+    { ...({} as MatchResult), listingId: "listing-test-alba", fitScore: 80 },
+    { ...({} as MatchResult), listingId: "listing-x", fitScore: 60 },
+  ];
+
+  test("is shareable when verified, approved, and has listings", () => {
+    const readiness = getDealRoomReadiness({
+      room: baseRoom(),
+      listings: [sampleListing()],
+      matches: matches(),
+      approvedDocuments: [{ id: "doc-survey" }],
+    });
+    expect(readiness.isShareable).toBe(true);
+    expect(readiness.readyCount).toBe(4);
+    expect(readiness.avgFit).toBe(70);
+  });
+
+  test("blocks sharing when broker approval is pending", () => {
+    const readiness = getDealRoomReadiness({
+      room: { ...baseRoom(), brokerApprovalStatus: "Pending" },
+      listings: [sampleListing()],
+      matches: matches(),
+      approvedDocuments: [],
+    });
+    expect(readiness.isShareable).toBe(false);
+    expect(readiness.checks.find((check) => check.label === "Broker approved")?.done).toBe(false);
+    expect(readiness.checks.find((check) => check.label === "Approved docs")?.done).toBe(false);
   });
 });
 

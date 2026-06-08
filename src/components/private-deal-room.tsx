@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
   Calendar,
   FileQuestion,
@@ -13,12 +12,13 @@ import {
 import {
   answerScopedDealRoomQuestion,
   getDealRoomById,
-  getListingSpecSummary,
   getVerificationTone,
 } from "@/lib/services";
 import { mirrorWorkflowEvent, readPersisted, writePersisted } from "@/lib/browser-persistence";
-import type { AuditEvent, DealRoom } from "@/lib/types";
-import { formatCurrency, formatDate, percentage } from "@/lib/utils";
+import type { BrokerSegment } from "@/lib/broker-segments";
+import type { DealRoomDataPools } from "@/lib/services";
+import type { AuditEvent, BuyerProfile, DealRoom, YachtListing } from "@/lib/types";
+import { formatDate } from "@/lib/utils";
 import {
   Badge,
   Button,
@@ -26,15 +26,45 @@ import {
   CardHeader,
   CardHeaderIcon,
   PageHeader,
-  ProgressBar,
   StatusDot,
   WorkflowState,
 } from "./ui";
-import { AssetMedia } from "./asset-media";
+import { AssetFitCarousel } from "./asset-fit-carousel";
+import { ShortlistAtGlance } from "./shortlist-at-glance";
 
-export function PrivateDealRoom({ roomId }: { roomId: string }) {
-  const persistedRooms = readPersisted<DealRoom[]>("brobroker:deal-rooms:saved", []);
-  const model = useMemo(() => getDealRoomById(roomId, persistedRooms), [persistedRooms, roomId]);
+export function PrivateDealRoom({
+  includeDemo = true,
+  roomId,
+  segment,
+  storedBuyers = [],
+  storedListings = [],
+  storedRooms = [],
+}: {
+  includeDemo?: boolean;
+  roomId: string;
+  segment?: BrokerSegment;
+  /* Broker-owned records from Supabase, fetched server-side by the page. */
+  storedBuyers?: BuyerProfile[];
+  storedListings?: YachtListing[];
+  storedRooms?: DealRoom[];
+}) {
+  const [persistedRooms] = useState<DealRoom[]>(() =>
+    readPersisted<DealRoom[]>("brobroker:deal-rooms:saved", []),
+  );
+  const pools = useMemo<DealRoomDataPools>(
+    () => ({ buyers: storedBuyers, listings: storedListings, includeDemo }),
+    [storedBuyers, storedListings, includeDemo],
+  );
+  /* Stored (Supabase) rooms list first so the durable copy wins over any
+     browser-saved draft with the same id. */
+  const extraRooms = useMemo(
+    () => [...storedRooms, ...persistedRooms],
+    [storedRooms, persistedRooms],
+  );
+  const model = useMemo(
+    () => getDealRoomById(roomId, extraRooms, segment, pools),
+    [roomId, extraRooms, segment, pools],
+  );
   const [question, setQuestion] = useState("What specs does the first listing have?");
   const [answers, setAnswers] = useState<
     Array<{ question: string; answer: string; task?: string; restricted: boolean }>
@@ -56,7 +86,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
   }
 
   function askQuestion() {
-    const result = answerScopedDealRoomQuestion(roomId, question, persistedRooms);
+    const result = answerScopedDealRoomQuestion(roomId, question, extraRooms, segment, pools);
     setAnswers((current) => {
       const next = [
         { question, answer: result.answer, task: result.followUpTask, restricted: result.restricted },
@@ -91,107 +121,70 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
   const tone = getVerificationTone(model.room.verificationStatus);
 
   return (
-    <div className="min-h-dvh bg-white text-[#171719]">
-      <main className="mx-auto w-full max-w-[1200px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
-        <PageHeader
-          title={model.room.title}
-          description={`${model.buyerSafeBrief?.headline} This room contains broker-approved shortlist context, documents, itinerary, and next steps only.`}
-          metrics={[
-            { label: "Listings", value: `${model.listings.length}` },
-            { label: "Approved docs", value: `${model.approvedDocuments.length}` },
-            { label: "Updated", value: formatDate(model.room.lastUpdatedAt) },
-          ]}
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className={tone.className}>
-                <StatusDot className={tone.dotClassName} />
-                {model.room.verificationStatus}
-              </Badge>
-              <Badge tone="neutral">
-                <LockKeyhole className="h-3 w-3" aria-hidden="true" />
-                {model.room.brokerApprovalStatus}
-              </Badge>
-            </div>
-          }
-        />
-
-        <div className="mt-12 grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
-          {/* Left — shortlist + comparison */}
-          <div className="grid content-start gap-8">
-            <Card>
-              <CardHeader
-                title="Recommended assets and trade-offs"
-              />
-              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-                {model.comparisonRows.map((row) => (
-                  <li key={row.listing.id} className="px-6 py-6">
-                    <div className="grid gap-5 lg:grid-cols-[140px_minmax(0,1fr)_160px]">
-                      <AssetMedia className="min-h-32" compact listing={row.listing} />
-                      <div className="min-w-0">
-                        <h2 className="bb-display text-lg font-medium text-[#171719]">
-                          {row.listing.name}
-                        </h2>
-                        <p className="mt-1 text-[13px] text-[#8E918B]">
-                          {row.listing.builder} {row.listing.model} · {getListingSpecSummary(row.listing)}
-                        </p>
-                        <p className="mt-3 text-sm leading-6 text-[#5F625E]">{row.rationale}</p>
-                        <p className="mt-2 text-[13px] leading-6 text-[#8E918B]">
-                          Trade-off: {row.tradeOff}
-                        </p>
-                      </div>
-                      <div className="rounded-[12px] bg-[#FBFBFB] p-4 lg:text-right">
-                        <p className="bb-mono-label">Fit</p>
-                        <p className="bb-display mt-2 text-2xl font-medium text-[#171719]">
-                          {percentage(row.fitScore)}
-                        </p>
-                        <ProgressBar className="mt-3" value={row.fitScore} />
-                        <p className="mt-3 font-mono text-[13px] font-medium text-[#171719]">
-                          {formatCurrency(row.listing.priceEur)}
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-
-            <Card>
-              <CardHeader eyebrow="Comparison" title="Shortlist at a glance" />
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="border-b border-[#E7E7E7] text-[11px] uppercase tracking-[0.16em] text-[#8E918B]">
-                    <tr>
-                      <th className="px-6 py-3 font-medium">Asset</th>
-                      <th className="px-6 py-3 font-medium">Price</th>
-                      <th className="px-6 py-3 font-medium">Specs</th>
-                      <th className="px-6 py-3 font-medium">VAT</th>
-                      <th className="px-6 py-3 font-medium">Docs</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E7E7E7]">
-                    {model.comparisonRows.map((row) => (
-                      <tr key={row.listing.id}>
-                        <td className="px-6 py-4 font-medium text-[#171719]">{row.listing.name}</td>
-                        <td className="px-6 py-4 text-[#5F625E]">
-                          {formatCurrency(row.listing.priceEur)}
-                        </td>
-                        <td className="px-6 py-4 text-[#5F625E]">
-                          {getListingSpecSummary(row.listing)}
-                        </td>
-                        <td className="px-6 py-4 text-[#5F625E]">{row.listing.vatStatus}</td>
-                        <td className="px-6 py-4 text-[#5F625E]">
-                          {row.approvedDocumentCount} approved
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+    /* Rendered inside AppShell — the shell owns the chrome (sidebar, top bar
+       with breadcrumb), so this is just the standard workspace container. */
+    <div className="text-[#171719]">
+      <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+        {/* Header sits on a card surface so the title and brief stay legible
+            over the dotted workspace backdrop. */}
+        <Card className="px-6 py-6 sm:px-8 sm:py-7">
+          <PageHeader
+            title={model.room.title}
+            description={`${model.buyerSafeBrief?.headline} This room contains broker-approved shortlist context, documents, itinerary, and next steps only.`}
+            metrics={[
+              { label: "Listings", value: `${model.listings.length}` },
+              { label: "Approved docs", value: `${model.approvedDocuments.length}` },
+              { label: "Updated", value: formatDate(model.room.lastUpdatedAt) },
+            ]}
+            actions={
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className={tone.className}>
+                  <StatusDot className={tone.dotClassName} />
+                  {model.room.verificationStatus}
+                </Badge>
+                <Badge tone="neutral">
+                  <LockKeyhole className="h-3 w-3" aria-hidden="true" />
+                  {model.room.brokerApprovalStatus}
+                </Badge>
               </div>
-            </Card>
-          </div>
+            }
+          />
+        </Card>
 
-          {/* Right — itinerary, documents, Q&A, contact */}
-          <div className="grid content-start gap-8">
+        {/* Full-width shortlist carousel — one asset in focus at a time. */}
+        <Card className="mt-8">
+          <CardHeader
+            title="Recommended assets and trade-offs"
+            description={
+              model.comparisonRows.length > 1
+                ? "Step through the shortlist with the controls below."
+                : undefined
+            }
+          />
+          <AssetFitCarousel
+            slides={model.comparisonRows.map((row) => ({
+              listing: row.listing,
+              fitScore: row.fitScore,
+              rationale: row.rationale,
+              tradeOff: row.tradeOff,
+            }))}
+          />
+        </Card>
+
+        {/* Full-width comparison */}
+        <div className="mt-8">
+          <ShortlistAtGlance
+            rows={model.comparisonRows.map((row) => ({
+              listing: row.listing,
+              approvedDocumentCount: row.approvedDocumentCount,
+            }))}
+          />
+        </div>
+
+        {/* Itinerary + Q&A side by side (materials + contact pair below);
+            stacks to one column on smaller screens. Cards stretch to equal
+            row heights so the grid keeps clean, symmetric edges. */}
+        <div className="mt-8 grid gap-8 lg:grid-cols-2">
             <Card>
               <CardHeader
                 title="Broker-approved path forward"
@@ -210,40 +203,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
               </ul>
             </Card>
 
-            <Card>
-              <CardHeader
-                title="Broker-controlled materials"
-                action={
-                  <CardHeaderIcon>
-                    <FileText className="h-4 w-4" aria-hidden="true" />
-                  </CardHeaderIcon>
-                }
-              />
-              <div className="grid gap-0">
-                {model.approvedDocuments.length ? (
-                  <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-                    {model.approvedDocuments.map((document) => (
-                      <li key={document.id} className="px-6 py-4">
-                        <p className="text-[14px] font-medium text-[#171719]">{document.title}</p>
-                        <p className="mt-1 text-[13px] text-[#8E918B]">
-                          {document.category} · updated {formatDate(document.updatedAt)}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="px-6 py-5">
-                    <WorkflowState
-                      description="The broker has not approved any documents for this buyer room yet."
-                      title="No approved documents"
-                      tone="warning"
-                    />
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            <Card>
+            <Card className="flex flex-col">
               <CardHeader
                 title="Ask from approved room content"
                 action={
@@ -252,7 +212,7 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
                   </CardHeaderIcon>
                 }
               />
-              <div className="grid gap-4 px-6 py-5">
+              <div className="flex flex-1 flex-col gap-4 px-6 py-5">
                 <textarea
                   aria-label="Question"
                   className="min-h-24 w-full rounded-[12px] border border-[#D9DAD4] bg-white p-3 text-[14px] leading-7 text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
@@ -289,11 +249,15 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
                     ))}
                   </ul>
                 ) : (
-                  <WorkflowState
-                    description="Approved answers use room content; restricted details become follow-up tasks."
-                    title="No questions asked yet"
-                    tone="empty"
-                  />
+                  /* Single-cell grid stretches the empty state to fill the
+                     remaining card height, keeping the row symmetric. */
+                  <div className="grid flex-1">
+                    <WorkflowState
+                      description="Approved answers use room content; restricted details become follow-up tasks."
+                      title="No questions asked yet"
+                      tone="empty"
+                    />
+                  </div>
                 )}
                 {followUpTasks.length ? (
                   <div className="rounded-[12px] bg-[#fff7ed] p-4">
@@ -312,6 +276,39 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
 
             <Card>
               <CardHeader
+                title="Broker-controlled materials"
+                action={
+                  <CardHeaderIcon>
+                    <FileText className="h-4 w-4" aria-hidden="true" />
+                  </CardHeaderIcon>
+                }
+              />
+              <div className="grid gap-0">
+                {model.approvedDocuments.length ? (
+                  <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
+                    {model.approvedDocuments.map((document) => (
+                      <li key={document.id} className="px-6 py-4">
+                        <p className="text-[14px] font-medium text-[#171719]">{document.title}</p>
+                        <p className="mt-1 text-[13px] text-[#8E918B]">
+                          {document.category} · updated {formatDate(document.updatedAt)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="px-6 py-5">
+                    <WorkflowState
+                      description="The broker has not approved any documents for this buyer room yet."
+                      title="No approved documents"
+                      tone="warning"
+                    />
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <Card className="flex flex-col">
+              <CardHeader
                 title={model.brokerContact.name}
                 action={
                   <CardHeaderIcon>
@@ -319,21 +316,30 @@ export function PrivateDealRoom({ roomId }: { roomId: string }) {
                   </CardHeaderIcon>
                 }
               />
-              <div className="grid gap-1.5 px-6 py-5 text-sm leading-6 text-[#5F625E]">
-                <p className="text-[#8E918B]">{model.brokerContact.role}</p>
-                <p>{model.brokerContact.email}</p>
-                <p>{model.brokerContact.phone}</p>
-                <Link
-                  className="mt-3 inline-flex text-sm font-medium text-[#1863dc] hover:underline"
-                  href="/deal-rooms"
-                >
-                  Broker room controls →
-                </Link>
+              <div className="flex flex-1 flex-col px-6 py-5">
+                <div className="grid gap-1.5 text-sm leading-6 text-[#5F625E]">
+                  <p className="text-[#8E918B]">{model.brokerContact.role}</p>
+                  <p>{model.brokerContact.email}</p>
+                  <p>{model.brokerContact.phone}</p>
+                </div>
+                <div className="mt-auto flex flex-wrap gap-3 pt-6">
+                  <a
+                    className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33]"
+                    href={`mailto:${model.brokerContact.email}`}
+                  >
+                    Email broker
+                  </a>
+                  <a
+                    className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33]"
+                    href={`tel:${model.brokerContact.phone.replace(/\s+/g, "")}`}
+                  >
+                    Call
+                  </a>
+                </div>
               </div>
             </Card>
-          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -6,439 +6,328 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   CheckCircle2,
+  Link2,
   LockKeyhole,
   PlusCircle,
   Radio,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { type BrokerSegment, getBuyersForSegment } from "@/lib/broker-segments";
 import {
-  type BrokerSegment,
-  getBuyersForSegment,
-  getListingsForSegment,
-} from "@/lib/broker-segments";
-import {
-  createDealRoomFromBuyer,
-  generateMatchesForBuyer,
   getBrokerDealRoomWorkspace,
-  getListingById,
+  getDealRoomReadiness,
   getListingSpecSummary,
-  getVerificationTone,
+  type DealRoomDataPools,
+  type DealRoomReadinessCheck,
 } from "@/lib/services";
 import { mirrorWorkflowEvent, readPersisted, writePersisted } from "@/lib/browser-persistence";
-import type { DealRoom } from "@/lib/types";
-import { formatDate, percentage } from "@/lib/utils";
+import type { BuyerProfile, DealRoom, YachtListing } from "@/lib/types";
+import { cn, formatDate, percentage } from "@/lib/utils";
 import {
   Badge,
   Button,
   Card,
   CardHeader,
-  CardHeaderIcon,
   EmptyState,
   PageHeader,
   ProgressBar,
-  Stat,
-  StatusDot,
 } from "./ui";
-import { SelectMenu } from "./select-menu";
+import { DealRoomReadinessPills } from "./deal-room-readiness";
 
+type WorkspaceEntry = ReturnType<typeof getBrokerDealRoomWorkspace>[number];
+
+/* Deal rooms index — a read-focused list of rooms. Creation lives on its
+   own subscreen (/deal-rooms/new), reachable from the top-bar "New room"
+   action, the dashboard, and the empty states below. All content sits on
+   card surfaces so nothing floats illegibly on the dotted backdrop. */
 export function DealRoomsWorkspace({
   includeDemo = true,
   segment,
+  storedBuyers = [],
+  storedListings = [],
+  storedRooms = [],
 }: {
   includeDemo?: boolean;
   segment?: BrokerSegment;
+  /* Broker-owned records from Supabase, fetched server-side by the page.
+     Stored rooms list before browser-saved drafts so the durable copy wins
+     on id collisions. */
+  storedBuyers?: BuyerProfile[];
+  storedListings?: YachtListing[];
+  storedRooms?: DealRoom[];
 }) {
-  const buyers = useMemo(
-    () => (includeDemo ? getBuyersForSegment(segment) : []),
-    [includeDemo, segment],
+  const pools = useMemo<DealRoomDataPools>(
+    () => ({ buyers: storedBuyers, listings: storedListings, includeDemo }),
+    [storedBuyers, storedListings, includeDemo],
   );
-  const [savedRooms, setSavedRooms] = useState<DealRoom[]>(() =>
+  const buyers = useMemo(
+    () => [...storedBuyers, ...(includeDemo ? getBuyersForSegment(segment) : [])],
+    [storedBuyers, includeDemo, segment],
+  );
+  const [savedRooms] = useState<DealRoom[]>(() =>
     readPersisted<DealRoom[]>("brobroker:deal-rooms:saved", []),
   );
   const existingRooms = useMemo(
-    () => (includeDemo ? getBrokerDealRoomWorkspace(savedRooms, segment) : []),
-    [includeDemo, savedRooms, segment],
+    () => getBrokerDealRoomWorkspace([...storedRooms, ...savedRooms], segment, pools),
+    [storedRooms, savedRooms, segment, pools],
   );
+  const [copiedRoomId, setCopiedRoomId] = useState<string | null>(null);
 
   if (buyers.length === 0 && existingRooms.length === 0) {
     return <FirstRunDealRooms />;
   }
 
-  return (
-    <DealRoomsOperational
-      existingRooms={existingRooms}
-      includeDemo={includeDemo}
-      savedRooms={savedRooms}
-      segment={segment}
-      setSavedRooms={setSavedRooms}
-    />
-  );
-}
-
-/* Operational workspace — assumes at least one buyer or existing room exists. */
-function DealRoomsOperational({
-  existingRooms,
-  includeDemo = true,
-  savedRooms,
-  segment,
-  setSavedRooms,
-}: {
-  existingRooms: ReturnType<typeof getBrokerDealRoomWorkspace>;
-  includeDemo?: boolean;
-  savedRooms: DealRoom[];
-  segment?: BrokerSegment;
-  setSavedRooms: (rooms: DealRoom[]) => void;
-}) {
-  const buyers = useMemo(
-    () => (includeDemo ? getBuyersForSegment(segment) : []),
-    [includeDemo, segment],
-  );
-  const listings = useMemo(
-    () => (includeDemo ? getListingsForSegment(segment) : []),
-    [includeDemo, segment],
-  );
-  const [buyerId, setBuyerId] = useState(buyers[0]?.id ?? "");
-  const selectedBuyer = buyers.find((buyer) => buyer.id === buyerId);
-
-  /* Auto-suggest the top two matched listings on buyer change; broker can
-     then opt in/out by checking the boxes. Memo keyed on buyerId so suggestions
-     don't churn while the broker is curating. */
-  const suggestedListingIds = useMemo(() => {
-    const buyer = buyers.find((candidate) => candidate.id === buyerId);
-    if (!buyer) return [] as string[];
-    return generateMatchesForBuyer(buyer, listings)
-      .slice(0, 2)
-      .map((match) => match.listingId);
-  }, [buyerId, buyers, listings]);
-
-  const [selectedListingIds, setSelectedListingIds] = useState<string[]>(suggestedListingIds);
-  const [committedBuyerId, setCommittedBuyerId] = useState<string | null>(null);
-  const [shareAccess, setShareAccess] = useState("Broker-approved link");
-  const [passcode, setPasscode] = useState("BRO-" + (buyers[0]?.name.split(" ")[0].toUpperCase() ?? "ROOM"));
-  const [shareCopied, setShareCopied] = useState(false);
-
-  function changeBuyer(nextBuyerId: string) {
-    setBuyerId(nextBuyerId);
-    const nextSuggestions = (() => {
-      const nextBuyer = buyers.find((buyer) => buyer.id === nextBuyerId);
-      if (!nextBuyer) return [] as string[];
-      return generateMatchesForBuyer(nextBuyer, listings)
-        .slice(0, 2)
-        .map((match) => match.listingId);
-    })();
-    setSelectedListingIds(nextSuggestions);
-    setCommittedBuyerId(null);
-    setPasscode("BRO-" + (buyers.find((buyer) => buyer.id === nextBuyerId)?.name.split(" ")[0].toUpperCase() ?? "ROOM"));
+  async function copyRoomLink(roomId: string) {
+    const url = `${window.location.origin}/deal-rooms/${roomId}`;
+    writePersisted(`brobroker:deal-rooms:${roomId}:share`, { roomId, url });
+    mirrorWorkflowEvent("deal_room_share_configured", roomId, { roomId, url });
+    await navigator.clipboard?.writeText(url).catch(() => undefined);
+    setCopiedRoomId(roomId);
   }
 
-  function toggleListing(listingId: string) {
-    setSelectedListingIds((current) =>
-      current.includes(listingId)
-        ? current.filter((id) => id !== listingId)
-        : [...current, listingId],
-    );
-  }
-
-  function commitRoom() {
-    if (!generatedRoom) return;
-    const nextRooms = [generatedRoom, ...savedRooms.filter((room) => room.id !== generatedRoom.id)];
-    setSavedRooms(nextRooms);
-    writePersisted("brobroker:deal-rooms:saved", nextRooms);
-    mirrorWorkflowEvent("deal_room_saved", generatedRoom.id, generatedRoom);
-    setCommittedBuyerId(buyerId);
-  }
-
-  async function copyShareLink() {
-    if (!generatedRoom) return;
-    const payload = {
-      roomId: generatedRoom.id,
-      access: shareAccess,
-      passcode,
-      url: `${window.location.origin}/deal-rooms/${generatedRoom.id}`,
-    };
-    writePersisted(`brobroker:deal-rooms:${generatedRoom.id}:share`, payload);
-    mirrorWorkflowEvent("deal_room_share_configured", generatedRoom.id, payload);
-    await navigator.clipboard?.writeText(`${payload.url} · passcode ${passcode}`).catch(() => undefined);
-    setShareCopied(true);
-  }
-
-  const generatedRoom = selectedBuyer
-    ? createDealRoomFromBuyer(selectedBuyer.id, selectedListingIds, segment)
-    : undefined;
-  const generatedListings = generatedRoom
-    ? generatedRoom.listingIds
-        .map((id) => getListingById(id, segment))
-        .filter((listing): listing is NonNullable<ReturnType<typeof getListingById>> => Boolean(listing))
-    : [];
-  const generatedTone = generatedRoom
-    ? getVerificationTone(generatedRoom.verificationStatus)
-    : undefined;
-  const isCommitted = committedBuyerId === buyerId;
   const persistedRoomIds = new Set(savedRooms.map((room) => room.id));
+  const activeEntries = existingRooms.filter((entry) => entry.origin !== "suggested");
+  const suggestedEntries = existingRooms.filter((entry) => entry.origin === "suggested");
+  const readyCount = activeEntries.filter((entry) => getDealRoomReadiness(entry).isShareable).length;
+  const pendingApproval = activeEntries.filter(
+    (entry) => entry.room.brokerApprovalStatus !== "Approved",
+  ).length;
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <PageHeader
         metrics={[
-          { label: "Rooms", value: `${existingRooms.length}` },
-          {
-            label: "Approved docs",
-            value: `${existingRooms.reduce((total, room) => total + room.approvedDocuments.length, 0)}`,
-          },
-          {
-            label: "Pending approval",
-            value: `${existingRooms.filter(({ room }) => room.brokerApprovalStatus !== "Approved").length}`,
-          },
+          { label: "Active rooms", value: `${activeEntries.length}` },
+          { label: "Ready to share", value: `${readyCount}` },
+          { label: "Awaiting approval", value: `${pendingApproval}` },
         ]}
       />
 
-      <div className="mt-12 grid gap-8 xl:grid-cols-[380px_minmax(0,1fr)]">
+      <div className="mt-8 grid gap-8">
         <Card>
           <CardHeader
-            title="Curate buyer-facing shortlist"
-            action={
-              <CardHeaderIcon>
-                <PlusCircle className="h-4 w-4" aria-hidden="true" />
-              </CardHeaderIcon>
-            }
+            title="Active rooms"
+            description="Private, buyer-safe shortlists you've curated. Share a room once every readiness check clears."
+            action={<NewRoomButton />}
           />
-          {!selectedBuyer || !generatedRoom || !generatedTone ? (
+          {activeEntries.length === 0 ? (
             <EmptyState
-              title="No buyers yet"
-              description="Add a buyer first, then curate a private room here."
-              action={
-                <Link
-                  className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] hover:border-[#003C33]"
-                  href="/voice-crm"
-                >
-                  Capture a buyer
-                </Link>
-              }
+              title="No active rooms yet"
+              description="Create a room to curate a private shortlist for one buyer."
+              action={<NewRoomButton />}
             />
           ) : (
-            <div className="grid gap-5 px-6 py-5">
-              <SelectMenu
-                label="Buyer"
-                onChange={changeBuyer}
-                options={buyers.map((buyer) => ({
-                  label: buyer.name,
-                  value: buyer.id,
-                  meta: `${buyer.currentStage} · ${buyer.urgency}`,
-                }))}
-                value={buyerId}
-              />
-
-              <div>
-                <p className="bb-mono-label">Listings in the room</p>
-                {listings.length === 0 ? (
-                  <p className="mt-2 text-[13px] leading-6 text-[#8E918B]">
-                    Add inventory to curate a deal room shortlist.
-                  </p>
-                ) : (
-                  <ul className="mt-3 grid max-h-72 gap-1.5 overflow-y-auto pr-1">
-                    {listings.map((listing) => {
-                      const isSelected = selectedListingIds.includes(listing.id);
-                      const isSuggested = suggestedListingIds.includes(listing.id);
-                      return (
-                        <li key={listing.id}>
-                          <label
-                            className={`flex cursor-pointer items-start gap-3 rounded-[8px] border px-3 py-2.5 transition-colors ${
-                              isSelected
-                                ? "border-[#003C33] bg-[#F1F2EE]/40"
-                                : "border-[#E7E7E7] bg-white hover:border-[#003C33]"
-                            }`}
-                          >
-                            <input
-                              checked={isSelected}
-                              className="mt-1 h-4 w-4 cursor-pointer accent-[#003C33]"
-                              onChange={() => toggleListing(listing.id)}
-                              type="checkbox"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <p className="text-[13px] font-medium text-[#171719]">
-                                  {listing.name}
-                                </p>
-                                {isSuggested ? (
-                                  <span className="text-[11px] uppercase tracking-[0.14em] text-[#003C33]">
-                                    Suggested
-                                  </span>
-                                ) : null}
-                              </div>
-                              <p className="mt-0.5 text-[12px] text-[#8E918B]">
-                                {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
-                              </p>
-                            </div>
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                <p className="mt-2 text-[12px] text-[#8E918B]">
-                  {selectedListingIds.length} of {listings.length} listings selected.
-                </p>
-              </div>
-
-              <div className="rounded-[12px] bg-[#FBFBFB] p-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={generatedTone.className}>
-                    <StatusDot className={generatedTone.dotClassName} />
-                    {generatedRoom.verificationStatus}
-                  </Badge>
-                  <Badge tone="neutral">{generatedRoom.brokerApprovalStatus}</Badge>
-                  {isCommitted || persistedRoomIds.has(generatedRoom.id) ? <Badge tone="success">Saved</Badge> : null}
-                </div>
-                <h2 className="bb-display mt-3 text-base font-medium text-[#171719]">
-                  {generatedRoom.title}
-                </h2>
-                <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">
-                  {selectedBuyer.communicationStyle}. {generatedListings.length} listings ·{" "}
-                  {generatedRoom.approvedDocumentIds.length} approved docs.
-                </p>
-              </div>
-
-              <div className="grid gap-3 rounded-[12px] border border-[#E7E7E7] bg-white p-4">
-                <p className="bb-mono-label">Share controls</p>
-                <SelectMenu
-                  label="Access mode"
-                  onChange={setShareAccess}
-                  options={[
-                    { label: "Broker-approved link", value: "Broker-approved link" },
-                    { label: "Passcode required", value: "Passcode required" },
-                    { label: "Paused until verification", value: "Paused until verification" },
-                  ]}
-                  value={shareAccess}
+            <ul className="divide-y divide-[#E7E7E7]">
+              {activeEntries.map((entry) => (
+                <RoomRow
+                  key={entry.room.id}
+                  copied={copiedRoomId === entry.room.id}
+                  entry={entry}
+                  onCopy={() => copyRoomLink(entry.room.id)}
+                  saved={persistedRoomIds.has(entry.room.id)}
                 />
-                <label className="grid gap-1.5 text-[13px] font-medium text-[#171719]">
-                  <span>Room passcode</span>
-                  <input
-                    className="min-h-10 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[14px] text-[#171719] outline-none focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
-                    onChange={(event) => setPasscode(event.target.value)}
-                    value={passcode}
-                  />
-                </label>
-                <Button onClick={copyShareLink} type="button" variant="secondary" size="sm">
-                  {shareCopied ? "Share settings saved" : "Copy private link"}
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  disabled={selectedListingIds.length === 0 || isCommitted}
-                  onClick={commitRoom}
-                  type="button"
-                >
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  {isCommitted ? "Room saved" : "Save room draft"}
-                </Button>
-                <Link
-                  className="inline-flex min-h-11 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-5 text-sm font-medium text-[#171719] hover:border-[#003C33]"
-                  href={`/deal-rooms/${generatedRoom.id}`}
-                >
-                  Preview buyer-facing room
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
+              ))}
+            </ul>
           )}
         </Card>
 
-        <div className="grid content-start gap-8">
-          {existingRooms.length === 0 ? (
-            <Card>
-              <CardHeader eyebrow="Existing rooms" title="No deal rooms yet" />
-              <EmptyState
-                title="Deal rooms appear here once saved"
-                description="Saved rooms show status, approved documents, and buyer-safe listings."
-              />
-            </Card>
-          ) : (
-            existingRooms.map(
-              ({ room, buyer, listings, matches, approvedDocuments, accessWarning }) => {
-                const tone = getVerificationTone(room.verificationStatus);
-                return (
-                  <Card key={room.id}>
-                    <CardHeader
-                      title={room.title}
-                      action={
-                        <Badge className={tone.className}>
-                          <StatusDot className={tone.dotClassName} />
-                          {room.verificationStatus}
-                        </Badge>
-                      }
-                    />
-                    <div className="grid gap-6 px-6 py-5 lg:grid-cols-[1fr_240px]">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.14em] text-[#8E918B]">
-                          <Badge tone="neutral">{room.status}</Badge>
-                          <Badge tone="neutral">{room.brokerApprovalStatus}</Badge>
-                          {persistedRoomIds.has(room.id) ? <Badge tone="success">Saved draft</Badge> : null}
-                          <span>Updated {formatDate(room.lastUpdatedAt)}</span>
-                        </div>
-                        <p className="mt-3 text-sm leading-6 text-[#5F625E]">
-                          <span className="font-medium text-[#171719]">{buyer?.name}</span> ·{" "}
-                          {accessWarning}
-                        </p>
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                          {listings.map((listing) => {
-                            const match = matches.find(
-                              (candidate) => candidate.listingId === listing.id,
-                            );
-                            return (
-                              <div
-                                key={listing.id}
-                                className="rounded-[12px] border border-[#E7E7E7] bg-white p-4"
-                              >
-                                <p className="text-[14px] font-medium text-[#171719]">
-                                  {listing.name}
-                                </p>
-                                <p className="mt-1 text-[13px] text-[#8E918B]">
-                                  {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
-                                </p>
-                                <ProgressBar className="mt-3" value={match?.fitScore ?? 72} />
-                                <p className="mt-2 text-[12px] font-medium uppercase tracking-[0.12em] text-[#171719]">
-                                  {percentage(match?.fitScore ?? 72)} buyer fit
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div className="grid content-start gap-4 border-l border-[#E7E7E7] pl-5">
-                        <Stat
-                          label="Access"
-                          value={room.verificationStatus}
-                          detail={room.brokerApprovalStatus}
-                        />
-                        <Stat
-                          label="Approved docs"
-                          value={`${approvedDocuments.length}`}
-                          detail="Buyer-safe only"
-                        />
-                        <Stat
-                          label="Private route"
-                          value="Ready"
-                          detail={`/deal-rooms/${room.id}`}
-                        />
-                        <Link
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-sm font-medium text-[#171719] hover:border-[#003C33]"
-                          href={`/deal-rooms/${room.id}`}
-                        >
-                          Open buyer room
-                        </Link>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              },
-            )
-          )}
-        </div>
+        {suggestedEntries.length > 0 ? (
+          <Card>
+            <CardHeader
+              title="Suggested rooms"
+              description="Auto-matched from your buyers — open one to curate and save it."
+            />
+            <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
+              {suggestedEntries.map((entry) => (
+                <SuggestedRoomCard key={entry.room.id} entry={entry} />
+              ))}
+            </div>
+          </Card>
+        ) : null}
       </div>
     </div>
   );
+}
+
+function NewRoomButton() {
+  return (
+    <Link
+      className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[13px] font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+      href="/deal-rooms/new"
+    >
+      <PlusCircle className="h-4 w-4" aria-hidden="true" />
+      New room
+    </Link>
+  );
+}
+
+/* ---- Room rows --------------------------------------------------------- */
+
+function RoomRow({
+  entry,
+  copied,
+  onCopy,
+  saved,
+}: {
+  entry: WorkspaceEntry;
+  copied: boolean;
+  onCopy: () => void;
+  saved: boolean;
+}) {
+  const { room, buyer, listings, matches, approvedDocuments } = entry;
+  const readiness = getDealRoomReadiness(entry);
+  const statusTone =
+    room.status === "Active" ? "success" : room.status === "Paused" ? "warning" : "neutral";
+  const shownListings = listings.slice(0, 3);
+  const moreCount = listings.length - shownListings.length;
+
+  return (
+    <li className="grid gap-5 px-6 py-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h3 className="bb-display text-lg font-medium text-[#171719]">{room.title}</h3>
+            <Badge tone={statusTone}>{room.status}</Badge>
+          </div>
+          <p className="mt-1 text-[13px] text-[#8E918B]">
+            <span className="font-medium text-[#171719]">{buyer?.name ?? "Buyer"}</span>
+            {buyer ? ` · ${buyer.currentStage}` : ""} · Updated {formatDate(room.lastUpdatedAt)}
+            {saved ? " · Saved draft" : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="inline-flex min-h-9 items-center gap-2 rounded-[8px] bg-[#003C33] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
+            href={`/deal-rooms/${room.id}`}
+          >
+            Open room
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+          <Button
+            disabled={!readiness.isShareable}
+            onClick={onCopy}
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
+            {readiness.isShareable ? (
+              <Link2 className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <LockKeyhole className="h-4 w-4" aria-hidden="true" />
+            )}
+            {copied
+              ? "Link copied"
+              : readiness.isShareable
+                ? "Copy private link"
+                : "Locked until ready"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="bb-mono-label">Readiness</p>
+          <p
+            className={cn(
+              "text-[12px] font-medium",
+              readiness.isShareable ? "text-[#0F8F62]" : "text-[#8E918B]",
+            )}
+          >
+            {readiness.isShareable ? "Ready to share" : `Needs ${firstBlocker(readiness.checks)}`}
+          </p>
+        </div>
+        <div className="mt-3">
+          <DealRoomReadinessPills checks={readiness.checks} />
+        </div>
+      </div>
+
+      <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="bb-mono-label">Buyer-safe listings</p>
+          <p className="text-[12px] text-[#8E918B]">
+            {readiness.avgFit ? `${readiness.avgFit}% avg fit` : "—"} · {approvedDocuments.length}{" "}
+            approved docs
+          </p>
+        </div>
+        {listings.length === 0 ? (
+          <p className="mt-2 text-[13px] text-[#8E918B]">No listings curated yet.</p>
+        ) : (
+          <ul className="mt-3 grid gap-2.5 lg:grid-cols-3">
+            {shownListings.map((listing) => {
+              const fit = matches.find((match) => match.listingId === listing.id)?.fitScore ?? 72;
+              return (
+                <li key={listing.id} className="rounded-[10px] border border-[#E7E7E7] bg-white p-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="min-w-0 truncate text-[14px] font-medium text-[#171719]">
+                      {listing.name}
+                    </p>
+                    <span className="font-mono text-[12px] font-semibold tabular-nums text-[#171719]">
+                      {percentage(fit)}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-[12px] text-[#8E918B]">
+                    {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
+                  </p>
+                  <ProgressBar className="mt-2.5" tone="green" value={fit} />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {moreCount > 0 ? (
+          <p className="mt-2 text-[12px] text-[#8E918B]">
+            +{moreCount} more listing{moreCount === 1 ? "" : "s"}
+          </p>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+function SuggestedRoomCard({ entry }: { entry: WorkspaceEntry }) {
+  const { room, buyer, listings } = entry;
+  const readiness = getDealRoomReadiness(entry);
+  const topListing = listings[0];
+
+  return (
+    <Link
+      className="group flex flex-col gap-3 rounded-[12px] border border-[#E7E7E7] bg-white p-5 transition-colors hover:border-[#003C33]"
+      href={`/deal-rooms/${room.id}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-medium text-[#171719]">
+            {buyer?.name ?? room.title}
+          </p>
+          <p className="mt-0.5 text-[12px] text-[#8E918B]">
+            {buyer ? `${buyer.currentStage} · ${buyer.urgency}` : "Suggested"}
+          </p>
+        </div>
+        <span className="shrink-0 font-mono text-[12px] font-semibold tabular-nums text-[#171719]">
+          {readiness.avgFit ? `${readiness.avgFit}%` : "—"}
+        </span>
+      </div>
+      <p className="text-[13px] leading-6 text-[#5F625E]">
+        {topListing
+          ? `${listings.length} matched · top: ${topListing.name}`
+          : "No matched listings yet"}
+      </p>
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#171719]">
+        Open &amp; curate
+        <ArrowRight
+          className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </span>
+    </Link>
+  );
+}
+
+function firstBlocker(checks: DealRoomReadinessCheck[]): string {
+  const blocking = checks.slice(0, 3).find((check) => !check.done);
+  const fallback = checks.find((check) => !check.done);
+  return (blocking?.label ?? fallback?.label ?? "review").toLowerCase();
 }
 
 /* First-run experience — clean editorial hero + three quick-start actions
@@ -446,23 +335,13 @@ function DealRoomsOperational({
 function FirstRunDealRooms() {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
-      <section aria-labelledby="rooms-quick-start">
-        <div className="flex items-baseline justify-between gap-4">
-          <div>
-            <p className="bb-mono-label">Quick start</p>
-            <h2
-              className="bb-display mt-2 text-xl font-medium text-[#171719]"
-              id="rooms-quick-start"
-            >
-              Three paths to your first deal room
-            </h2>
-          </div>
-          <p className="hidden text-[13px] text-[#8E918B] sm:block">
-            Each one ends with a verified buyer.
-          </p>
-        </div>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+      <Card>
+        <CardHeader
+          eyebrow="Quick start"
+          title="Three paths to your first deal room"
+          description="Each one ends with a verified buyer."
+        />
+        <div className="grid gap-4 px-6 py-6 md:grid-cols-3">
           <RoomsActionCard
             description="Paste a call or brief to capture shortlist context."
             href="/voice-crm"
@@ -485,27 +364,25 @@ function FirstRunDealRooms() {
             title="Open verification"
           />
         </div>
-      </section>
+      </Card>
 
-      <Card className="mt-12">
-        <CardHeader
-          title="A private space, scoped to one buyer"
-        />
+      <Card className="mt-8">
+        <CardHeader title="A private space, scoped to one buyer" />
         <ul className="divide-y divide-[#E7E7E7]">
           <RoomsExplainerRow
+            description="Rooms stay Draft until verification and broker approval clear."
             icon={ShieldCheck}
             title="Verification + broker approval state"
-            description="Rooms stay Draft until verification and broker approval clear."
           />
           <RoomsExplainerRow
+            description="Only selected listings and approved documents appear."
             icon={CheckCircle2}
             title="Curated, buyer-safe listings"
-            description="Only selected listings and approved documents appear."
           />
           <RoomsExplainerRow
+            description="Seller notes and risk scoring stay in the broker workspace."
             icon={LockKeyhole}
             title="Sensitive material hidden until cleared"
-            description="Seller notes and risk scoring stay in the broker workspace."
           />
         </ul>
       </Card>

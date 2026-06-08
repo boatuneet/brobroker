@@ -256,6 +256,13 @@ export interface FollowUpDraft {
   createdAt: string;
 }
 
+export interface SellerReportPeriodStat {
+  period: string;
+  inquiries: number;
+  qualifiedLeads: number;
+  viewings: number;
+}
+
 export interface SellerReportInput {
   id: string;
   sellerId: string;
@@ -267,6 +274,10 @@ export interface SellerReportInput {
   commonObjections: string[];
   marketMovement: string[];
   nextWeekPlan: string[];
+  /* Prior weeks for this listing, oldest → newest, excluding the current
+     period. Powers the period-over-period trend and sparkline on Reports.
+     Optional so older fixtures and freshly created reports still type-check. */
+  history?: SellerReportPeriodStat[];
 }
 
 export interface DealRoom {

@@ -31,6 +31,57 @@ export const getStoredListingsForSegment = cache(async (segment?: BrokerSegment)
   return (data ?? []).map((row) => mapStoredAssetToListing(row as StoredAssetRow, {}, { includePhotos: false }));
 });
 
+/* Like getStoredListingsForSegment, but signs the FIRST photo of each
+   listing so previews render (deal-room shortlists, comparisons). Kept
+   separate because it costs one storage round-trip per listing — index
+   screens that don't show imagery should stay on the light variant. */
+export const getStoredListingsForSegmentWithPreview = cache(async (segment?: BrokerSegment) => {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const supabase = await createClient();
+  let query = supabase
+    .from("assets")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (segment) {
+    query = query.eq("asset_type", segment);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.warn("Could not read Supabase listings", error.message);
+    return [];
+  }
+
+  return Promise.all(
+    ((data ?? []) as StoredAssetRow[]).map((row) => hydrateStoredListingPreview(row)),
+  );
+});
+
+async function hydrateStoredListingPreview(row: StoredAssetRow): Promise<YachtListing> {
+  const photos = getPayloadPhotos(row.payload);
+  const firstStoragePath = photos.find((photo) => photo.storagePath)?.storagePath;
+
+  if (!firstStoragePath) {
+    /* No storage-backed photos — externally-hosted photo srcs (if any)
+       map through as-is. */
+    return mapStoredAssetToListing(row, {});
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage
+    .from("broker-documents")
+    .createSignedUrl(firstStoragePath, PHOTO_SIGNED_URL_SECONDS);
+
+  return mapStoredAssetToListing(
+    row,
+    error || !data?.signedUrl ? {} : { [firstStoragePath]: data.signedUrl },
+  );
+}
+
 export const getStoredListingById = cache(async (id: string) => {
   const user = await getCurrentUser();
   if (!user) return undefined;

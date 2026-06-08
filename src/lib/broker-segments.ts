@@ -186,7 +186,14 @@ export function getSellerReportInputsForSegment(segment?: BrokerSegment): Seller
   return sellerReportInputs.filter((input) => listingIds.has(input.listingId));
 }
 
-export function filterDealRoomForSegment(room: DealRoom, segment?: BrokerSegment): DealRoom | undefined {
+export function filterDealRoomForSegment(
+  room: DealRoom,
+  segment?: BrokerSegment,
+  /* Extra ids that should survive the filter — broker-stored (Supabase)
+     listings/documents aren't in the demo dataset, so callers working with
+     real data pass their ids here to keep those rooms intact. */
+  extra?: { listingIds?: ReadonlySet<string>; documentIds?: ReadonlySet<string> },
+): DealRoom | undefined {
   if (!segment) return room;
 
   const listingIds = new Set(getListingsForSegment(segment).map((listing) => listing.id));
@@ -195,6 +202,8 @@ export function filterDealRoomForSegment(room: DealRoom, segment?: BrokerSegment
       listing.documents.map((document) => document.id),
     ),
   );
+  extra?.listingIds?.forEach((id) => listingIds.add(id));
+  extra?.documentIds?.forEach((id) => documentIds.add(id));
   const roomListingIds = room.listingIds.filter((listingId) => listingIds.has(listingId));
 
   if (roomListingIds.length === 0) return undefined;
