@@ -476,7 +476,7 @@ export function VoiceToCrmWorkspace({
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <ToastViewport
         message={syncError ?? syncMessage}
         onDismiss={() => {

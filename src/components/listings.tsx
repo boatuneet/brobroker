@@ -243,7 +243,7 @@ export function ListingIndex({
   const hasFilters = searching || statusFilter !== "All";
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* KPI band — editorial cockpit. One cream tile, three paper tiles. */}
       <section
         aria-label="Inventory summary"
@@ -432,7 +432,7 @@ function StatusChip({
    explainer card showing what the brain will surface once inventory lands. */
 function FirstRunListings() {
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <section aria-labelledby="listings-quick-start">
         <div className="flex items-baseline justify-between gap-4">
           <div>
@@ -874,7 +874,7 @@ export function ListingBrain({
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       <ListingDetailHero

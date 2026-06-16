@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
         search: "?v=20260526",
       },
       {
+        pathname: "/bro-broker-hero.png",
+        search: "",
+      },
+      {
         pathname: "/segments/**",
         search: "",
       },

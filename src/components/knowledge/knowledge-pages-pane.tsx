@@ -40,14 +40,10 @@ import { FitRing } from "../dashboard/visuals";
 import { IMPORT_EVENT } from "./import-knowledge-button";
 import { ImportKnowledgePanel, type ImportCandidate } from "./import-knowledge-panel";
 
-/* White surface with the same static dotted texture used across the app — the
-   right pane (vault health + pages, and the page detail) sits on this so the
-   pattern shows behind its cards instead of a flat grey fill. */
+/* Transparent surface so the app-wide grid canvas shows behind these panes'
+   cards, matching every other screen (no separate dotted texture). */
 const DOTTED_SURFACE: CSSProperties = {
-  backgroundColor: "#ffffff",
-  backgroundImage: "radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.35) 1px, transparent 0)",
-  backgroundSize: "20px 20px",
-  backgroundAttachment: "fixed",
+  backgroundColor: "transparent",
 };
 
 /* A user-imported note attached to a vault page (subset of the

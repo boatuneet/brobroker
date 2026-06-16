@@ -220,7 +220,7 @@ export function Dashboard({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Title + actions moved into the sticky top bar (see
           DashboardPage). KPI strip now leads the page content. */}
 
@@ -673,7 +673,7 @@ function PipelineCompositionStat({
    language (cream accent, deep-green anchor chip). */
 function FirstRunDashboard() {
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <PageHeader
         title="Start with your first signal"
         description="Add a call, buyer, or listing to build memory, matches, and follow-ups."

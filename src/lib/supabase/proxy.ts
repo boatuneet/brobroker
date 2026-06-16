@@ -10,6 +10,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 const PUBLIC_ROUTES = ["/login", "/signup", "/auth"];
 
 function isPublicRoute(pathname: string): boolean {
+  // The marketing landing at "/" is public (logged-out visitors + post-logout).
+  if (pathname === "/") return true;
   return PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
@@ -67,10 +69,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  /* Signed-in users hitting /login or /signup get bounced to the dashboard. */
+  /* Signed-in users hitting the landing, /login or /signup get bounced to the
+     dashboard so the app opens where they expect. */
   if (
     isAuthenticated &&
-    (request.nextUrl.pathname === "/login" ||
+    (request.nextUrl.pathname === "/" ||
+      request.nextUrl.pathname === "/login" ||
       request.nextUrl.pathname === "/signup")
   ) {
     const dashboardUrl = request.nextUrl.clone();

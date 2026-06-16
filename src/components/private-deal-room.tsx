@@ -124,7 +124,7 @@ export function PrivateDealRoom({
     /* Rendered inside AppShell — the shell owns the chrome (sidebar, top bar
        with breadcrumb), so this is just the standard workspace container. */
     <div className="text-[#171719]">
-      <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+      <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
         {/* Header sits on a card surface so the title and brief stay legible
             over the dotted workspace backdrop. */}
         <Card className="px-6 py-6 sm:px-8 sm:py-7">

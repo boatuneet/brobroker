@@ -386,7 +386,7 @@ export function BuyerIndex({
   const hasFilters = searching || stageFilter !== "All";
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* KPI band — one cream tile, three paper tiles. Same shape as Listings. */}
       <section
         aria-label="Buyer summary"
@@ -730,7 +730,7 @@ function BuyerListRow({
    explainer card showing what each buyer profile will remember. */
 function FirstRunBuyers() {
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <section aria-labelledby="buyers-quick-start">
         <div className="flex items-baseline justify-between gap-4">
           <div>
@@ -1107,7 +1107,7 @@ export function BuyerMemoryProfile({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       {/* Editorial cockpit header — segment chip + last contacted, display h1,
@@ -2199,7 +2199,7 @@ export function SellerMemoryProfile({ sellerId, segment }: { sellerId: string; s
   const totalValue = assets.reduce((total, listing) => total + listing.priceEur, 0);
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Back-link removed — breadcrumb in the top bar covers navigation. */}
 
       <div>

@@ -22,7 +22,7 @@ export default function ListingsImportPage() {
         />
       }
     >
-      <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+      <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
         {/* Header on a card surface so it stays legible over the dotted backdrop. */}
         <Card className="px-6 py-6 sm:px-8 sm:py-7">
           <PageHeader

@@ -180,7 +180,7 @@ export function DealRoomCreate({
 
   if (buyers.length === 0 || !selectedBuyer || !room || !tone || !readiness) {
     return (
-      <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+      <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
         <Card>
           <EmptyState
             title="No buyers yet"
@@ -200,7 +200,7 @@ export function DealRoomCreate({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* Left — the two form steps. */}
         <div className="grid content-start gap-8">

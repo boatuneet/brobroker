@@ -139,24 +139,45 @@ export function CompactSidebarShell({
 
   const desktopSidebarWidth = isOpen ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
 
+  // App-wide canvas: a light-gray base (matching the sidebar + top bar) with a
+  // fixed dashed top-fade grid. Replaces the old dotted-on-white texture.
+  const backgroundStyle = { backgroundColor: "#FBFBFB" };
+
   return (
-    <div
-      className="min-h-dvh text-[#171719]"
-      style={{
-        backgroundColor: "#ffffff",
-        backgroundImage:
-          "radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.35) 1px, transparent 0)",
-        backgroundSize: "20px 20px",
-        // Pin the texture to the viewport so it stays put while content scrolls.
-        // The sidebar + sticky top bar have solid backgrounds, so the dots only
-        // ever show behind page content — never under the chrome.
-        backgroundAttachment: "fixed",
-      }}
-    >
+    <div className="relative isolate min-h-dvh text-[#171719]" style={backgroundStyle}>
+      {/* Dashed top-fade grid — a FIXED overlay (z-0) on the gray root, so it
+          stays put while content scrolls. Content sits at z-10 and the solid
+          sidebar/top bar (z-20) above, so the grid only reveals through the
+          page-content gaps. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, #e7e5e4 1px, transparent 1px),
+            linear-gradient(to bottom, #e7e5e4 1px, transparent 1px)
+          `,
+          backgroundSize: "20px 20px",
+          backgroundPosition: "0 0, 0 0",
+          maskImage: `
+            repeating-linear-gradient(to right, black 0px, black 3px, transparent 3px, transparent 8px),
+            repeating-linear-gradient(to bottom, black 0px, black 3px, transparent 3px, transparent 8px),
+            radial-gradient(ellipse 70% 60% at 50% 0%, #000 60%, transparent 100%)
+          `,
+          WebkitMaskImage: `
+            repeating-linear-gradient(to right, black 0px, black 3px, transparent 3px, transparent 8px),
+            repeating-linear-gradient(to bottom, black 0px, black 3px, transparent 3px, transparent 8px),
+            radial-gradient(ellipse 70% 60% at 50% 0%, #000 60%, transparent 100%)
+          `,
+          maskComposite: "intersect",
+          WebkitMaskComposite: "source-in",
+        }}
+      />
+
       <BrokerSegmentBridge currentSegment={segment} />
 
       <aside
-        className="fixed inset-y-0 left-0 z-20 hidden border-r border-[#E7E7E7] bg-[#FBFBFB] text-[#171719] transition-[width] lg:flex"
+        className="fixed inset-y-0 left-0 z-20 hidden border-r border-[#E7E7E7] bg-white text-[#171719] transition-[width] lg:flex"
         style={{ width: desktopSidebarWidth }}
       >
         <div className="relative flex h-full min-w-0 flex-1 flex-col">
@@ -287,7 +308,7 @@ export function CompactSidebarShell({
       </aside>
 
 
-      <header className="sticky top-0 z-10 border-b border-[#E7E7E7] bg-[#FBFBFB]/95 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-10 border-b border-[#E7E7E7] bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link aria-label="BroBroker dashboard" className="inline-flex" href="/dashboard">
             <span className={cn(fraunces.className, "text-2xl font-bold tracking-tight text-[#171719]")}>
@@ -341,7 +362,7 @@ export function CompactSidebarShell({
       </header>
 
       <main
-        className="min-w-0 lg:pl-[var(--sidebar-current-width)] lg:transition-[padding-left]"
+        className="relative z-10 min-w-0 lg:pl-[var(--sidebar-current-width)] lg:transition-[padding-left]"
         style={{ "--sidebar-current-width": `${desktopSidebarWidth}px` } as CSSProperties}
       >
         {/* Desktop top bar — toggle + breadcrumb-or-title on the left,
@@ -349,7 +370,7 @@ export function CompactSidebarShell({
             view while the broker scrolls. Background + bottom border
             match the sidebar's chrome so the two read as one unified
             panel ringing the content area. */}
-        <div className="sticky top-0 z-20 hidden min-h-14 items-center gap-3 border-b border-[#E7E7E7] bg-[#FBFBFB] px-4 py-2.5 lg:flex">
+        <div className="sticky top-0 z-20 hidden min-h-14 items-center gap-3 border-b border-[#E7E7E7] bg-white px-4 py-2.5 lg:flex">
           <button
             aria-label="Toggle sidebar"
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-[#E7E7E7] bg-white text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] hover:text-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"

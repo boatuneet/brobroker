@@ -22,7 +22,7 @@ export function AuthShell({
       {/* Brand panel — deep green, mirrors the app sidebar.
           Wider than before (440 → 560) so the editorial pitch breathes. */}
       <aside className="relative hidden bg-[#003C33] text-[#F4ECD8] lg:flex lg:flex-col lg:justify-between lg:px-14 lg:py-14">
-        <Link className="inline-flex items-baseline" href="/dashboard">
+        <Link className="inline-flex items-baseline" href="/">
           {/* Logotype matches the sidebar Brobroker. wordmark — Fraunces
               display font, period included. */}
           <span className="font-display text-[2rem] font-bold tracking-tight text-white">
@@ -55,7 +55,7 @@ export function AuthShell({
           {/* Mobile-only logo — uses the same Fraunces wordmark, just dark. */}
           <Link
             className="mb-12 inline-flex items-baseline lg:hidden"
-            href="/dashboard"
+            href="/"
           >
             <span className="font-display text-[1.75rem] font-bold tracking-tight text-[#171719]">
               Brobroker<span className="text-[#A86642]">.</span>

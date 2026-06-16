@@ -15,6 +15,7 @@
     "@supabase/supabase-js": "^2.106.1",
     "@untitledui/icons": "^0.0.22",
     "clsx": "^2.1.1",
+    "gsap": "^3.15.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "papaparse": "^5.5.3",

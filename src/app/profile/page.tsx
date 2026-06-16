@@ -66,7 +66,7 @@ export default async function ProfilePage() {
 
   return (
     <AppShell active="Profile" pageTitle="Profile">
-      <div className="mx-auto w-full max-w-[1280px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
+      <div className="mx-auto w-full max-w-[1536px] px-6 py-10 sm:px-10 lg:px-14 lg:py-14">
         {/* Two-column layout: identity editor on the left, account meta on the
             right. The grid collapses to a single column below xl so the editor
             owns full width on smaller screens. */}

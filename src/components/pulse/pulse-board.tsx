@@ -238,7 +238,7 @@ export function PulseBoard({
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
       {/* Pipeline value strip — Feature 4. */}
       <PipelineValueStrip data={pipelineValue} lanesTotal={lanes.length} />
 

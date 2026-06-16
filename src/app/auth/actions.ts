@@ -123,5 +123,6 @@ export async function signOut() {
     await supabase.auth.signOut();
   }
   revalidatePath("/", "layout");
-  redirect("/login");
+  // Sign-out returns the broker to the public marketing landing.
+  redirect("/");
 }
