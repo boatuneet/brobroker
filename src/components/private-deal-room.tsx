@@ -29,7 +29,7 @@ import {
   StatusDot,
   WorkflowState,
 } from "./ui";
-import { AssetFitCarousel } from "./asset-fit-carousel";
+import { AssetFitCard } from "./asset-fit-card";
 import { ShortlistAtGlance } from "./shortlist-at-glance";
 
 export function PrivateDealRoom({
@@ -151,24 +151,23 @@ export function PrivateDealRoom({
           />
         </Card>
 
-        {/* Full-width shortlist carousel — one asset in focus at a time. */}
+        {/* Shortlist grid — every asset visible at a glance. */}
         <Card className="mt-8">
           <CardHeader
             title="Recommended assets and trade-offs"
-            description={
-              model.comparisonRows.length > 1
-                ? "Step through the shortlist with the controls below."
-                : undefined
-            }
+            description="Every asset curated for this buyer, with fit and trade-offs."
           />
-          <AssetFitCarousel
-            slides={model.comparisonRows.map((row) => ({
-              listing: row.listing,
-              fitScore: row.fitScore,
-              rationale: row.rationale,
-              tradeOff: row.tradeOff,
-            }))}
-          />
+          <div className="grid gap-5 px-5 pb-6 pt-2 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
+            {model.comparisonRows.map((row) => (
+              <AssetFitCard
+                key={row.listing.id}
+                fitScore={row.fitScore}
+                listing={row.listing}
+                rationale={row.rationale}
+                tradeOff={row.tradeOff}
+              />
+            ))}
+          </div>
         </Card>
 
         {/* Full-width comparison */}

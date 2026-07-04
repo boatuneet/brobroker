@@ -51,12 +51,18 @@ function resolvePill(
         href: ctx.roomId ? `/deal-rooms/${ctx.roomId}` : undefined,
       };
     case "Approved docs":
-      /* Documents are approved on the listing's Documents tab — deep-link
-         straight to it (not the listing overview) so the chip lands on the
-         pane where the broker actually approves them. */
+      /* A room can hold several listings, each with its own documents, so
+         jumping to one listing is arbitrary. Open the room instead — its
+         "Shortlist at a glance" lists every listing's doc status, and each
+         row links out to that listing's Documents tab to approve. Fall back
+         to the first listing only when there's no saved room yet (create). */
       return {
         displayLabel: "Approved docs",
-        href: ctx.firstListingId ? `/listings/${ctx.firstListingId}?tab=docs` : undefined,
+        href: ctx.roomId
+          ? `/deal-rooms/${ctx.roomId}`
+          : ctx.firstListingId
+            ? `/listings/${ctx.firstListingId}?tab=docs`
+            : undefined,
       };
     default:
       return { displayLabel: check.label };

@@ -38,7 +38,7 @@ export function AssetFitCard({
             alt={photo.alt ?? listing.name}
             className="object-cover object-center"
             fill
-            sizes="(min-width: 1280px) 1100px, 100vw"
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
             src={photo.src}
           />
         ) : (
@@ -80,25 +80,25 @@ export function AssetFitCard({
         </div>
 
         {/* Bottom: title + price overlaid on image */}
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5">
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4">
           <h3
-            className="bb-display flex-1 text-2xl font-medium leading-tight tracking-[-0.01em] text-white [text-shadow:0_1px_16px_rgba(0,0,0,0.55)]"
+            className="bb-display min-w-0 flex-1 truncate text-lg font-medium leading-tight tracking-[-0.01em] text-white [text-shadow:0_1px_16px_rgba(0,0,0,0.55)]"
           >
             {listing.name}
           </h3>
-          <p className="whitespace-nowrap font-mono text-lg font-semibold tabular-nums text-white [text-shadow:0_1px_16px_rgba(0,0,0,0.55)]">
+          <p className="whitespace-nowrap font-mono text-sm font-semibold tabular-nums text-white [text-shadow:0_1px_16px_rgba(0,0,0,0.55)]">
             {formatCurrency(listing.priceEur)}
           </p>
         </div>
       </div>
 
       {/* Compact info strip below image */}
-      <div className="grid gap-3 p-5">
-        <p className="text-[13px] leading-5 text-[#8E918B]">
+      <div className="grid gap-2 p-4">
+        <p className="line-clamp-1 text-[12px] leading-5 text-[#8E918B]">
           {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
         </p>
-        <p className="text-[14px] leading-6 text-[#5F625E]">{rationale}</p>
-        <p className="border-t border-[#E7E7E7] pt-3 text-[13px] leading-5 text-[#8E918B]">
+        <p className="line-clamp-2 text-[13px] leading-5 text-[#5F625E]">{rationale}</p>
+        <p className="line-clamp-2 border-t border-[#E7E7E7] pt-2 text-[12px] leading-5 text-[#8E918B]">
           <span className="bb-mono-label mr-2 text-[#171719]">Trade-off</span>
           {tradeOff}
         </p>
