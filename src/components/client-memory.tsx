@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   Bot,
   Building2,
+  CalendarClock,
   CarFront,
   CheckCircle2,
   ChevronLeft,
@@ -110,10 +111,13 @@ function dueLabel(date: string) {
   return `Due in ${delta}d`;
 }
 
+/* Urgency ramp, hottest → coolest: Immediate (coral) → This Quarter (amber)
+   → This Season (calm blue) → Exploratory (neutral). "This Season" used to
+   read as an alarming coral warning even though it's a relaxed timeline. */
 function urgencyTone(urgency: BuyerProfile["urgency"]): "error" | "warning" | "info" | "neutral" {
   if (urgency === "Immediate") return "error";
-  if (urgency === "This Season") return "warning";
-  if (urgency === "This Quarter") return "info";
+  if (urgency === "This Quarter") return "warning";
+  if (urgency === "This Season") return "info";
   return "neutral";
 }
 
@@ -1035,21 +1039,6 @@ export function BuyerMemoryProfile({
     .map((piece) => piece?.trim())
     .filter((piece): piece is string => Boolean(piece) && !PLACEHOLDER_SUMMARY.has(piece!))
     .join(" · ");
-  const metaLineItemsRaw = [
-    segmentMeta.label,
-    buyer.currentStage,
-    buyer.preferredLocations.length ? buyer.preferredLocations.join(" / ") : null,
-    ...buyer.tags,
-  ].filter((piece): piece is string => Boolean(piece && piece.trim().length));
-  // Dedupe case-insensitively so "Mallorca" and lowercase "mallorca" tag don't
-  // both appear in the meta line.
-  const metaLineItemsSeen = new Set<string>();
-  const metaLineItems = metaLineItemsRaw.filter((piece) => {
-    const key = piece.toLowerCase();
-    if (metaLineItemsSeen.has(key)) return false;
-    metaLineItemsSeen.add(key);
-    return true;
-  });
   const topMatch = matches[0];
   // Matches tab reflects the active requirement set (Primary === the buyer's
   // own ask, so this matches `matches` when no custom set is selected).
@@ -1137,11 +1126,12 @@ export function BuyerMemoryProfile({
       <header className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F625E]">
-              <SegmentIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F625E]">
+              <SegmentIcon className="h-3.5 w-3.5 text-[#8E918B]" aria-hidden="true" />
               {eyebrowDetail || `${segmentMeta.label} buyer`}
             </span>
-            <span className="inline-flex min-h-7 items-center rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#8E918B]">
+            <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#D9DAD4] bg-white px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F625E]">
+              <CalendarClock className="h-3.5 w-3.5 text-[#8E918B]" aria-hidden="true" />
               Last contacted · {formatDate(buyer.lastContactedAt)}
             </span>
           </div>
@@ -1153,7 +1143,7 @@ export function BuyerMemoryProfile({
               {headerSummary}
             </p>
           ) : null}
-          <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <StageControl
               buyer={buyer}
               isStored={isStoredBuyer}
@@ -1165,14 +1155,6 @@ export function BuyerMemoryProfile({
               {verification?.status ?? "Needs Review"}
             </Badge>
           </div>
-          {metaLineItems.length ? (
-            <p
-              className="bb-mono-label mt-3 inline-block max-w-full truncate whitespace-nowrap rounded-[8px] border border-[#E7E7E7] bg-white px-3 py-1.5 text-[#8E918B]"
-              title={metaLineItems.join("  ·  ")}
-            >
-              {metaLineItems.join("  ·  ")}
-            </p>
-          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -1233,10 +1215,26 @@ export function BuyerMemoryProfile({
         </div>
       </header>
 
+      {/* Deal workflow — Capture → Qualify → Match → Share → View → Close.
+          Sits directly under the header (before the metric fold) so the
+          broker sees where the deal stands before the supporting numbers.
+          State is derived from real data; in-progress drafts show an amber
+          dot so an unfinished flow surfaces here instead of vanishing. */}
+      <div className="mt-7">
+        <DealWorkflowStepper
+          buyer={buyer}
+          conversations={conversations}
+          matches={matches}
+          drafts={drafts}
+          dealRoom={storedDealRoom}
+          verification={verification}
+        />
+      </div>
+
       {/* Metric fold — Budget / Next action / Top match fit (with FitRing). */}
       <section
         aria-label="Buyer at a glance"
-        className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-3"
+        className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3"
       >
         <Tile tone="paper">
           <p className="bb-mono-label">Budget</p>
@@ -1287,20 +1285,6 @@ export function BuyerMemoryProfile({
           )}
         </Tile>
       </section>
-
-      {/* Deal workflow — Capture → Qualify → Match → Share → View → Close.
-          State is derived from real data; in-progress drafts show an amber dot
-          so an unfinished flow surfaces here instead of vanishing. */}
-      <div className="mt-7">
-        <DealWorkflowStepper
-          buyer={buyer}
-          conversations={conversations}
-          matches={matches}
-          drafts={drafts}
-          dealRoom={storedDealRoom}
-          verification={verification}
-        />
-      </div>
 
       {/* Tabbed Buyer Profile card — overflow-hidden so inner rounded edges clip cleanly. */}
       <Card className="mt-7 overflow-hidden rounded-[12px]" id="buyer-profile">

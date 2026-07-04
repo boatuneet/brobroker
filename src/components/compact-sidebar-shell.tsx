@@ -157,34 +157,8 @@ export function CompactSidebarShell({
 
   return (
     <div className="relative isolate min-h-dvh text-[#171719]" style={backgroundStyle}>
-      {/* Dashed top-fade grid — a FIXED overlay (z-0) on the gray root, so it
-          stays put while content scrolls. Content sits at z-10 and the solid
-          sidebar/top bar (z-20) above, so the grid only reveals through the
-          page-content gaps. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, #e7e5e4 1px, transparent 1px),
-            linear-gradient(to bottom, #e7e5e4 1px, transparent 1px)
-          `,
-          backgroundSize: "20px 20px",
-          backgroundPosition: "0 0, 0 0",
-          maskImage: `
-            repeating-linear-gradient(to right, black 0px, black 3px, transparent 3px, transparent 8px),
-            repeating-linear-gradient(to bottom, black 0px, black 3px, transparent 3px, transparent 8px),
-            radial-gradient(ellipse 70% 60% at 50% 0%, #000 60%, transparent 100%)
-          `,
-          WebkitMaskImage: `
-            repeating-linear-gradient(to right, black 0px, black 3px, transparent 3px, transparent 8px),
-            repeating-linear-gradient(to bottom, black 0px, black 3px, transparent 3px, transparent 8px),
-            radial-gradient(ellipse 70% 60% at 50% 0%, #000 60%, transparent 100%)
-          `,
-          maskComposite: "intersect",
-          WebkitMaskComposite: "source-in",
-        }}
-      />
+      {/* Plain light-gray canvas — the dashed grid texture was removed for a
+          cleaner, calmer content area. */}
 
       <BrokerSegmentBridge currentSegment={segment} />
 

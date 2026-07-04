@@ -94,19 +94,26 @@ export function StageControl({
 
   return (
     <div className="relative inline-flex flex-col" ref={containerRef}>
+      {/* Reads as a real control: deep-green fill + white text like the
+          Capture button, matched height, and an explicit "Stage" label so the
+          broker knows the pill is editable. */}
       <button
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-label={`Deal stage: ${stage}. Change stage`}
         className={cn(
-          "inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border px-2.5 text-[11.5px] font-medium transition-colors",
-          "border-[#D9DAD4] bg-white text-[#171719] hover:border-[#003C33]",
+          "inline-flex min-h-10 items-center gap-2 rounded-[8px] px-4 text-[13px] font-medium text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
+          "bg-[#003C33] hover:bg-[#0B4A3F] disabled:opacity-60",
         )}
         disabled={saving}
         onClick={() => setOpen((v) => !v)}
         type="button"
       >
-        <span className="uppercase tracking-[0.06em]">{stage}</span>
-        <ChevronDown aria-hidden="true" className="h-3 w-3 text-[#8E918B]" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+          Stage
+        </span>
+        <span>{stage}</span>
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 text-white/70" />
       </button>
       {open ? (
         <ul
