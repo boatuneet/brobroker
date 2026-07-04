@@ -43,6 +43,8 @@ export function DealRoomCreate({
   segment,
   storedBuyers = [],
   storedListings = [],
+  initialBuyerId,
+  initialListingId,
 }: {
   includeDemo?: boolean;
   segment?: BrokerSegment;
@@ -50,6 +52,10 @@ export function DealRoomCreate({
      They list first so real buyers/inventory outrank the demo dataset. */
   storedBuyers?: BuyerProfile[];
   storedListings?: YachtListing[];
+  /* Prefill from a buyer's Matches tab: which buyer the room is for, and an
+     optional listing to pre-select ("Add to deal room" on a match card). */
+  initialBuyerId?: string;
+  initialListingId?: string;
 }) {
   const router = useRouter();
   const pools = useMemo<DealRoomDataPools>(
@@ -65,7 +71,13 @@ export function DealRoomCreate({
     [storedListings, includeDemo, segment],
   );
 
-  const [buyerId, setBuyerId] = useState(buyers[0]?.id ?? "");
+  /* Honor a prefilled buyer (from a Matches-tab "Add to deal room") when it
+     resolves to a real record; otherwise fall back to the first buyer. */
+  const resolvedInitialBuyerId =
+    initialBuyerId && buyers.some((b) => b.id === initialBuyerId)
+      ? initialBuyerId
+      : buyers[0]?.id ?? "";
+  const [buyerId, setBuyerId] = useState(resolvedInitialBuyerId);
   const selectedBuyer = buyers.find((buyer) => buyer.id === buyerId);
 
   /* Auto-suggest the top two matched listings on buyer change; the broker
@@ -78,7 +90,18 @@ export function DealRoomCreate({
       .map((match) => match.listingId);
   }, [buyerId, buyers, listings]);
 
-  const [selectedListingIds, setSelectedListingIds] = useState<string[]>(suggestedListingIds);
+  /* Seed selection with the suggested matches for the initial buyer, plus the
+     prefilled listing (if any) so "Add to deal room" arrives pre-selected. */
+  const [selectedListingIds, setSelectedListingIds] = useState<string[]>(() => {
+    const buyer = buyers.find((candidate) => candidate.id === resolvedInitialBuyerId);
+    const suggested = buyer
+      ? generateMatchesForBuyer(buyer, listings).slice(0, 2).map((match) => match.listingId)
+      : [];
+    const seeded = initialListingId && listings.some((l) => l.id === initialListingId)
+      ? [initialListingId, ...suggested]
+      : suggested;
+    return Array.from(new Set(seeded));
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   function changeBuyer(nextBuyerId: string) {

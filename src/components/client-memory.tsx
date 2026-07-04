@@ -915,6 +915,14 @@ export function BuyerMemoryProfile({
       ? buildBuyerMemoryModel(staticProfile.buyer, segment, inventory)
       : undefined;
   const [tab, setTab] = useState<BuyerProfileTab>(initialTab ?? "memory");
+  const profileCardRef = useRef<HTMLDivElement>(null);
+  const stageControlRef = useRef<HTMLDivElement>(null);
+  // Switch the profile-card tab and scroll it into view — used by the deal
+  // workflow stepper so clicking a step lands the broker on the right tab.
+  const goToTab = (next: BuyerProfileTab) => {
+    setTab(next);
+    profileCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   // Local-only buyer overlay so demo-buyer stage / closed-value changes reflect
   // immediately without a Supabase round trip. Stored buyers get a router
   // refresh through the stage helper.
@@ -1029,16 +1037,6 @@ export function BuyerMemoryProfile({
   const segmentMeta = getBrokerSegmentMeta(segment);
   const SegmentIcon = segmentIcons[segmentMeta.id];
   const eyebrowDetail = [buyer.company, buyer.country].filter(Boolean).join(" · ");
-  // Suppress the default placeholders set in stored-buyers.ts so the header
-  // doesn't read like instructions to the broker.
-  const PLACEHOLDER_SUMMARY = new Set([
-    "Timeline to confirm with buyer.",
-    "Broker to confirm preferred cadence.",
-  ]);
-  const headerSummary = [buyer.decisionTimeline, buyer.communicationStyle]
-    .map((piece) => piece?.trim())
-    .filter((piece): piece is string => Boolean(piece) && !PLACEHOLDER_SUMMARY.has(piece!))
-    .join(" · ");
   const topMatch = matches[0];
   // Matches tab reflects the active requirement set (Primary === the buyer's
   // own ask, so this matches `matches` when no custom set is selected).
@@ -1138,22 +1136,22 @@ export function BuyerMemoryProfile({
           <h1 className="bb-display mt-4 text-[2rem] font-medium leading-[1.04] text-[#171719] sm:text-[2.4rem]">
             {buyer.name}
           </h1>
-          {headerSummary ? (
-            <p className="mt-3 max-w-xl rounded-[10px] border border-[#E7E7E7] bg-white px-3.5 py-2.5 text-[13.5px] leading-7 text-[#5F625E]">
-              {headerSummary}
-            </p>
-          ) : null}
+          {/* Urgency + verification badges sit above the stage control so the
+              read-only status reads first, then the editable Stage button. The
+              full ask lives in the Memory tab, so no summary box here. */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <StageControl
-              buyer={buyer}
-              isStored={isStoredBuyer}
-              onLocalChange={(next) => setLocalBuyer(next)}
-            />
             <Badge tone={urgencyTone(buyer.urgency)}>{buyer.urgency}</Badge>
             <Badge className={verificationTone.className}>
               <StatusDot className={verificationTone.dotClassName} />
               {verification?.status ?? "Needs Review"}
             </Badge>
+          </div>
+          <div className="mt-2.5" ref={stageControlRef}>
+            <StageControl
+              buyer={buyer}
+              isStored={isStoredBuyer}
+              onLocalChange={(next) => setLocalBuyer(next)}
+            />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1166,17 +1164,17 @@ export function BuyerMemoryProfile({
           </Link>
           <Link
             className="inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
-            href="/deal-rooms"
+            href={storedDealRoom ? `/deal-rooms/${storedDealRoom.id}` : `/deal-rooms/new?buyer=${buyer.id}`}
           >
             <FileText className="h-4 w-4" aria-hidden="true" />
-            Open deal room
+            {storedDealRoom ? "Open deal room" : "New deal room"}
           </Link>
           <div className="relative" ref={actionMenuRef}>
             <button
               aria-expanded={actionMenuOpen}
               aria-haspopup="menu"
               aria-label="More buyer actions"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#D9DAD4] bg-white text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#171719] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#D9DAD4] bg-white text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#171719] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
               onClick={() => setActionMenuOpen((open) => !open)}
               type="button"
             >
@@ -1228,6 +1226,11 @@ export function BuyerMemoryProfile({
           drafts={drafts}
           dealRoom={storedDealRoom}
           verification={verification}
+          activeTab={tab}
+          onSelectTab={goToTab}
+          onFocusStage={() =>
+            stageControlRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+          }
         />
       </div>
 
@@ -1286,7 +1289,11 @@ export function BuyerMemoryProfile({
         </Tile>
       </section>
 
-      {/* Tabbed Buyer Profile card — overflow-hidden so inner rounded edges clip cleanly. */}
+      {/* Tabbed Buyer Profile card — overflow-hidden so inner rounded edges clip cleanly.
+          Wrapper carries the scroll anchor + ref so the workflow stepper can
+          jump the broker straight to the right tab. scroll-mt clears the
+          sticky top bar. */}
+      <div ref={profileCardRef} className="scroll-mt-20">
       <Card className="mt-7 overflow-hidden rounded-[12px]" id="buyer-profile">
         <CardHeader
           title={
@@ -1429,15 +1436,24 @@ export function BuyerMemoryProfile({
                 <p className="bb-mono-label">
                   Top matches · {sortedMatches.length}
                 </p>
-                <button
-                  className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={aiLoading}
-                  onClick={() => void runAiMatch()}
-                  type="button"
-                >
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  {aiLoading ? "Ranking…" : aiMatches ? "Re-run AI ranking" : "Re-rank with AI"}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={aiLoading}
+                    onClick={() => void runAiMatch()}
+                    type="button"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                    {aiLoading ? "Ranking…" : aiMatches ? "Re-run AI ranking" : "Re-rank with AI"}
+                  </button>
+                  <Link
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
+                    href={`/deal-rooms/new?buyer=${buyer.id}`}
+                  >
+                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                    Build shortlist room
+                  </Link>
+                </div>
               </div>
 
               {aiError ? (
@@ -1495,6 +1511,7 @@ export function BuyerMemoryProfile({
                 {sortedMatches.map((match) => (
                   <MatchPanel
                     key={match.id}
+                    buyerId={buyer.id}
                     inventory={inventory}
                     match={match}
                     segment={segment}
@@ -1587,6 +1604,7 @@ export function BuyerMemoryProfile({
           </div>
         ) : null}
       </Card>
+      </div>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:items-start">
         <div className="grid content-start gap-6">
@@ -2080,10 +2098,12 @@ function MatchPanel({
   inventory,
   match,
   segment,
+  buyerId,
 }: {
   inventory?: YachtListing[];
   match: MatchResult;
   segment?: BrokerSegment;
+  buyerId: string;
 }) {
   const listing = inventory?.find((listing) => listing.id === match.listingId) ?? getListingById(match.listingId, segment);
   const owner = listing ? getSellerById(listing.ownerId, segment) : undefined;
@@ -2221,6 +2241,28 @@ function MatchPanel({
                 No missing criteria
               </span>
             )}
+          </div>
+
+          {/* Action row — the "what's next" for a match: pull it into a
+              buyer-safe deal room (prefilled with this buyer + listing) or
+              open the listing. This is how the Match stage advances to Share. */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Link
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
+              href={`/deal-rooms/new?buyer=${buyerId}&listing=${match.listingId}`}
+            >
+              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+              Add to deal room
+            </Link>
+            {listing ? (
+              <Link
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33]"
+                href={`/listings/${listing.id}`}
+              >
+                View listing
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>

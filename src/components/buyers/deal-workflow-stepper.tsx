@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { Check, Circle, Trophy, XCircle } from "lucide-react";
+import { ArrowRight, Check, Circle, Trophy, XCircle } from "lucide-react";
 import type {
   BuyerProfile,
   Conversation,
@@ -10,13 +12,24 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/* Six-step deal workflow shown at the top of a buyer detail page.
+/* Six-step deal workflow shown at the top of a buyer detail page — the deal's
+   spine. Every step is both a PLACE (click to go work on it) and an ACTION
+   (the current step carries the concrete next move that advances the deal).
+
    State is DERIVED from real data — we never store step state on the buyer.
-   "Draft-in-progress" states (unsent draft, draft deal room) show an amber
-   dot so an unfinished flow doesn't silently disappear. */
+   In-progress states (unsent draft, draft deal room) show an amber dot so an
+   unfinished flow doesn't silently disappear. */
 
 type StepId = "capture" | "qualify" | "match" | "share" | "view" | "close";
 type StepState = "done" | "current" | "in-progress" | "pending" | "won" | "lost";
+
+/* Where a step (or its action) sends the broker. Tabs switch in-page; hrefs
+   navigate; "stage" scrolls to the header stage control. */
+export type WorkflowTab = "timeline" | "trust" | "matches";
+type StepNav =
+  | { kind: "tab"; tab: WorkflowTab }
+  | { kind: "href"; href: string }
+  | { kind: "stage" };
 
 export type DealWorkflowInputs = {
   buyer: BuyerProfile;
@@ -32,7 +45,12 @@ type ResolvedStep = {
   label: string;
   state: StepState;
   hint?: string;
-  action?: { label: string; href: string };
+  /* Where clicking the step body goes. Absent → not interactive (a pending
+     step with no meaningful destination yet). */
+  nav?: StepNav;
+  /* The concrete next action, shown as a button on the current/in-progress
+     step. */
+  action?: { label: string; nav: StepNav };
 };
 
 const STAGE_ORDER: BuyerProfile["currentStage"][] = [
@@ -45,7 +63,6 @@ const STAGE_ORDER: BuyerProfile["currentStage"][] = [
 ];
 
 function stageIndex(stage: BuyerProfile["currentStage"]) {
-  // Treat Closed Lost as terminal (no forward progress on active stages).
   if (stage === "Closed Lost") return STAGE_ORDER.length - 1;
   return STAGE_ORDER.indexOf(stage);
 }
@@ -71,7 +88,10 @@ export function resolveWorkflowSteps({
   const viewingReached = stageIdx >= STAGE_ORDER.indexOf("Viewing Planned");
   const hasItinerary = (dealRoom?.itinerary?.length ?? 0) > 0;
 
-  // Capture: any buyer file exists; hint if a conversation needs a summary.
+  const captureHref = `/voice-crm?buyer=${buyer.id}`;
+  const roomHref = dealRoom ? `/deal-rooms/${dealRoom.id}` : `/deal-rooms/new?buyer=${buyer.id}`;
+
+  // Capture — a call/note is on file. Always reachable via the Timeline tab.
   const capture: ResolvedStep = {
     id: "capture",
     label: "Capture",
@@ -81,44 +101,43 @@ export function resolveWorkflowSteps({
       : hasConversations
         ? undefined
         : "No conversations yet",
+    nav: { kind: "tab", tab: "timeline" },
     action: conversationNeedsSummary
-      ? { label: "Finish summary", href: "/voice-crm" }
-      : undefined,
+      ? { label: "Finish summary", nav: { kind: "href", href: captureHref } }
+      : { label: "Capture a call", nav: { kind: "href", href: captureHref } },
   };
 
-  // Qualify: stage past New Inquiry OR verification cleared.
+  // Qualify — verification decided + stage advanced. Lives on the Trust tab.
   const qualifyDone = stageIdx >= STAGE_ORDER.indexOf("Qualified");
   const qualify: ResolvedStep = {
     id: "qualify",
     label: "Qualify",
     state: qualifyDone ? "done" : "pending",
-    hint: verification
-      ? `Verification · ${verification.status}`
-      : "No verification case",
+    hint: verification ? `Verification · ${verification.status}` : "Not verified yet",
+    nav: { kind: "tab", tab: "trust" },
+    action: { label: "Review & verify", nav: { kind: "tab", tab: "trust" } },
   };
 
-  // Match: matches exist. In progress if we have matches but no deal room.
-  const matchState: StepState = hasMatches
-    ? hasDealRoom
-      ? "done"
-      : "in-progress"
-    : "pending";
+  // Match — matches surfaced; advances once a shortlist room is created.
+  const matchState: StepState = hasMatches ? (hasDealRoom ? "done" : "in-progress") : "pending";
   const match: ResolvedStep = {
     id: "match",
     label: "Match",
     state: matchState,
-    hint: hasMatches ? `${matches.length} candidate${matches.length === 1 ? "" : "s"}` : undefined,
-    action: hasMatches && !hasDealRoom
-      ? { label: `Review ${matches.length} match${matches.length === 1 ? "" : "es"}`, href: `/buyers/${buyer.id}?tab=matches` }
+    hint: hasMatches
+      ? `${matches.length} candidate${matches.length === 1 ? "" : "s"}`
+      : "No matches yet",
+    nav: { kind: "tab", tab: "matches" },
+    action: hasMatches
+      ? {
+          label: hasDealRoom ? "Review matches" : `Review ${matches.length} & build shortlist`,
+          nav: { kind: "tab", tab: "matches" },
+        }
       : undefined,
   };
 
-  // Share: deal room exists. In-progress if it's still Draft.
-  const shareState: StepState = hasDealRoom
-    ? dealRoomDraft
-      ? "in-progress"
-      : "done"
-    : "pending";
+  // Share — a deal room exists and is shared. Opens the buyer's room.
+  const shareState: StepState = hasDealRoom ? (dealRoomDraft ? "in-progress" : "done") : "pending";
   const share: ResolvedStep = {
     id: "share",
     label: "Share",
@@ -128,25 +147,36 @@ export function resolveWorkflowSteps({
         ? "Draft room, not shared"
         : hasUnsentDrafts
           ? "Draft follow-up pending"
-          : undefined
-      : undefined,
-    action: hasDealRoom
-      ? undefined
+          : "Shared"
       : hasMatches
-        ? { label: "Create deal room", href: `/deal-rooms/new?buyer=${buyer.id}` }
+        ? undefined
+        : "Build a shortlist first",
+    nav: hasDealRoom || hasMatches ? { kind: "href", href: roomHref } : undefined,
+    action: hasDealRoom
+      ? { label: dealRoomDraft ? "Open & share room" : "Open room", nav: { kind: "href", href: roomHref } }
+      : hasMatches
+        ? { label: "Create deal room", nav: { kind: "href", href: roomHref } }
         : undefined,
   };
 
-  // View: stage reached Viewing Planned or itinerary exists in the deal room.
+  // View — a viewing is scheduled (itinerary on the room, or stage advanced).
   const viewState: StepState = viewingReached || hasItinerary ? "done" : "pending";
   const view: ResolvedStep = {
     id: "view",
     label: "View",
     state: viewState,
-    hint: hasItinerary ? `${dealRoom!.itinerary.length} scheduled` : undefined,
+    hint: hasItinerary
+      ? `${dealRoom!.itinerary.length} scheduled`
+      : hasDealRoom
+        ? undefined
+        : "Share a room first",
+    nav: hasDealRoom ? { kind: "href", href: roomHref } : undefined,
+    action: hasDealRoom
+      ? { label: "Schedule viewing", nav: { kind: "href", href: roomHref } }
+      : undefined,
   };
 
-  // Close: terminal outcome. Won green, Lost muted.
+  // Close — terminal outcome, recorded via the header Stage control.
   const close: ResolvedStep = {
     id: "close",
     label: "Close",
@@ -159,25 +189,51 @@ export function resolveWorkflowSteps({
         ? buyer.closedReason
           ? `Lost · ${buyer.closedReason}`
           : "Lost"
-        : undefined,
+        : "Use the Stage button",
+    nav: { kind: "stage" },
+    action: isClosedWon || isClosedLost ? undefined : { label: "Mark won / lost", nav: { kind: "stage" } },
   };
 
   const steps = [capture, qualify, match, share, view, close];
 
-  // Mark the first non-done, non-terminal step as "current" — that's the one
-  // that carries the primary next-action link.
-  const currentIdx = steps.findIndex(
+  // Single focus: the earliest step that isn't done/terminal. If it's already
+  // in-progress it stays the focus (amber); only promote a plain pending step
+  // to "current" so we never double-highlight two steps.
+  const focusIdx = steps.findIndex(
     (s) => s.state !== "done" && s.state !== "won" && s.state !== "lost",
   );
-  if (currentIdx >= 0 && steps[currentIdx].state !== "in-progress") {
-    steps[currentIdx].state = "current";
+  if (focusIdx >= 0 && steps[focusIdx].state === "pending") {
+    steps[focusIdx].state = "current";
   }
 
   return steps;
 }
 
-export function DealWorkflowStepper(props: DealWorkflowInputs) {
-  const steps = resolveWorkflowSteps(props);
+const TAB_FOR_STEP: Partial<Record<StepId, WorkflowTab>> = {
+  capture: "timeline",
+  qualify: "trust",
+  match: "matches",
+};
+
+export function DealWorkflowStepper({
+  onSelectTab,
+  onFocusStage,
+  activeTab,
+  ...inputs
+}: DealWorkflowInputs & {
+  onSelectTab?: (tab: WorkflowTab) => void;
+  onFocusStage?: () => void;
+  /* The tab currently shown in the profile card, so the matching step reads
+     as selected. */
+  activeTab?: string;
+}) {
+  const steps = resolveWorkflowSteps(inputs);
+  const current = steps.find((s) => s.state === "current" || s.state === "in-progress");
+
+  function go(nav: StepNav) {
+    if (nav.kind === "tab") onSelectTab?.(nav.tab);
+    else if (nav.kind === "stage") onFocusStage?.();
+  }
 
   return (
     <section
@@ -186,40 +242,51 @@ export function DealWorkflowStepper(props: DealWorkflowInputs) {
     >
       <div className="flex items-center justify-between gap-3">
         <p className="bb-mono-label">Deal workflow</p>
-        <p className="text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
-          Capture · Qualify · Match · Share · View · Close
-        </p>
+        {current?.action ? (
+          <StepActionButton
+            action={current.action}
+            go={go}
+            prominent
+          />
+        ) : (
+          <p className="text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
+            Capture · Qualify · Match · Share · View · Close
+          </p>
+        )}
       </div>
       <ol className="mt-3 flex flex-wrap gap-2 sm:gap-1.5">
-        {steps.map((step, index) => (
-          <li key={step.id} className="flex min-w-0 flex-1 basis-[140px] items-stretch">
-            <StepPill step={step} isLast={index === steps.length - 1} />
-          </li>
-        ))}
+        {steps.map((step) => {
+          const stepTab = TAB_FOR_STEP[step.id];
+          const isActiveTab = stepTab !== undefined && stepTab === activeTab;
+          return (
+            <li key={step.id} className="flex min-w-0 flex-1 basis-[140px] items-stretch">
+              <StepPill step={step} go={go} isActiveTab={isActiveTab} />
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
 }
 
-function StepPill({ step, isLast }: { step: ResolvedStep; isLast: boolean }) {
+function StepPill({
+  step,
+  go,
+  isActiveTab,
+}: {
+  step: ResolvedStep;
+  go: (nav: StepNav) => void;
+  isActiveTab: boolean;
+}) {
   const isDone = step.state === "done" || step.state === "won";
   const isCurrent = step.state === "current";
   const isProgress = step.state === "in-progress";
   const isLost = step.state === "lost";
   const isWon = step.state === "won";
+  const interactive = Boolean(step.nav);
 
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-1 items-start gap-2 rounded-[8px] border px-3 py-2.5 transition-colors",
-        isCurrent && "border-[#003C33] bg-[#F1F2EE]",
-        isDone && !isCurrent && "border-[#E1F1EA] bg-[#E1F1EA]/40",
-        isProgress && "border-[#F0DDD0] bg-[#F0DDD0]/40",
-        isLost && "border-[#E7E7E7] bg-white",
-        !isDone && !isCurrent && !isProgress && !isLost && "border-[#E7E7E7] bg-white",
-        isLast ? "" : "mr-0",
-      )}
-    >
+  const body = (
+    <>
       <StepIcon state={step.state} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -237,22 +304,87 @@ function StepPill({ step, isLast }: { step: ResolvedStep; isLast: boolean }) {
               className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[#A86642]"
             />
           ) : null}
+          {interactive ? (
+            <ArrowRight
+              aria-hidden="true"
+              className="ml-auto h-3 w-3 shrink-0 text-[#A9ABA5] opacity-0 transition-opacity group-hover:opacity-100"
+            />
+          ) : null}
         </div>
         {step.hint ? (
-          <p className="mt-0.5 truncate text-[11.5px] leading-[1.4] text-[#5F625E]">
-            {step.hint}
-          </p>
-        ) : null}
-        {step.action && isCurrent ? (
-          <Link
-            className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-medium text-[#003C33] hover:underline"
-            href={step.action.href}
-          >
-            {step.action.label} →
-          </Link>
+          <p className="mt-0.5 truncate text-[11.5px] leading-[1.4] text-[#5F625E]">{step.hint}</p>
         ) : null}
       </div>
-    </div>
+    </>
+  );
+
+  const baseClass = cn(
+    "group flex min-w-0 flex-1 items-start gap-2 rounded-[8px] border px-3 py-2.5 text-left transition-all",
+    isCurrent && "border-[#003C33] bg-[#F1F2EE]",
+    isProgress && "border-[#F0DDD0] bg-[#F0DDD0]/40",
+    isDone && !isCurrent && "border-[#E1F1EA] bg-[#E1F1EA]/40",
+    isLost && "border-[#E7E7E7] bg-white",
+    !isDone && !isCurrent && !isProgress && !isLost && "border-[#E7E7E7] bg-white",
+    isActiveTab && "ring-2 ring-[#003C33] ring-offset-1",
+    interactive &&
+      "cursor-pointer hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
+  );
+
+  if (!interactive) {
+    return <div className={baseClass}>{body}</div>;
+  }
+
+  if (step.nav!.kind === "href") {
+    return (
+      <Link className={baseClass} href={step.nav!.href}>
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <button className={baseClass} onClick={() => go(step.nav!)} type="button">
+      {body}
+    </button>
+  );
+}
+
+function StepActionButton({
+  action,
+  go,
+  prominent,
+}: {
+  action: { label: string; nav: StepNav };
+  go: (nav: StepNav) => void;
+  prominent?: boolean;
+}) {
+  const cls = cn(
+    "inline-flex items-center gap-1.5 rounded-[8px] px-3 text-[12.5px] font-medium transition-colors",
+    prominent
+      ? "min-h-8 bg-[#003C33] text-white hover:bg-[#0B4A3F]"
+      : "min-h-8 border border-[#E7E7E7] bg-white text-[#003C33] hover:border-[#003C33]",
+  );
+  const label = (
+    <>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+        Next
+      </span>
+      {action.label}
+      <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+    </>
+  );
+
+  if (action.nav.kind === "href") {
+    return (
+      <Link className={cls} href={action.nav.href}>
+        {label}
+      </Link>
+    );
+  }
+  return (
+    <button className={cls} onClick={() => go(action.nav)} type="button">
+      {label}
+    </button>
   );
 }
 
