@@ -23,7 +23,7 @@ import {
   getListingById,
   getTaskTone,
 } from "@/lib/services";
-import { cn, daysUntil, formatCurrency } from "@/lib/utils";
+import { cn, daysUntil, formatCurrencyCompact } from "@/lib/utils";
 import {
   Badge,
   Card,
@@ -44,13 +44,11 @@ function dueLabel(date: string) {
 }
 
 export function Dashboard({
-  completedTasksThisMonth = 0,
   includeDemo = true,
   openTaskCount: storedOpenTaskCount = 0,
   segment,
   storedBuyers = [],
 }: {
-  completedTasksThisMonth?: number;
   includeDemo?: boolean;
   openTaskCount?: number;
   segment?: BrokerSegment;
@@ -97,8 +95,11 @@ export function Dashboard({
     storedOpenTaskCount,
     model.tasks.filter((task) => task.status !== "Done").length,
   );
-  const approvedDrafts = model.followUpDrafts.filter(
-    (draft) => draft.status === "Approved",
+  const dueTodayCount = model.tasks.filter(
+    (task) => task.status !== "Done" && daysUntil(task.dueAt) === 0,
+  ).length;
+  const pendingDrafts = model.followUpDrafts.filter(
+    (draft) => draft.status !== "Approved",
   ).length;
   const conversationsNeedingSummary = model.conversations.filter(
     (item) => item.needsSummary,
@@ -113,9 +114,6 @@ export function Dashboard({
   const listingCount = model.listings.length;
   const verificationCount = model.verificationCases.length;
   const dealRoomCount = model.dealRooms.length;
-  const openTaskCount = model.metrics[2]?.value
-    ? Number(model.metrics[2].value)
-    : 0;
   const overdueCount = model.overdueTasks.length;
 
   // Top urgency drives the anchor tile.
@@ -145,11 +143,6 @@ export function Dashboard({
         Boolean(topTaskListing),
       )
     : undefined;
-  /* Defer link points back into Voice CRM with the buyer pre-selected when
-     the task is buyer-linked. */
-  const deferHref = topTask?.buyerId
-    ? `/voice-crm?buyer=${encodeURIComponent(topTask.buyerId)}`
-    : "/voice-crm";
   const topRiskCase = [...model.verificationCases].sort(
     (a, b) => b.score - a.score,
   )[0];
@@ -168,9 +161,13 @@ export function Dashboard({
   const progressedBuyerCount = model.buyers.filter(
     (buyer) => buyer.currentStage !== "New Inquiry",
   ).length;
-  const visibleOverdueTasks = topTask
-    ? model.overdueTasks.slice(1, 4)
-    : model.overdueTasks.slice(0, 3);
+  /* The day's working queue: every open task sorted by due date (overdue
+     first), minus the focal task already shown above. Capped so the card
+     stays scannable — the tail lives on each buyer/listing record. */
+  const visibleQueueTasks = model.tasks
+    .filter((task) => task.status !== "Done" && task.id !== topTask?.id)
+    .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+    .slice(0, 6);
   const riskSignals: Array<{
     detail: string;
     href: string;
@@ -209,13 +206,13 @@ export function Dashboard({
       value: `${conversationsNeedingSummary}`,
     },
     {
-      detail: model.followUpDrafts.length
-        ? `${model.followUpDrafts.length} drafts in the approval loop.`
+      detail: pendingDrafts
+        ? `${pendingDrafts} drafts waiting for your approval.`
         : "No follow-up drafts waiting.",
-      href: "/reports",
+      href: "/buyers",
       icon: CheckCircle,
-      label: "Approved drafts",
-      value: `${approvedDrafts}`,
+      label: "Drafts to approve",
+      value: `${pendingDrafts}`,
     },
   ];
 
@@ -224,12 +221,13 @@ export function Dashboard({
       {/* Title + actions moved into the sticky top bar (see
           DashboardPage). KPI strip now leads the page content. */}
 
-      {/* KPI strip — at-a-glance counters for the broker's day. Each tile
-          is a StatRow and (where relevant) links into the matching
-          workspace. */}
+      {/* KPI strip — the three questions a broker asks at 8am: what's late,
+          what's due today, and which deals are drifting with no next step.
+          Vanity counters (completed-this-month, raw open totals) live in
+          each workspace, not here. */}
       <div className="flex flex-wrap gap-3">
         <StatRow
-          title="Overdue tasks"
+          title="Overdue"
           value={overdueCount}
           trend={overdueCount > 0 ? "down" : "up"}
           trendLabel={
@@ -239,29 +237,24 @@ export function Dashboard({
           }
         />
         <StatRow
-          title="Completed this month"
-          value={completedTasksThisMonth}
-          trend={completedTasksThisMonth > 0 ? "up" : "neutral"}
+          title="Due today"
+          value={dueTodayCount}
+          trend={dueTodayCount > 0 ? "neutral" : "up"}
           trendLabel={
-            completedTasksThisMonth > 0
-              ? "Keep momentum"
-              : "Nothing closed yet"
+            dueTodayCount > 0
+              ? `of ${liveOpenTaskCount} open tasks`
+              : "Nothing due today"
           }
         />
         <StatRow
-          title="Open tasks"
-          value={liveOpenTaskCount}
-          trend="neutral"
-          trendLabel="In flight"
-        />
-        <StatRow
-          title="Deals without tasks"
+          href="/buyers"
+          title="No next step"
           value={dealsWithoutTasks.length}
           trend={dealsWithoutTasks.length > 0 ? "down" : "up"}
           trendLabel={
             dealsWithoutTasksValue > 0
-              ? `${formatCurrency(dealsWithoutTasksValue)} idle`
-              : "All deals covered"
+              ? `${formatCurrencyCompact(dealsWithoutTasksValue)} waiting on you`
+              : "Every deal has a next step"
           }
         />
       </div>
@@ -304,9 +297,6 @@ export function Dashboard({
               >
                 {overdueCount > 0 ? `${overdueCount} overdue` : "Clear"}
               </Badge>
-              <span className="text-[12px] font-medium text-[#8E918B]">
-                {openTaskCount} open total
-              </span>
             </div>
           </div>
 
@@ -353,13 +343,15 @@ export function Dashboard({
                   label={topTask.actionLabel}
                   taskId={topTask.id}
                 />
-                <Link
-                  className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#E7E7E7] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
-                  href={deferHref}
-                >
-                  Defer via voice note
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Link>
+                {topTaskBuyer ? (
+                  <Link
+                    className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#E7E7E7] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+                    href={`/buyers/${topTaskBuyer.id}`}
+                  >
+                    Open buyer
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Link>
+                ) : null}
               </div>
             </>
           ) : (
@@ -381,19 +373,15 @@ export function Dashboard({
             </div>
           )}
 
-          {visibleOverdueTasks.length ? (
+          {visibleQueueTasks.length ? (
             <div className="mt-auto border-t border-[#E7E7E7] pt-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
                   Next in queue
                 </p>
-                <Link
-                  className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#171719] hover:underline"
-                  href="/matching"
-                >
-                  Open workspace
-                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Link>
+                <span className="text-[12px] font-medium text-[#8E918B]">
+                  {liveOpenTaskCount} open total
+                </span>
               </div>
               {/* Each queued task is a single clickable row — title + due on
                   the left, action label + arrow on the right. The row itself
@@ -403,7 +391,7 @@ export function Dashboard({
                   back to a non-interactive row rather than rendering a dead
                   link. */}
               <ul className="mt-3 grid gap-1">
-                {visibleOverdueTasks.map((task) => {
+                {visibleQueueTasks.map((task) => {
                   const buyer = task.buyerId
                     ? getBuyerById(task.buyerId, segment)
                     : undefined;

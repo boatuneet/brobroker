@@ -1,17 +1,14 @@
 import Link from "next/link";
-import { Bot, FileText, UserPlus } from "lucide-react";
+import { FileText, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Dashboard } from "@/components/dashboard";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
-import {
-  getStoredCompletedTasksThisMonth,
-  getStoredOpenTasksCount,
-} from "@/lib/supabase/broker-tasks";
+import { getStoredOpenTasksCount } from "@/lib/supabase/broker-tasks";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 
 export const metadata = {
-  title: "Dashboard · BroBroker",
+  title: "Today · BroBroker",
   description: "Track urgent tasks, buyer momentum, verification, and owner updates.",
 };
 
@@ -23,13 +20,6 @@ export const metadata = {
 function DashboardTopActions() {
   return (
     <>
-      <Link
-        className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
-        href="/voice-crm"
-      >
-        <Bot className="h-4 w-4" aria-hidden="true" />
-        Voice note
-      </Link>
       <Link
         className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
         href="/buyers/new"
@@ -54,20 +44,18 @@ export default async function DashboardPage() {
   /* Pull the broker's Supabase buyers + task counters so the dashboard
      pulse preview / KPI strip / funnel can surface real data alongside
      (or instead of) demo data, matching the /pulse screen behaviour. */
-  const [storedBuyers, completedThisMonth, openTaskCount] = await Promise.all([
+  const [storedBuyers, openTaskCount] = await Promise.all([
     getStoredBuyersForSegment(segment),
-    getStoredCompletedTasksThisMonth(),
     getStoredOpenTasksCount(),
   ]);
 
   return (
     <AppShell
-      active="Dashboard"
+      active="Today"
       pageActions={<DashboardTopActions />}
-      pageTitle="Dashboard"
+      pageTitle="Today"
     >
       <Dashboard
-        completedTasksThisMonth={completedThisMonth}
         includeDemo={includeDemo}
         openTaskCount={openTaskCount}
         segment={segment}

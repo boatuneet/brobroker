@@ -139,7 +139,12 @@ export interface BuyerProfile {
   decisionTimeline: string;
   communicationStyle: string;
   relationshipNotes: string[];
-  currentStage: "New Inquiry" | "Qualified" | "Shortlist Sent" | "Viewing Planned" | "Negotiation";
+  currentStage: BuyerStage;
+  /* Set when the deal reaches a terminal stage. Optional so existing rows
+     and demo data need no backfill. */
+  closedAt?: string;
+  closedReason?: string;
+  closedValueEur?: number;
   lastContactedAt: string;
   nextActionDueAt: string;
   verificationCaseId: string;
@@ -149,6 +154,32 @@ export interface BuyerProfile {
      into "Other / unknown". */
   source?: BuyerSource;
 }
+
+export type BuyerStage =
+  | "New Inquiry"
+  | "Qualified"
+  | "Shortlist Sent"
+  | "Viewing Planned"
+  | "Negotiation"
+  | "Closed Won"
+  | "Closed Lost";
+
+/* Stages a live deal moves through, in order. Terminal outcomes are
+   listed separately so funnels and forecasts can ignore them. */
+export const ACTIVE_BUYER_STAGES: readonly BuyerStage[] = [
+  "New Inquiry",
+  "Qualified",
+  "Shortlist Sent",
+  "Viewing Planned",
+  "Negotiation",
+];
+
+export const CLOSED_BUYER_STAGES: readonly BuyerStage[] = ["Closed Won", "Closed Lost"];
+
+export const BUYER_STAGES: readonly BuyerStage[] = [
+  ...ACTIVE_BUYER_STAGES,
+  ...CLOSED_BUYER_STAGES,
+];
 
 export type BuyerSource =
   | "referral"

@@ -33,9 +33,11 @@ import type {
   VerificationStatus,
   YachtListing,
 } from "./types";
-import { daysUntil } from "./utils";
+import { daysUntil, formatCurrency } from "./utils";
 
-export const nowIso = "2026-05-24T09:00:00+03:00";
+/* Real clock. Demo seed data is date-shifted to the current day at load
+   (see demo-data.ts), so generated artifacts can stamp actual time. */
+export const nowIso = new Date().toISOString();
 
 export function getListingById(id: string, segment?: BrokerSegment) {
   return getListingsForSegment(segment).find((listing) => listing.id === id);
@@ -2190,7 +2192,7 @@ export function answerScopedDealRoomQuestion(
   pools?: DealRoomDataPools,
 ) {
   const model = getDealRoomById(roomId, extraRooms, segment, pools);
-  const listing = model?.listings[0];
+  const listing = model ? selectRoomListing(question, model.listings) : undefined;
 
   if (!model || !listing) {
     return {
@@ -2219,27 +2221,135 @@ export function answerScopedDealRoomQuestion(
   };
 }
 
+/* Pick which listing in the room a question is about: an ordinal ("first",
+   "second", "last"), a name/model/builder mention, else the first listing. */
+function selectRoomListing(question: string, listings: YachtListing[]): YachtListing | undefined {
+  if (!listings.length) return undefined;
+  const q = question.toLowerCase();
+
+  const ordinals: Array<[RegExp, number]> = [
+    [/\b(first|1st)\b/, 0],
+    [/\b(second|2nd)\b/, 1],
+    [/\b(third|3rd)\b/, 2],
+    [/\b(fourth|4th)\b/, 3],
+    [/\b(fifth|5th)\b/, 4],
+  ];
+  for (const [re, index] of ordinals) {
+    if (re.test(q) && listings[index]) return listings[index];
+  }
+  if (/\blast\b/.test(q)) return listings[listings.length - 1];
+
+  const named = listings.find(
+    (listing) =>
+      q.includes(listing.name.toLowerCase()) ||
+      (listing.model && q.includes(listing.model.toLowerCase())) ||
+      (listing.builder && listing.builder.length > 2 && q.includes(listing.builder.toLowerCase())),
+  );
+  return named ?? listings[0];
+}
+
+/* A buyer-safe spec sheet built from the listing's structured fields plus its
+   (buyer-facing) description. Never includes owner/negotiation context. */
+function buyerSafeSpecAnswer(listing: YachtListing): string {
+  const facts = getListingCoreFacts(listing)
+    .map(([label, value]) => `${label}: ${value}`)
+    .filter(Boolean);
+  const parts = [
+    `${listing.name} — approved specifications:`,
+    facts.join(" · "),
+    `Ask: ${formatCurrency(listing.priceEur)} (${listing.vatStatus}).`,
+  ];
+  if (listing.description) {
+    const desc = listing.description.trim();
+    parts.push(desc.length > 400 ? `${desc.slice(0, 400).trim()}…` : desc);
+  }
+  return parts.filter(Boolean).join("\n\n");
+}
+
 export function answerDealRoomQuestion(question: string, listing: YachtListing) {
   const normalized = question.toLowerCase();
 
-  if (normalized.includes("cabin")) {
+  // Broker-controlled / restricted — never answered directly in the room.
+  if (
+    normalized.includes("owner") ||
+    normalized.includes("motivation") ||
+    normalized.includes("lowest") ||
+    normalized.includes("price floor") ||
+    normalized.includes("how low") ||
+    normalized.includes("negotiat") ||
+    normalized.includes("discount") ||
+    normalized.includes("broker note")
+  ) {
+    return "That detail is broker-controlled. I will ask the broker to confirm what can be shared.";
+  }
+
+  // Targeted single-fact answers from structured, approved fields.
+  if (normalized.includes("cabin") && listing.cabins > 0) {
     return `${listing.name} has ${listing.cabins} cabins. This is approved listing information.`;
   }
-
-  if (normalized.includes("bed") || normalized.includes("room")) {
-    return `${listing.name} is summarized as ${getListingSpecSummary(listing)}. This is approved listing information.`;
+  if (normalized.includes("price") || normalized.includes("cost") || normalized.includes("asking")) {
+    return `${listing.name} is listed at ${formatCurrency(listing.priceEur)} (${listing.vatStatus}). This is approved listing information.`;
+  }
+  if (normalized.includes(" vat") || normalized.startsWith("vat") || normalized.includes("tax")) {
+    return `${listing.name} VAT status: ${listing.vatStatus}. This is approved listing information.`;
+  }
+  if (
+    normalized.includes("length") ||
+    normalized.includes("how long") ||
+    normalized.includes("how big") ||
+    normalized.includes(" size")
+  ) {
+    return `${listing.name} is ${listing.lengthFt} ft. Approved specs: ${getListingSpecSummary(listing)}.`;
+  }
+  if (
+    normalized.includes("engine") ||
+    normalized.includes("hour") ||
+    normalized.includes("power") ||
+    normalized.includes("propuls")
+  ) {
+    return `${listing.name} — engines: ${listing.engines}${listing.engineHours ? `, ${listing.engineHours.toLocaleString("en-GB")} hours` : ""}. This is approved listing information.`;
+  }
+  if (normalized.includes("year") || normalized.includes("built") || normalized.includes(" age")) {
+    return `${listing.name} was built in ${listing.year}. This is approved listing information.`;
+  }
+  if (
+    normalized.includes("location") ||
+    normalized.includes("where") ||
+    normalized.includes("berth") ||
+    normalized.includes("marina") ||
+    normalized.includes("lying")
+  ) {
+    return `${listing.name} is located in ${listing.location}. This is approved listing information.`;
+  }
+  if (
+    normalized.includes("refit") ||
+    normalized.includes("service") ||
+    normalized.includes("upgrade") ||
+    normalized.includes("history")
+  ) {
+    return listing.refitHistory.length
+      ? `${listing.name}'s approved refit / service notes: ${listing.refitHistory.join(", ")}.`
+      : `No approved refit or service notes are recorded yet for ${listing.name}. The broker can add them.`;
   }
 
-  if (normalized.includes("seat") || normalized.includes("mileage") || normalized.includes("km")) {
-    return `${listing.name} is summarized as ${getListingSpecSummary(listing)}. This is approved listing information.`;
-  }
-
-  if (normalized.includes("refit") || normalized.includes("service")) {
-    return `${listing.name}'s approved refit notes: ${listing.refitHistory.join(", ")}.`;
-  }
-
-  if (normalized.includes("owner") || normalized.includes("seller motivation")) {
-    return "That detail is broker-controlled. I will ask the broker to confirm what can be shared.";
+  // General overview / specs / description questions → full buyer-safe sheet.
+  if (
+    normalized.includes("spec") ||
+    normalized.includes("detail") ||
+    normalized.includes("overview") ||
+    normalized.includes("summary") ||
+    normalized.includes("describe") ||
+    normalized.includes("description") ||
+    normalized.includes("feature") ||
+    normalized.includes("tell me") ||
+    normalized.includes("about") ||
+    normalized.includes("info") ||
+    normalized.includes("what is") ||
+    normalized.includes("bed") ||
+    normalized.includes("cabin") ||
+    normalized.includes("room")
+  ) {
+    return buyerSafeSpecAnswer(listing);
   }
 
   return `I can answer from approved listing material only. The broker should confirm this detail for ${listing.name}.`;

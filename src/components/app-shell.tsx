@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 export async function AppShell({
-  active = "Dashboard",
+  active = "Today",
   breadcrumb,
   children,
   pageActions,

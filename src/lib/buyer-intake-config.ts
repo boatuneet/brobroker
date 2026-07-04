@@ -62,6 +62,8 @@ const stageOptions: BuyerFieldOption[] = [
   { label: "Shortlist Sent", value: "Shortlist Sent" },
   { label: "Viewing Planned", value: "Viewing Planned" },
   { label: "Negotiation", value: "Negotiation" },
+  { label: "Closed Won", value: "Closed Won" },
+  { label: "Closed Lost", value: "Closed Lost" },
 ];
 
 /* Lead-source options shown in intake. Stored in `buyers.source` and used
@@ -526,7 +528,14 @@ export function parseNumber(value: string | number | undefined | null): number {
 }
 
 export function normalizeBuyerStage(value: string): BuyerProfile["currentStage"] {
-  if (value === "Qualified" || value === "Shortlist Sent" || value === "Viewing Planned" || value === "Negotiation") {
+  if (
+    value === "Qualified" ||
+    value === "Shortlist Sent" ||
+    value === "Viewing Planned" ||
+    value === "Negotiation" ||
+    value === "Closed Won" ||
+    value === "Closed Lost"
+  ) {
     return value;
   }
   return "New Inquiry";

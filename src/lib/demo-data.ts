@@ -881,3 +881,62 @@ export const auditEvents: AuditEvent[] = [
   { id: "audit-vallon-report-generated", actor: "System", label: "Owner report generated", detail: "Palmera F55 owner update prepared for Vallon Marine Holdings.", occurredAt: "2026-05-24T09:00:00+03:00" },
   { id: "audit-amira-access-held", actor: "Broker", label: "Access held", detail: "verif-amira-aqua held before pre-market seller identity and VAT memo sharing.", occurredAt: "2026-05-20T11:00:00+03:00" },
 ];
+
+/* ---------------------------------------------------------------------------
+   Demo clock. The seed data above is authored against a fixed anchor day
+   (2026-05-24 = "today" at authoring time). At module load we shift every
+   date in the demo objects by whole days so the anchor lands on the real
+   today — overdue stays overdue, "due tomorrow" stays tomorrow, and the
+   demo pipeline never goes stale. Times of day and timezone offsets are
+   preserved; only the date part moves. */
+const DEMO_ANCHOR_UTC = Date.UTC(2026, 4, 24);
+const TODAY_UTC = (() => {
+  const now = new Date();
+  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+})();
+const DAY_SHIFT = Math.round((TODAY_UTC - DEMO_ANCHOR_UTC) / 86_400_000);
+
+const DATE_STRING_RE = /^(\d{4})-(\d{2})-(\d{2})(.*)$/;
+
+function shiftDateString(value: string): string {
+  const match = DATE_STRING_RE.exec(value);
+  if (!match) return value;
+  const base = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  base.setUTCDate(base.getUTCDate() + DAY_SHIFT);
+  const year = base.getUTCFullYear();
+  const month = String(base.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(base.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}${match[4]}`;
+}
+
+function shiftDates(value: unknown): unknown {
+  if (typeof value === "string") return shiftDateString(value);
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) value[index] = shiftDates(value[index]);
+    return value;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of Object.keys(record)) record[key] = shiftDates(record[key]);
+    return value;
+  }
+  return value;
+}
+
+if (DAY_SHIFT !== 0) {
+  for (const collection of [
+    yachtListings,
+    buyers,
+    sellers,
+    conversations,
+    brokerTasks,
+    verificationCases,
+    matchResults,
+    followUpDrafts,
+    sellerReportInputs,
+    dealRooms,
+    auditEvents,
+  ]) {
+    shiftDates(collection);
+  }
+}

@@ -4,23 +4,18 @@ import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import {
-  ActivityLogIcon,
-  ArchiveIcon,
   BackpackIcon,
   BarChartIcon,
-  BadgeIcon,
   ChevronRightIcon,
   DashboardIcon,
   FileTextIcon,
   GroupIcon,
-  MixIcon,
   PersonIcon,
-  SpeakerLoudIcon,
   UpdateIcon,
   ViewVerticalIcon,
 } from "@radix-ui/react-icons";
+import { Mic } from "lucide-react";
 import { BrokerSegmentBridge } from "@/components/broker-segment-bridge";
-import { GoProButton } from "@/components/go-pro-button";
 import { AnimatedTitle } from "@/components/animated-title";
 import type { BrokerSegment } from "@/lib/broker-segments";
 import { cn } from "@/lib/utils";
@@ -33,22 +28,39 @@ const COLLAPSED_WIDTH = 60;
 
 type SidebarIcon = typeof DashboardIcon;
 
+/* Six-item IA: destinations only. Everything else (capture, matching,
+   verification, knowledge) is an action or a tab on the record it
+   belongs to — reachable in context, not competing in the sidebar. */
 const navItems: Array<{
   label: string;
   href: string;
   icon: SidebarIcon;
 }> = [
-  { label: "Dashboard", href: "/dashboard", icon: DashboardIcon },
-  { label: "Knowledge", href: "/knowledge", icon: ArchiveIcon },
-  { label: "Listings", href: "/listings", icon: BackpackIcon },
+  { label: "Today", href: "/dashboard", icon: DashboardIcon },
   { label: "Buyers", href: "/buyers", icon: GroupIcon },
-  { label: "Pulse", href: "/pulse", icon: ActivityLogIcon },
-  { label: "Voice CRM", href: "/voice-crm", icon: SpeakerLoudIcon },
-  { label: "Matching", href: "/matching", icon: MixIcon },
-  { label: "Verification", href: "/verification", icon: BadgeIcon },
-  { label: "Reports", href: "/reports", icon: BarChartIcon },
+  { label: "Listings", href: "/listings", icon: BackpackIcon },
   { label: "Deal Rooms", href: "/deal-rooms", icon: FileTextIcon },
+  { label: "Owner Updates", href: "/reports", icon: BarChartIcon },
 ];
+
+/* Global capture entry — the app's most-used action, available from every
+   screen. Links into the capture workspace (/voice-crm) with no context;
+   pages that know their buyer link there with ?buyer= instead. */
+function CaptureButton({ compact = false }: { compact?: boolean }) {
+  return (
+    <Link
+      className={cn(
+        "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[13px] font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
+        compact && "px-2.5",
+      )}
+      href="/voice-crm"
+      title="Capture a call or note"
+    >
+      <Mic aria-hidden="true" className="h-4 w-4" />
+      {compact ? null : "Capture"}
+    </Link>
+  );
+}
 
 /* Swaps a nav item's icon for a spinning indicator the moment its link is
    clicked, using Next's useLinkStatus(). Server navigation can take a beat
@@ -262,10 +274,8 @@ export function CompactSidebarShell({
           </nav>
 
           <div className={cn("shrink-0 px-2 pb-3 pt-2", !isOpen && "px-1.5")}>
-            <GoProButton compact={!isOpen} />
-
             <Link
-              aria-label="Open your profile"
+              aria-label="Open settings"
               className={cn(
                 "group flex min-h-9 items-center rounded-[8px] text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
                 isOpen ? "gap-2.5 px-2.5" : "justify-center px-2",
@@ -336,6 +346,7 @@ export function CompactSidebarShell({
           )}
         </div>
         <nav aria-label="Mobile primary" className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          <CaptureButton compact />
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -387,11 +398,10 @@ export function CompactSidebarShell({
               <AnimatedTitle key={pageTitle} text={pageTitle} />
             ) : null}
           </div>
-          {pageActions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              {pageActions}
-            </div>
-          ) : null}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {pageActions}
+            <CaptureButton />
+          </div>
         </div>
         {children}
       </main>

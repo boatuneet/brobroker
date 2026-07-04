@@ -4,10 +4,12 @@ import type {
   Conversation,
   FollowUpDraft,
 } from "@/lib/types";
-import { daysUntil } from "@/lib/utils";
+import { daysUntil, formatCurrencyCompact } from "@/lib/utils";
 
-/* Demo "now" — matches utils.ts daysUntil() default so derived dates align. */
-export const DEMO_NOW = new Date("2026-05-24T09:00:00+03:00");
+/* Real "now" — demo data is date-shifted to the current day at load
+   (see demo-data.ts), so timeline math runs on the actual clock. Kept as
+   a module constant so one render pass shares a single reference point. */
+export const DEMO_NOW = new Date();
 
 export const STAGES: BuyerProfile["currentStage"][] = [
   "New Inquiry",
@@ -25,6 +27,8 @@ export const STAGE_FORECAST_WEIGHTS: Record<BuyerProfile["currentStage"], number
   "Shortlist Sent": 0.45,
   "Viewing Planned": 0.65,
   Negotiation: 0.85,
+  "Closed Won": 1,
+  "Closed Lost": 0,
 };
 
 export type TrackKind =
@@ -246,7 +250,5 @@ export function midpointBudget(buyer: BuyerProfile): number {
 
 export function formatCompactEur(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return "€0";
-  if (value >= 1_000_000) return `€${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`;
-  if (value >= 1_000) return `€${Math.round(value / 1_000)}k`;
-  return `€${Math.round(value)}`;
+  return formatCurrencyCompact(value);
 }

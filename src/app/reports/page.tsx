@@ -4,7 +4,7 @@ import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 
 export const metadata = {
-  title: "Reports · BroBroker",
+  title: "Owner Updates · BroBroker",
   description: "Draft and approve owner updates.",
 };
 
@@ -13,7 +13,7 @@ export default async function ReportsPage() {
   const includeDemo = await isDemoModeEnabled();
 
   return (
-    <AppShell active="Reports" pageTitle="Reports">
+    <AppShell active="Owner Updates" pageTitle="Owner Updates">
       <ReportsWorkspace key={segment} includeDemo={includeDemo} segment={segment} />
     </AppShell>
   );

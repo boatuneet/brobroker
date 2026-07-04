@@ -141,7 +141,14 @@ function normalizeUrgency(value: unknown): BuyerProfile["urgency"] {
 }
 
 function normalizeStage(value: unknown): BuyerProfile["currentStage"] {
-  if (value === "Qualified" || value === "Shortlist Sent" || value === "Viewing Planned" || value === "Negotiation") {
+  if (
+    value === "Qualified" ||
+    value === "Shortlist Sent" ||
+    value === "Viewing Planned" ||
+    value === "Negotiation" ||
+    value === "Closed Won" ||
+    value === "Closed Lost"
+  ) {
     return value;
   }
   return "New Inquiry";

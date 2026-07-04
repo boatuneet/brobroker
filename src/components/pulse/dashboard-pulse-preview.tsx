@@ -36,9 +36,9 @@ const TONE_DOT: Record<EventTone, string> = {
 
 const PREVIEW_LIMIT = 5;
 
-/* Compact preview of the Pulse swimlanes for the dashboard. Renders the
-   most urgent N buyers with mini-lanes, no popovers, no scrub. Click-through
-   to the full /pulse view via the header link or per-row link. */
+/* Compact deal-timeline preview for Today. Renders the most urgent N
+   buyers with mini-lanes, no popovers, no scrub. Rows click through to
+   the buyer's detail page, where the full timeline lives. */
 export function DashboardPulsePreview({
   buyers,
   conversations,
@@ -87,7 +87,7 @@ export function DashboardPulsePreview({
     <Tile className={className}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="bb-mono-label">Pulse</p>
+          <p className="bb-mono-label">Deal timelines</p>
           <p className="bb-display mt-1.5 text-lg font-medium text-[#171719]">
             Top deals on the timeline
           </p>
@@ -101,9 +101,9 @@ export function DashboardPulsePreview({
           ) : null}
           <Link
             className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#171719] hover:underline"
-            href="/pulse"
+            href="/buyers"
           >
-            Open Pulse <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+            Open buyers <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
           </Link>
         </div>
       </div>
@@ -195,7 +195,7 @@ function PreviewRow({
        fill the row edge-to-edge inside the Tile. */
     <Link
       className="group relative grid grid-cols-[140px_minmax(0,1fr)_92px] items-center gap-3 rounded-[8px] px-2 py-2.5 transition-colors hover:bg-[#F1F2EE] sm:px-3"
-      href={`/pulse?focus=${buyer.id}`}
+      href={`/buyers/${buyer.id}`}
     >
       {/* Identity */}
       <div className="min-w-0">
