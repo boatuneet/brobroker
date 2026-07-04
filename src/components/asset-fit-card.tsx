@@ -3,11 +3,11 @@ import { Building2, CarFront, Ship } from "lucide-react";
 import { getListingAssetType, getListingSpecSummary } from "@/lib/services";
 import type { YachtListing } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
-import { ProgressBar } from "./ui";
 
-/* Editorial fit card for deal-room shortlists — chip row, hero image,
-   title, recommendation + price panel, trade-off footnote. Adapted from
-   the broker's YachtFitCard reference to the BroBroker token set. */
+/* Compact image-overlay asset card for deal-room shortlists. The hero is a
+   4:3 photo with brand/year and fit pills over gradient scrims, plus the
+   title and price laid on top of the image. Below the image sits a tight
+   rationale + trade-off block. Placeholder covers the no-photo case. */
 export function AssetFitCard({
   listing,
   fitScore,
@@ -31,17 +31,47 @@ export function AssetFitCard({
         : "bg-[#F1F2EE] text-[#5F625E]";
 
   return (
-    <article className="rounded-[12px] border border-[#E7E7E7] bg-white p-5">
-      <div className="grid gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <CardChip>{type}</CardChip>
-            <CardChip>{listing.builder}</CardChip>
-            <CardChip>{listing.year}</CardChip>
+    <article className="overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#F1F2EE]">
+        {photo ? (
+          <Image
+            alt={photo.alt ?? listing.name}
+            className="object-cover object-center"
+            fill
+            sizes="(min-width: 1280px) 1100px, 100vw"
+            src={photo.src}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-[#233c45]">
+              <Icon className="h-7 w-7" aria-hidden="true" />
+            </span>
           </div>
+        )}
+
+        {/* Top scrim — legibility for pills */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0)_100%)]"
+        />
+        {/* Bottom scrim — legibility for title/price */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.15)_35%,rgba(0,0,0,0.72)_100%)]"
+        />
+
+        {/* Top-left: brand · year */}
+        <div className="absolute left-4 top-4 flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[12px] font-semibold text-[#171719] shadow-[0_1px_2px_rgba(0,0,0,0.12)] backdrop-blur">
+            {listing.builder} · {listing.year}
+          </span>
+        </div>
+
+        {/* Top-right: fit pill */}
+        <div className="absolute right-4 top-4">
           <span
             className={cn(
-              "inline-flex items-center rounded-[8px] px-3 py-1.5 text-[13px] font-semibold tabular-nums",
+              "inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold tabular-nums shadow-[0_1px_2px_rgba(0,0,0,0.18)]",
               fitChip,
             )}
           >
@@ -49,60 +79,30 @@ export function AssetFitCard({
           </span>
         </div>
 
-        <div className="relative h-[250px] overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-[#F1F2EE] lg:h-[340px]">
-          {photo ? (
-            <>
-              <Image
-                alt={photo.alt ?? listing.name}
-                className="object-cover object-center"
-                fill
-                sizes="(min-width: 1280px) 1100px, 100vw"
-                src={photo.src}
-              />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.02)_0%,rgba(0,0,0,0.14)_100%)]" />
-            </>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/85 text-[#233c45]">
-                <Icon className="h-6 w-6" aria-hidden="true" />
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <h3 className="bb-display text-2xl font-medium tracking-[-0.01em] text-[#171719]">
+        {/* Bottom: title + price overlaid on image */}
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5">
+          <h3
+            className="bb-display flex-1 text-2xl font-medium leading-tight tracking-[-0.01em] text-white [text-shadow:0_1px_16px_rgba(0,0,0,0.55)]"
+          >
             {listing.name}
           </h3>
-          <p className="mt-1.5 text-[14px] leading-6 text-[#8E918B]">
-            {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
+          <p className="whitespace-nowrap font-mono text-lg font-semibold tabular-nums text-white [text-shadow:0_1px_16px_rgba(0,0,0,0.55)]">
+            {formatCurrency(listing.priceEur)}
           </p>
         </div>
+      </div>
 
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px]">
-          <div className="rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-4">
-            <p className="bb-mono-label">Recommendation</p>
-            <p className="mt-2 text-[14px] leading-6 text-[#5F625E]">{rationale}</p>
-          </div>
-          <div className="rounded-[12px] border border-[#E7E7E7] bg-white p-4">
-            <p className="bb-mono-label">Price</p>
-            <p className="mt-2 font-mono text-lg font-semibold tabular-nums text-[#171719]">
-              {formatCurrency(listing.priceEur)}
-            </p>
-            <ProgressBar className="mt-4" tone="green" value={fit} />
-          </div>
-        </div>
-
-        <p className="text-[13px] leading-6 text-[#8E918B]">Trade-off: {tradeOff}</p>
+      {/* Compact info strip below image */}
+      <div className="grid gap-3 p-5">
+        <p className="text-[13px] leading-5 text-[#8E918B]">
+          {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
+        </p>
+        <p className="text-[14px] leading-6 text-[#5F625E]">{rationale}</p>
+        <p className="border-t border-[#E7E7E7] pt-3 text-[13px] leading-5 text-[#8E918B]">
+          <span className="bb-mono-label mr-2 text-[#171719]">Trade-off</span>
+          {tradeOff}
+        </p>
       </div>
     </article>
-  );
-}
-
-function CardChip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-[8px] bg-[#F1F2EE] px-3 py-1.5 text-[13px] font-semibold text-[#5F625E]">
-      {children}
-    </span>
   );
 }

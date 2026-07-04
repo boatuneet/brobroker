@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   Fragment,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -23,8 +24,9 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import type { BrokerTask, SellerProfile, YachtListing } from "@/lib/types";
+import type { BrokerTask, DocumentAsset, DocumentStatus, SellerProfile, YachtListing } from "@/lib/types";
 import { formatSpecSheet } from "@/lib/spec-format";
+import { updateListingDocuments } from "@/lib/supabase/update-listing-documents";
 import { cn, formatDate, percentage } from "@/lib/utils";
 import { Badge, CardHeader, EmptyState, ProgressBar } from "./ui";
 
@@ -66,6 +68,82 @@ export function ListingBrainTabs({
   const [activeTab, setActiveTab] = useState<ListingBrainTab>(() => resolveListingBrainTab(initialTab));
   const activeTabValue = listingBrainTabs.find((tab) => tab.label === activeTab)?.value ?? "overview";
 
+  /* Local documents state seeded from props so approvals reflect instantly
+     across every panel (readiness card + Overview approved list) without a
+     full refetch. If the listing prop changes (route change to a different
+     asset) we re-seed. */
+  const [documents, setDocuments] = useState<DocumentAsset[]>(listing.documents);
+  useEffect(() => {
+    setDocuments(listing.documents);
+  }, [listing.id, listing.documents]);
+
+  /* Remember each doc's status BEFORE it was approved, so "Unapprove" can
+     restore the original (Internal / Restricted) instead of always
+     defaulting. Session-scoped — fine because approval itself is a broker
+     action that only makes sense in-session. */
+  const priorStatusesRef = useRef<Record<string, DocumentStatus>>({});
+
+  const approveDocument = useCallback(
+    async (documentId: string) => {
+      const target = documents.find((doc) => doc.id === documentId);
+      if (!target || target.status === "Approved" || target.status === "Missing") return;
+
+      priorStatusesRef.current[documentId] = target.status;
+
+      const next = documents.map((doc) =>
+        doc.id === documentId
+          ? { ...doc, status: "Approved" as DocumentStatus, updatedAt: new Date().toISOString() }
+          : doc,
+      );
+      setDocuments(next);
+
+      const result = await updateListingDocuments(listing.id, next);
+      if (!result.ok) {
+        // Revert on failure so the UI doesn't lie.
+        setDocuments(documents);
+        console.warn("Could not save document approval:", result.error);
+      }
+    },
+    [documents, listing.id],
+  );
+
+  const unapproveDocument = useCallback(
+    async (documentId: string) => {
+      const target = documents.find((doc) => doc.id === documentId);
+      if (!target || target.status !== "Approved") return;
+
+      // Fall back to "Internal" if we don't know the prior status (e.g. the
+      // doc was already Approved when the page loaded).
+      const priorStatus = priorStatusesRef.current[documentId] ?? "Internal";
+
+      const next = documents.map((doc) =>
+        doc.id === documentId
+          ? { ...doc, status: priorStatus, updatedAt: new Date().toISOString() }
+          : doc,
+      );
+      setDocuments(next);
+
+      const result = await updateListingDocuments(listing.id, next);
+      if (!result.ok) {
+        setDocuments(documents);
+        console.warn("Could not save document unapproval:", result.error);
+      }
+    },
+    [documents, listing.id],
+  );
+
+  /* Recompute readiness from LOCAL documents so approvals move the numbers
+     instantly. Keeps the same shape/formula as getDocumentCompleteness in
+     services.ts. */
+  const liveDocumentCompleteness = useMemo(() => {
+    const approved = documents.filter((doc) => doc.status === "Approved").length;
+    const total = documents.length + listing.missingInfo.length;
+    const percent = total === 0 ? 100 : Math.round((approved / total) * 100);
+    return { approved, total, percent, missingCount: listing.missingInfo.length };
+  }, [documents, listing.missingInfo.length]);
+
+  const liveListing = useMemo(() => ({ ...listing, documents }), [documents, listing]);
+
   useEffect(() => {
     const handlePopState = () => {
       const tab = new URLSearchParams(window.location.search).get("tab") ?? undefined;
@@ -91,17 +169,39 @@ export function ListingBrainTabs({
     window.history.pushState({ listingBrainTab: nextValue }, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
+  // Prop `documentCompleteness` is used only for the initial render if we
+  // haven't diverged from the parent's snapshot yet — we prefer the live
+  // recomputation from local documents so approve/unapprove is reflected
+  // immediately in the readiness card and approved-docs summaries.
+  void documentCompleteness;
+
   const content = useMemo(() => {
     if (activeTab === "Docs") {
-      return <ListingDocsPanel documentCompleteness={documentCompleteness} listing={listing} />;
+      return (
+        <ListingDocsPanel
+          documentCompleteness={liveDocumentCompleteness}
+          listing={liveListing}
+          onApprove={approveDocument}
+          onUnapprove={unapproveDocument}
+        />
+      );
     }
 
     if (activeTab === "Owner") {
-      return <ListingOwnerPanel listing={listing} ownerTasks={ownerTasks} seller={seller} />;
+      return <ListingOwnerPanel listing={liveListing} ownerTasks={ownerTasks} seller={seller} />;
     }
 
-    return <ListingOverviewPanel coreFacts={coreFacts} listing={listing} seller={seller} />;
-  }, [activeTab, coreFacts, documentCompleteness, listing, ownerTasks, seller]);
+    return <ListingOverviewPanel coreFacts={coreFacts} listing={liveListing} seller={seller} />;
+  }, [
+    activeTab,
+    approveDocument,
+    coreFacts,
+    liveDocumentCompleteness,
+    liveListing,
+    ownerTasks,
+    seller,
+    unapproveDocument,
+  ]);
 
   return (
     <>
@@ -261,9 +361,13 @@ function ListingOverviewPanel({
 function ListingDocsPanel({
   documentCompleteness,
   listing,
+  onApprove,
+  onUnapprove,
 }: {
   documentCompleteness: DocumentCompleteness;
   listing: YachtListing;
+  onApprove: (documentId: string) => void | Promise<void>;
+  onUnapprove: (documentId: string) => void | Promise<void>;
 }) {
   const approvedDocuments = listing.documents.filter((document) => document.status === "Approved");
   const restrictedDocuments = listing.documents.filter(
@@ -295,23 +399,18 @@ function ListingDocsPanel({
           </div>
         </div>
 
-        <ul className="mt-4 divide-y divide-[#E7E7E7] rounded-[12px] border border-[#E7E7E7] bg-white">
+        <p className="mt-4 text-[12px] leading-5 text-[#8E918B]">
+          Approve a document to make it shareable in deal rooms.
+        </p>
+
+        <ul className="mt-2 divide-y divide-[#E7E7E7] rounded-[12px] border border-[#E7E7E7] bg-white">
           {listing.documents.map((document) => (
-            <li
-              className="grid gap-3 px-4 py-4 sm:grid-cols-[36px_minmax(0,1fr)_auto] sm:items-center"
+            <DocumentRow
+              document={document}
               key={document.id}
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F2EE] text-[#003C33]">
-                <FileText className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <h3 className="text-[14px] font-medium text-[#171719]">{document.title}</h3>
-                <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
-                  {document.category} · {formatDate(document.updatedAt)}
-                </p>
-              </div>
-              <Badge tone={documentTone(document.status)}>{document.status}</Badge>
-            </li>
+              onApprove={onApprove}
+              onUnapprove={onUnapprove}
+            />
           ))}
         </ul>
       </section>
@@ -337,6 +436,80 @@ function ListingDocsPanel({
         />
       </section>
     </div>
+  );
+}
+
+function DocumentRow({
+  document,
+  onApprove,
+  onUnapprove,
+}: {
+  document: DocumentAsset;
+  onApprove: (documentId: string) => void | Promise<void>;
+  onUnapprove: (documentId: string) => void | Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const isApproved = document.status === "Approved";
+  const isMissing = document.status === "Missing";
+  const canApprove = !isApproved && !isMissing;
+
+  async function handleApprove() {
+    setBusy(true);
+    try {
+      await onApprove(document.id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUnapprove() {
+    setBusy(true);
+    try {
+      await onUnapprove(document.id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="grid gap-3 px-4 py-4 sm:grid-cols-[36px_minmax(0,1fr)_auto] sm:items-center">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F2EE] text-[#003C33]">
+        <FileText className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-[14px] font-medium text-[#171719]">{document.title}</h3>
+        <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
+          {document.category} · {formatDate(document.updatedAt)}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 sm:flex-nowrap">
+        <Badge tone={documentTone(document.status)}>{document.status}</Badge>
+        {isMissing ? (
+          <span className="text-[12px] italic text-[#8E918B]">Upload before it can be approved</span>
+        ) : isApproved ? (
+          <button
+            aria-label={`Unapprove ${document.title}`}
+            className="min-h-8 rounded-[8px] px-2 text-[12px] font-medium text-[#5F625E] transition-colors hover:bg-[#F1F2EE] hover:text-[#171719] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6] disabled:pointer-events-none disabled:opacity-50"
+            disabled={busy}
+            onClick={handleUnapprove}
+            type="button"
+          >
+            Unapprove
+          </button>
+        ) : canApprove ? (
+          <button
+            aria-label={`Approve ${document.title} for sharing`}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6] disabled:pointer-events-none disabled:opacity-50"
+            disabled={busy}
+            onClick={handleApprove}
+            type="button"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+            Approve for sharing
+          </button>
+        ) : null}
+      </div>
+    </li>
   );
 }
 
