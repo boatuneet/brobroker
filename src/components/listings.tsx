@@ -840,7 +840,7 @@ export function ListingBrain({
     return null;
   }
 
-  const { listing, seller, documentCompleteness, fitSignals, pitch, comparison } = brain;
+  const { listing, seller, documentCompleteness, fitSignals, pitch } = brain;
   const questions = [
     "What should I highlight for low maintenance?",
     "What are the weaknesses or objections?",
@@ -931,24 +931,6 @@ export function ListingBrain({
                 <PitchRow label="30-second pitch" value={pitch.thirtySecond} />
                 <PitchRow label="Buyer-safe angle" value={pitch.buyerSafe} />
                 <PitchRow label="Internal shorthand" value={pitch.short} />
-              </ul>
-            </Card>
-
-            <Card>
-              <CardHeader
-                title={comparison.title}
-                action={
-                  <CardHeaderIcon>
-                    <Gauge className="h-4 w-4" aria-hidden="true" />
-                  </CardHeaderIcon>
-                }
-              />
-              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-                {comparison.points.map((point) => (
-                  <li key={point} className="px-6 py-3.5 text-[13px] leading-6 text-[#5F625E]">
-                    {point}
-                  </li>
-                ))}
               </ul>
             </Card>
 

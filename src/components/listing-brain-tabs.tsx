@@ -132,6 +132,36 @@ export function ListingBrainTabs({
     [documents, listing.id],
   );
 
+  /* Register a new document the broker holds. There's no file store yet, so
+     this tracks the document's existence + category + approval state; the
+     broker approves it for sharing via the same Approve action. Persists to
+     the assets.documents column like approve/unapprove. */
+  const addDocument = useCallback(
+    async (input: { title: string; category: DocumentAsset["category"] }) => {
+      const id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? `doc-${crypto.randomUUID()}`
+          : `doc-${Date.now()}`;
+      const newDoc: DocumentAsset = {
+        id,
+        title: input.title.trim(),
+        category: input.category,
+        // Added docs start broker-only; the broker approves to share.
+        status: "Internal",
+        updatedAt: new Date().toISOString(),
+      };
+      const next = [...documents, newDoc];
+      setDocuments(next);
+
+      const result = await updateListingDocuments(listing.id, next);
+      if (!result.ok) {
+        setDocuments(documents);
+        console.warn("Could not save new document:", result.error);
+      }
+    },
+    [documents, listing.id],
+  );
+
   /* Recompute readiness from LOCAL documents so approvals move the numbers
      instantly. Keeps the same shape/formula as getDocumentCompleteness in
      services.ts. */
@@ -181,6 +211,7 @@ export function ListingBrainTabs({
         <ListingDocsPanel
           documentCompleteness={liveDocumentCompleteness}
           listing={liveListing}
+          onAddDocument={addDocument}
           onApprove={approveDocument}
           onUnapprove={unapproveDocument}
         />
@@ -194,6 +225,7 @@ export function ListingBrainTabs({
     return <ListingOverviewPanel coreFacts={coreFacts} listing={liveListing} seller={seller} />;
   }, [
     activeTab,
+    addDocument,
     approveDocument,
     coreFacts,
     liveDocumentCompleteness,
@@ -326,7 +358,15 @@ function ListingOverviewPanel({
       </div>
 
       {listing.description || listing.specifications ? (
-        <div className="grid gap-5 border-t border-[#E7E7E7] px-6 py-5 lg:grid-cols-2">
+        /* Two columns only when both blocks exist; a lone description or
+           spec sheet spans full width instead of leaving the right half
+           empty. */
+        <div
+          className={cn(
+            "grid gap-5 border-t border-[#E7E7E7] px-6 py-5",
+            listing.description && listing.specifications ? "lg:grid-cols-2" : "grid-cols-1",
+          )}
+        >
           {listing.description ? (
             <ProseBlock icon={ScrollText} text={listing.description} title="Description" />
           ) : null}
@@ -361,11 +401,13 @@ function ListingOverviewPanel({
 function ListingDocsPanel({
   documentCompleteness,
   listing,
+  onAddDocument,
   onApprove,
   onUnapprove,
 }: {
   documentCompleteness: DocumentCompleteness;
   listing: YachtListing;
+  onAddDocument: (input: { title: string; category: DocumentAsset["category"] }) => void | Promise<void>;
   onApprove: (documentId: string) => void | Promise<void>;
   onUnapprove: (documentId: string) => void | Promise<void>;
 }) {
@@ -400,19 +442,29 @@ function ListingDocsPanel({
         </div>
 
         <p className="mt-4 text-[12px] leading-5 text-[#8E918B]">
-          Approve a document to make it shareable in deal rooms.
+          Track the documents you hold for this listing — survey, title/registration,
+          VAT certificate, service records, media, spec sheet, finance. Approve one to
+          make it shareable in a deal room.
         </p>
 
-        <ul className="mt-2 divide-y divide-[#E7E7E7] rounded-[12px] border border-[#E7E7E7] bg-white">
-          {listing.documents.map((document) => (
-            <DocumentRow
-              document={document}
-              key={document.id}
-              onApprove={onApprove}
-              onUnapprove={onUnapprove}
-            />
-          ))}
-        </ul>
+        {listing.documents.length ? (
+          <ul className="mt-2 divide-y divide-[#E7E7E7] rounded-[12px] border border-[#E7E7E7] bg-white">
+            {listing.documents.map((document) => (
+              <DocumentRow
+                document={document}
+                key={document.id}
+                onApprove={onApprove}
+                onUnapprove={onUnapprove}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 rounded-[12px] border border-dashed border-[#D9DAD4] bg-[#FBFBFB] px-4 py-6 text-center text-[13px] text-[#8E918B]">
+            No documents tracked yet. Add the ones you hold below.
+          </p>
+        )}
+
+        <AddDocumentForm onAdd={onAddDocument} />
       </section>
 
       <section className="grid content-start gap-4">
@@ -435,6 +487,80 @@ function ListingDocsPanel({
           tone="info"
         />
       </section>
+    </div>
+  );
+}
+
+const DOCUMENT_CATEGORIES: DocumentAsset["category"][] = [
+  "Survey",
+  "Title",
+  "VAT",
+  "Maintenance",
+  "Media",
+  "Specs",
+  "Finance",
+];
+
+/* Register a document the broker holds. No file upload yet — this captures
+   the document's existence + category so it can flow through approval into
+   a deal room. New docs land as broker-only (Internal) until approved. */
+function AddDocumentForm({
+  onAdd,
+}: {
+  onAdd: (input: { title: string; category: DocumentAsset["category"] }) => void | Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<DocumentAsset["category"]>("Survey");
+  const [busy, setBusy] = useState(false);
+  const canAdd = title.trim().length > 0 && !busy;
+
+  async function handleAdd() {
+    if (!canAdd) return;
+    setBusy(true);
+    try {
+      await onAdd({ title, category });
+      setTitle("");
+      setCategory("Survey");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-3">
+      <p className="bb-mono-label">Add a document</p>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+        <input
+          className="h-10 min-w-0 flex-1 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33]"
+          onChange={(event) => setTitle(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") handleAdd();
+          }}
+          placeholder="e.g. 2025 pre-listing survey"
+          type="text"
+          value={title}
+        />
+        <select
+          aria-label="Document category"
+          className="h-10 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] text-[#171719] outline-none focus:border-[#003C33]"
+          onChange={(event) => setCategory(event.target.value as DocumentAsset["category"])}
+          value={category}
+        >
+          {DOCUMENT_CATEGORIES.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <button
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] disabled:pointer-events-none disabled:opacity-50"
+          disabled={!canAdd}
+          onClick={handleAdd}
+          type="button"
+        >
+          {busy ? "Adding…" : "Add document"}
+        </button>
+      </div>
     </div>
   );
 }

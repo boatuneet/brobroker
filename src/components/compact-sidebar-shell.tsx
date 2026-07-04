@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import {
+  ArchiveIcon,
   BackpackIcon,
   BarChartIcon,
   ChevronRightIcon,
@@ -28,9 +29,9 @@ const COLLAPSED_WIDTH = 60;
 
 type SidebarIcon = typeof DashboardIcon;
 
-/* Six-item IA: destinations only. Everything else (capture, matching,
-   verification, knowledge) is an action or a tab on the record it
-   belongs to — reachable in context, not competing in the sidebar. */
+/* Destination nav. Capture / matching / verification stay contextual
+   (actions or record tabs). Knowledge is the auto-generated wiki — it sits
+   last, below the core workflow, as a reference destination. */
 const navItems: Array<{
   label: string;
   href: string;
@@ -41,6 +42,7 @@ const navItems: Array<{
   { label: "Listings", href: "/listings", icon: BackpackIcon },
   { label: "Deal Rooms", href: "/deal-rooms", icon: FileTextIcon },
   { label: "Owner Updates", href: "/reports", icon: BarChartIcon },
+  { label: "Knowledge", href: "/knowledge", icon: ArchiveIcon },
 ];
 
 /* Global capture entry — the app's most-used action, available from every
