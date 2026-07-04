@@ -18,7 +18,6 @@ import { type BrokerSegment, getBuyersForSegment } from "@/lib/broker-segments";
 import {
   getBrokerDealRoomWorkspace,
   getDealRoomReadiness,
-  getListingSpecSummary,
   type DealRoomDataPools,
   type DealRoomReadinessCheck,
 } from "@/lib/services";
@@ -27,7 +26,7 @@ import { createClient } from "@/lib/supabase/client";
 import { deleteDealRoom } from "@/lib/supabase/delete-deal-room";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { BuyerProfile, DealRoom, YachtListing } from "@/lib/types";
-import { cn, formatDate, percentage } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import {
   Badge,
   Button,
@@ -35,7 +34,6 @@ import {
   CardHeader,
   EmptyState,
   PageHeader,
-  ProgressBar,
 } from "./ui";
 import { DealRoomReadinessPills } from "./deal-room-readiness";
 
@@ -314,21 +312,10 @@ function RoomRow({
   onRemove: () => void;
   saved: boolean;
 }) {
-  const { room, buyer, listings, matches, approvedDocuments } = entry;
+  const { room, buyer, listings } = entry;
   const readiness = getDealRoomReadiness(entry);
   const statusTone =
     room.status === "Active" ? "success" : room.status === "Paused" ? "warning" : "neutral";
-  const shownListings = listings.slice(0, 3);
-  const moreCount = listings.length - shownListings.length;
-  /* Compose the buyer-safe listings meta row from parts that actually have
-     values — avoids the "— · 4 approved docs" artifact when avgFit is 0
-     or approvedDocuments is empty. */
-  const listingsMeta = [
-    readiness.avgFit ? `${readiness.avgFit}% avg fit` : null,
-    approvedDocuments.length
-      ? `${approvedDocuments.length} approved doc${approvedDocuments.length === 1 ? "" : "s"}`
-      : null,
-  ].filter(Boolean);
 
   return (
     <li className="grid gap-5 px-6 py-6">
@@ -399,50 +386,6 @@ function RoomRow({
             }}
           />
         </div>
-      </div>
-
-      <div>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p className="bb-mono-label">Buyer-safe listings</p>
-          {listingsMeta.length ? (
-            <p className="text-[12px] text-[#8E918B]">{listingsMeta.join(" · ")}</p>
-          ) : null}
-        </div>
-        {listings.length === 0 ? (
-          <p className="mt-2 text-[13px] text-[#8E918B]">No listings curated yet.</p>
-        ) : (
-          <ul className="mt-3 grid gap-2.5 lg:grid-cols-3">
-            {shownListings.map((listing) => {
-              const fit = matches.find((match) => match.listingId === listing.id)?.fitScore ?? 72;
-              return (
-                <li key={listing.id} className="rounded-[10px] border border-[#E7E7E7] bg-white p-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 truncate text-[14px] font-medium text-[#171719]">
-                      {listing.name}
-                    </p>
-                    <span className="flex items-baseline gap-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
-                        Fit
-                      </span>
-                      <span className="font-mono text-[12px] font-semibold tabular-nums text-[#171719]">
-                        {percentage(fit)}
-                      </span>
-                    </span>
-                  </div>
-                  <p className="mt-0.5 truncate text-[12px] text-[#8E918B]">
-                    {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
-                  </p>
-                  <ProgressBar className="mt-2.5" tone="green" value={fit} />
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {moreCount > 0 ? (
-          <p className="mt-2 text-[12px] text-[#8E918B]">
-            +{moreCount} more listing{moreCount === 1 ? "" : "s"}
-          </p>
-        ) : null}
       </div>
     </li>
   );

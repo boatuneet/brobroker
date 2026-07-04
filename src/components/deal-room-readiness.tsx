@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, Circle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import type { DealRoomReadinessCheck } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
@@ -51,11 +51,12 @@ function resolvePill(
         href: ctx.roomId ? `/deal-rooms/${ctx.roomId}` : undefined,
       };
     case "Approved docs":
-      /* Documents live on the listing detail page. Deep-link to the first
-         curated listing so one click lands on the pane that approves them. */
+      /* Documents are approved on the listing's Documents tab — deep-link
+         straight to it (not the listing overview) so the chip lands on the
+         pane where the broker actually approves them. */
       return {
         displayLabel: "Approved docs",
-        href: ctx.firstListingId ? `/listings/${ctx.firstListingId}` : undefined,
+        href: ctx.firstListingId ? `/listings/${ctx.firstListingId}?tab=docs` : undefined,
       };
     default:
       return { displayLabel: check.label };
@@ -89,8 +90,11 @@ function ReadinessPill({
   const Icon = check.done ? CheckCircle2 : Circle;
 
   const doneClasses = "border-[#CDE7DC] bg-[#E1F1EA] text-[#0F8F62]";
+  /* Actionable pending chips read as buttons — solid white surface, firm
+     border, and a trailing arrow — so they're clearly distinct from the
+     passive green "done" badges. */
   const pendingLinkClasses =
-    "border-[#E7E7E7] bg-[#F1F2EE] text-[#171719] hover:border-[#003C33] hover:bg-white transition-colors";
+    "border-[#D9DAD4] bg-white text-[#171719] shadow-[0_1px_2px_rgba(23,31,25,0.04)] hover:border-[#003C33] hover:bg-[#F1F2EE] transition-colors cursor-pointer";
   const pendingStaticClasses = "border-[#E7E7E7] bg-[#F1F2EE] text-[#8E918B]";
 
   const baseClasses =
@@ -111,12 +115,13 @@ function ReadinessPill({
   if (resolved.onClick) {
     return (
       <button
-        className={cn(baseClasses, pendingLinkClasses, "cursor-pointer")}
+        className={cn(baseClasses, pendingLinkClasses)}
         onClick={resolved.onClick}
         type="button"
       >
         <Icon className="h-3.5 w-3.5" aria-hidden="true" />
         {resolved.actionLabel ?? resolved.displayLabel}
+        <ArrowRight className="h-3 w-3 text-[#8E918B]" aria-hidden="true" />
       </button>
     );
   }
@@ -127,6 +132,7 @@ function ReadinessPill({
       <Link className={cn(baseClasses, pendingLinkClasses)} href={resolved.href}>
         <Icon className="h-3.5 w-3.5" aria-hidden="true" />
         {resolved.displayLabel}
+        <ArrowRight className="h-3 w-3 text-[#8E918B]" aria-hidden="true" />
       </Link>
     );
   }
