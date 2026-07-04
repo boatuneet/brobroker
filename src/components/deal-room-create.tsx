@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Search } from "lucide-react";
 import {
   type BrokerSegment,
   getBuyersForSegment,
@@ -44,7 +44,7 @@ export function DealRoomCreate({
   storedBuyers = [],
   storedListings = [],
   initialBuyerId,
-  initialListingId,
+  initialListingIds = [],
 }: {
   includeDemo?: boolean;
   segment?: BrokerSegment;
@@ -52,10 +52,10 @@ export function DealRoomCreate({
      They list first so real buyers/inventory outrank the demo dataset. */
   storedBuyers?: BuyerProfile[];
   storedListings?: YachtListing[];
-  /* Prefill from a buyer's Matches tab: which buyer the room is for, and an
-     optional listing to pre-select ("Add to deal room" on a match card). */
+  /* Prefill from a buyer's Matches tab: which buyer the room is for, and the
+     listings the broker multi-selected there to pre-check. */
   initialBuyerId?: string;
-  initialListingId?: string;
+  initialListingIds?: string[];
 }) {
   const router = useRouter();
   const pools = useMemo<DealRoomDataPools>(
@@ -90,17 +90,16 @@ export function DealRoomCreate({
       .map((match) => match.listingId);
   }, [buyerId, buyers, listings]);
 
-  /* Seed selection with the suggested matches for the initial buyer, plus the
-     prefilled listing (if any) so "Add to deal room" arrives pre-selected. */
+  /* Seed selection: if the broker arrived from the Matches tab with explicit
+     picks, honor exactly those (respect the curation they already did).
+     Otherwise fall back to the top-two suggested matches. */
   const [selectedListingIds, setSelectedListingIds] = useState<string[]>(() => {
+    const explicit = initialListingIds.filter((id) => listings.some((l) => l.id === id));
+    if (explicit.length) return Array.from(new Set(explicit));
     const buyer = buyers.find((candidate) => candidate.id === resolvedInitialBuyerId);
-    const suggested = buyer
+    return buyer
       ? generateMatchesForBuyer(buyer, listings).slice(0, 2).map((match) => match.listingId)
       : [];
-    const seeded = initialListingId && listings.some((l) => l.id === initialListingId)
-      ? [initialListingId, ...suggested]
-      : suggested;
-    return Array.from(new Set(seeded));
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -115,6 +114,17 @@ export function DealRoomCreate({
         : [],
     );
   }
+
+  const [listingQuery, setListingQuery] = useState("");
+  const filteredListings = useMemo(() => {
+    const q = listingQuery.trim().toLowerCase();
+    if (!q) return listings;
+    return listings.filter((listing) =>
+      [listing.name, listing.builder, listing.model, listing.location]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(q)),
+    );
+  }, [listings, listingQuery]);
 
   function toggleListing(listingId: string) {
     setSelectedListingIds((current) =>
@@ -270,46 +280,72 @@ export function DealRoomCreate({
                   Add inventory to curate a deal room shortlist.
                 </p>
               ) : (
-                <ul className="grid gap-2">
-                  {listings.map((listing) => {
-                    const isSelected = selectedListingIds.includes(listing.id);
-                    const isSuggested = suggestedListingIds.includes(listing.id);
-                    return (
-                      <li key={listing.id}>
-                        <label
-                          className={cn(
-                            "flex cursor-pointer items-start gap-3 rounded-[8px] border px-4 py-3 transition-colors",
-                            isSelected
-                              ? "border-[#003C33] bg-[#F1F2EE]/40"
-                              : "border-[#E7E7E7] bg-white hover:border-[#003C33]",
-                          )}
-                        >
-                          <input
-                            checked={isSelected}
-                            className="mt-1 h-4 w-4 cursor-pointer accent-[#003C33]"
-                            onChange={() => toggleListing(listing.id)}
-                            type="checkbox"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                              <p className="text-[13px] font-medium text-[#171719]">
-                                {listing.name}
-                              </p>
-                              {isSuggested ? (
-                                <span className="text-[11px] uppercase tracking-[0.14em] text-[#003C33]">
-                                  Suggested
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="mt-0.5 text-[12px] text-[#8E918B]">
-                              {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
-                            </p>
-                          </div>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <>
+                  {/* Search — the segment can hold hundreds of listings, so
+                      let the broker filter by name/builder/location instead of
+                      scrolling the whole inventory. */}
+                  <div className="relative">
+                    <Search
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
+                    />
+                    <input
+                      className="h-10 w-full rounded-[8px] border border-[#E7E7E7] bg-white pl-9 pr-3 text-[13px] text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33]"
+                      onChange={(event) => setListingQuery(event.target.value)}
+                      placeholder="Search listings by name, builder, or location"
+                      type="search"
+                      value={listingQuery}
+                    />
+                  </div>
+                  {/* Capped height (~10 rows) with internal scroll so the page
+                      stays compact regardless of inventory size. */}
+                  {filteredListings.length === 0 ? (
+                    <p className="mt-4 text-[13px] leading-6 text-[#8E918B]">
+                      No listings match “{listingQuery}”.
+                    </p>
+                  ) : (
+                    <ul className="mt-3 grid max-h-[440px] gap-2 overflow-y-auto pr-1">
+                      {filteredListings.map((listing) => {
+                        const isSelected = selectedListingIds.includes(listing.id);
+                        const isSuggested = suggestedListingIds.includes(listing.id);
+                        return (
+                          <li key={listing.id}>
+                            <label
+                              className={cn(
+                                "flex cursor-pointer items-start gap-3 rounded-[8px] border px-4 py-3 transition-colors",
+                                isSelected
+                                  ? "border-[#003C33] bg-[#F1F2EE]/40"
+                                  : "border-[#E7E7E7] bg-white hover:border-[#003C33]",
+                              )}
+                            >
+                              <input
+                                checked={isSelected}
+                                className="mt-1 h-4 w-4 cursor-pointer accent-[#003C33]"
+                                onChange={() => toggleListing(listing.id)}
+                                type="checkbox"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                  <p className="text-[13px] font-medium text-[#171719]">
+                                    {listing.name}
+                                  </p>
+                                  {isSuggested ? (
+                                    <span className="text-[11px] uppercase tracking-[0.14em] text-[#003C33]">
+                                      Suggested
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="mt-0.5 text-[12px] text-[#8E918B]">
+                                  {listing.builder} {listing.model} · {getListingSpecSummary(listing)}
+                                </p>
+                              </div>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
               )}
             </div>
           </Card>

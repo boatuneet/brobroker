@@ -18,7 +18,13 @@ export default async function NewDealRoomPage({
 }) {
   const params = await searchParams;
   const initialBuyerId = Array.isArray(params.buyer) ? params.buyer[0] : params.buyer;
-  const initialListingId = Array.isArray(params.listing) ? params.listing[0] : params.listing;
+  // `?listing=` may repeat (multi-select from the buyer's Matches tab) —
+  // normalize to a list either way.
+  const initialListingIds = Array.isArray(params.listing)
+    ? params.listing
+    : params.listing
+      ? [params.listing]
+      : [];
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
   const [storedBuyers, storedListings] = await Promise.all([
@@ -42,7 +48,7 @@ export default async function NewDealRoomPage({
         key={segment}
         includeDemo={includeDemo}
         initialBuyerId={initialBuyerId}
-        initialListingId={initialListingId}
+        initialListingIds={initialListingIds}
         segment={segment}
         storedBuyers={storedBuyers}
         storedListings={storedListings}

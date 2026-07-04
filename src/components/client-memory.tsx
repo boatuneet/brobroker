@@ -915,6 +915,15 @@ export function BuyerMemoryProfile({
       ? buildBuyerMemoryModel(staticProfile.buyer, segment, inventory)
       : undefined;
   const [tab, setTab] = useState<BuyerProfileTab>(initialTab ?? "memory");
+  // Listings the broker has ticked on the Matches tab to carry into a new deal
+  // room in one go (curate here, then "Build shortlist room" once).
+  const [shortlistIds, setShortlistIds] = useState<string[]>([]);
+  const toggleShortlist = (listingId: string) =>
+    setShortlistIds((current) =>
+      current.includes(listingId)
+        ? current.filter((id) => id !== listingId)
+        : [...current, listingId],
+    );
   const profileCardRef = useRef<HTMLDivElement>(null);
   const stageControlRef = useRef<HTMLDivElement>(null);
   // Switch the profile-card tab and scroll it into view — used by the deal
@@ -1448,10 +1457,12 @@ export function BuyerMemoryProfile({
                   </button>
                   <Link
                     className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
-                    href={`/deal-rooms/new?buyer=${buyer.id}`}
+                    href={`/deal-rooms/new?buyer=${buyer.id}${shortlistIds.map((id) => `&listing=${id}`).join("")}`}
                   >
                     <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                    Build shortlist room
+                    {shortlistIds.length
+                      ? `Build shortlist room (${shortlistIds.length})`
+                      : "Build shortlist room"}
                   </Link>
                 </div>
               </div>
@@ -1511,10 +1522,11 @@ export function BuyerMemoryProfile({
                 {sortedMatches.map((match) => (
                   <MatchPanel
                     key={match.id}
-                    buyerId={buyer.id}
                     inventory={inventory}
                     match={match}
                     segment={segment}
+                    selected={shortlistIds.includes(match.listingId)}
+                    onToggleSelect={() => toggleShortlist(match.listingId)}
                   />
                 ))}
               </ul>
@@ -2098,12 +2110,14 @@ function MatchPanel({
   inventory,
   match,
   segment,
-  buyerId,
+  selected,
+  onToggleSelect,
 }: {
   inventory?: YachtListing[];
   match: MatchResult;
   segment?: BrokerSegment;
-  buyerId: string;
+  selected: boolean;
+  onToggleSelect: () => void;
 }) {
   const listing = inventory?.find((listing) => listing.id === match.listingId) ?? getListingById(match.listingId, segment);
   const owner = listing ? getSellerById(listing.ownerId, segment) : undefined;
@@ -2243,17 +2257,33 @@ function MatchPanel({
             )}
           </div>
 
-          {/* Action row — the "what's next" for a match: pull it into a
-              buyer-safe deal room (prefilled with this buyer + listing) or
-              open the listing. This is how the Match stage advances to Share. */}
+          {/* Action row — tick matches to build a shortlist, then create the
+              room once via "Build shortlist room" above. This is how the Match
+              stage advances to Share. */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Link
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
-              href={`/deal-rooms/new?buyer=${buyerId}&listing=${match.listingId}`}
+            <button
+              aria-pressed={selected}
+              className={cn(
+                "inline-flex min-h-8 items-center gap-1.5 rounded-[8px] px-3 text-[12.5px] font-medium transition-colors",
+                selected
+                  ? "bg-[#003C33] text-white hover:bg-[#0B4A3F]"
+                  : "border border-[#003C33] bg-white text-[#003C33] hover:bg-[#F1F2EE]",
+              )}
+              onClick={onToggleSelect}
+              type="button"
             >
-              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-              Add to deal room
-            </Link>
+              {selected ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Added to shortlist
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Add to shortlist
+                </>
+              )}
+            </button>
             {listing ? (
               <Link
                 className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33]"
