@@ -6,10 +6,12 @@ import type {
 } from "@/lib/types";
 import { daysUntil, formatCurrencyCompact } from "@/lib/utils";
 
-/* Real "now" — demo data is date-shifted to the current day at load
-   (see demo-data.ts), so timeline math runs on the actual clock. Kept as
-   a module constant so one render pass shares a single reference point. */
-export const DEMO_NOW = new Date();
+/* Real "today" — demo data is date-shifted to the current day at load
+   (see demo-data.ts), so timeline math runs on the actual calendar.
+   Pinned to UTC midnight rather than the live clock: timeline layout is
+   day-granular, and a milliseconds-fresh Date() renders sub-percent
+   position differences between server and client — a hydration mismatch. */
+export const DEMO_NOW = new Date(new Date().setUTCHours(0, 0, 0, 0));
 
 export const STAGES: BuyerProfile["currentStage"][] = [
   "New Inquiry",
