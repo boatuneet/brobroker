@@ -912,142 +912,183 @@ export function ListingBrain({
           </div>
         </Card>
 
-        <div className="grid gap-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-          <div className="grid content-start gap-8">
+        {/* Masonry via native CSS columns: card heights vary per listing
+            (0–3 matches, 0–N objections), so any fixed 2-column split leaves
+            one side blank. `columns` balances height automatically, whatever
+            the data. break-inside-avoid keeps each card whole; mb-8 is the
+            inter-card gap (column-gap set separately). */}
+        <div className="xl:columns-2 xl:gap-8 [&>*]:mb-8 [&>*]:break-inside-avoid xl:[&>*:last-child]:mb-0">
             <Card>
-              <CardHeader eyebrow="Source-aware answers" title="Broker question examples" />
+              <CardHeader
+                title="Broker-ready positioning"
+                action={
+                  <CardHeaderIcon>
+                    <Bot className="h-4 w-4" aria-hidden="true" />
+                  </CardHeaderIcon>
+                }
+              />
               <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-                {questions.map((question) => {
-                  const response = answerListingQuestion(listing, question);
-                  return (
-                    <li key={question} className="grid gap-3 px-6 py-5 sm:grid-cols-[28px_1fr]">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#171719]">
-                        <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                      </div>
-                      <div className="min-w-0">
-                        <h2 className="text-[14px] font-medium text-[#171719]">{question}</h2>
-                        <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">
-                          {response.answer}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {response.sources.length ? (
-                            response.sources.map((source) => (
-                              <Badge key={source} tone="success">
-                                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                                {source}
-                              </Badge>
-                            ))
-                          ) : (
-                            <Badge tone="error">Missing approved source</Badge>
-                          )}
-                          {response.missing.map((missing) => (
-                            <Badge key={missing} tone="warning">
-                              Missing: {missing}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
+                <PitchRow label="30-second pitch" value={pitch.thirtySecond} />
+                <PitchRow label="Buyer-safe angle" value={pitch.buyerSafe} />
+                <PitchRow label="Internal shorthand" value={pitch.short} />
               </ul>
             </Card>
-        </div>
 
-        <div className="grid content-start gap-8">
-          <Card>
-            <CardHeader
-              title="Broker-ready positioning"
-              action={
-                <CardHeaderIcon>
-                  <Bot className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-              <PitchRow label="30-second pitch" value={pitch.thirtySecond} />
-              <PitchRow label="Buyer-safe angle" value={pitch.buyerSafe} />
-              <PitchRow label="Internal shorthand" value={pitch.short} />
-            </ul>
-          </Card>
-
-          <Card>
-            <CardHeader
-              title={comparison.title}
-              action={
-                <CardHeaderIcon>
-                  <Gauge className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-              {comparison.points.map((point) => (
-                <li key={point} className="px-6 py-3.5 text-sm leading-6 text-[#5F625E]">
-                  {point}
-                </li>
-              ))}
-            </ul>
-          </Card>
-
-          <Card>
-            <CardHeader eyebrow="Buyer fit" title="Top buyers for this listing" />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-              {fitSignals.topMatches.map(({ buyer, match }) => (
-                <li key={match.id} className="px-6 py-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="text-[14px] font-medium text-[#171719]">{buyer?.name}</h3>
-                      <p className="mt-0.5 text-[12px] uppercase tracking-[0.12em] text-[#8E918B]">
-                        {match.category}
-                      </p>
-                    </div>
-                    <span className="font-mono text-[13px] font-medium text-[#171719]">
-                      {percentage(match.fitScore)}
-                    </span>
-                  </div>
-                  <ProgressBar className="mt-3" value={match.fitScore} />
-                  <p className="mt-3 text-[13px] leading-6 text-[#5F625E]">{match.rationale}</p>
-                </li>
-              ))}
-            </ul>
-          </Card>
-
-          <Card>
-            <CardHeader
-              title="Rejections and objections"
-              action={
-                <CardHeaderIcon>
-                  <MessageSquareText className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-              {objectionItems.length ? (
-                objectionItems.map((objection) => (
-                  <li
-                    key={`${objection.source}-${objection.buyerName}-${objection.raisedAt}`}
-                    className="px-6 py-5"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusDot className="bg-[#A86642]" />
-                      <h3 className="text-[14px] font-medium text-[#171719]">
-                        {objection.buyerName ?? "Unknown buyer"}
-                      </h3>
-                    </div>
-                    <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{objection.detail}</p>
+            <Card>
+              <CardHeader
+                title={comparison.title}
+                action={
+                  <CardHeaderIcon>
+                    <Gauge className="h-4 w-4" aria-hidden="true" />
+                  </CardHeaderIcon>
+                }
+              />
+              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
+                {comparison.points.map((point) => (
+                  <li key={point} className="px-6 py-3.5 text-[13px] leading-6 text-[#5F625E]">
+                    {point}
                   </li>
-                ))
+                ))}
+              </ul>
+            </Card>
+
+            <Card>
+              <CardHeader eyebrow="Buyer fit" title="Top buyers for this listing" />
+              <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
+                {fitSignals.topMatches.map(({ buyer, match }) => (
+                  <li key={match.id} className="px-6 py-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-[14px] font-medium text-[#171719]">{buyer?.name}</h3>
+                        <p className="mt-0.5 text-[12px] uppercase tracking-[0.12em] text-[#8E918B]">
+                          {match.category}
+                        </p>
+                      </div>
+                      <span className="font-mono text-[13px] font-medium text-[#171719]">
+                        {percentage(match.fitScore)}
+                      </span>
+                    </div>
+                    <ProgressBar className="mt-3" value={match.fitScore} />
+                    <p className="mt-3 text-[13px] leading-6 text-[#5F625E]">{match.rationale}</p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Rejections and objections"
+                action={
+                  <CardHeaderIcon>
+                    <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+                  </CardHeaderIcon>
+                }
+              />
+              {objectionItems.length ? (
+                <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
+                  {objectionItems.map((objection) => (
+                    <li
+                      key={`${objection.source}-${objection.buyerName}-${objection.raisedAt}`}
+                      className="px-6 py-5"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusDot className="bg-[#A86642]" />
+                        <h3 className="text-[14px] font-medium text-[#171719]">
+                          {objection.buyerName ?? "Unknown buyer"}
+                        </h3>
+                      </div>
+                      <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{objection.detail}</p>
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                <li className="px-6 py-5 text-sm leading-6 text-[#5F625E]">
-                  No buyer-memory objections recorded yet.
-                </li>
+                /* Compact empty state — one row, not a full-height card. */
+                <div className="flex items-center gap-2 px-6 py-4 text-[13px] leading-6 text-[#8E918B]">
+                  <MessageSquareText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>No buyer-memory objections recorded yet.</span>
+                </div>
               )}
-            </ul>
-          </Card>
-        </div>
+            </Card>
+
+            <BrokerQuestionExamplesCard listing={listing} questions={questions} />
         </div>
       </div>
     </div>
+  );
+}
+
+/* Compact, tightened Q&A block:
+   - shows up to 3 example questions; the rest sit behind a disclosure
+   - dedupes the "Missing approved source" chip when it's the only signal
+   - denser row padding than the previous wall-of-cards layout */
+function BrokerQuestionExamplesCard({
+  listing,
+  questions,
+}: {
+  listing: YachtListing;
+  questions: string[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const previewCount = 3;
+  const preview = questions.slice(0, previewCount);
+  const overflow = questions.slice(previewCount);
+  const visible = expanded ? questions : preview;
+
+  return (
+    <Card>
+      <CardHeader eyebrow="Source-aware answers" title="Broker question examples" />
+      <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
+        {visible.map((question) => {
+          const response = answerListingQuestion(listing, question);
+          const hasSources = response.sources.length > 0;
+          const hasMissing = response.missing.length > 0;
+
+          return (
+            <li key={question} className="grid gap-2.5 px-6 py-4 sm:grid-cols-[24px_1fr]">
+              <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-[#E7E7E7] bg-white text-[#171719]">
+                <HelpCircle className="h-3 w-3" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-[13px] font-medium leading-5 text-[#171719]">{question}</h2>
+                <p className="mt-1.5 text-[13px] leading-6 text-[#5F625E]">{response.answer}</p>
+                {hasSources || hasMissing ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {hasSources
+                      ? response.sources.map((source) => (
+                          <Badge key={source} tone="success">
+                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                            {source}
+                          </Badge>
+                        ))
+                      : /* Only show the "Missing approved source" chip when
+                           there are no more specific "Missing: X" chips —
+                           otherwise it duplicates the same signal. */
+                        !hasMissing && <Badge tone="error">Missing approved source</Badge>}
+                    {response.missing.map((missing) => (
+                      <Badge key={missing} tone="warning">
+                        Missing: {missing}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {overflow.length ? (
+        <div className="border-t border-[#E7E7E7] px-6 py-3">
+          <button
+            aria-expanded={expanded}
+            className="text-[12px] font-medium text-[#003C33] transition-colors hover:text-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
+            onClick={() => setExpanded((prev) => !prev)}
+            type="button"
+          >
+            {expanded ? "Show fewer questions" : `More questions (${overflow.length})`}
+          </button>
+        </div>
+      ) : null}
+    </Card>
   );
 }
 

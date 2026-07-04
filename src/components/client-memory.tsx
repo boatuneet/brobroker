@@ -102,6 +102,8 @@ const PAGE_SIZE = 12;
 
 function dueLabel(date: string) {
   const delta = daysUntil(date);
+  // ponytail: past 14 days overdue, day counters read as noise. Show the date instead.
+  if (delta < -14) return `Overdue since ${formatDate(date)}`;
   if (delta < 0) return `${Math.abs(delta)}d overdue`;
   if (delta === 0) return "Due today";
   if (delta === 1) return "Due tomorrow";
@@ -1602,7 +1604,7 @@ export function BuyerMemoryProfile({
         ) : null}
       </Card>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:items-start">
         <div className="grid content-start gap-6">
           {/* Rejected assets — Card with divide list */}
           <Card>
@@ -1644,9 +1646,9 @@ export function BuyerMemoryProfile({
                 ))}
               </ul>
             ) : (
-              <div className="border-t border-[#E7E7E7] px-6 py-10 text-center text-[#8E918B] text-[13px]">
-                <MapPin className="mx-auto h-5 w-5 text-[#8E918B] opacity-50 mb-2" />
-                No rejected assets recorded for this buyer.
+              <div className="flex items-center gap-2.5 border-t border-[#E7E7E7] px-6 py-3 text-[13px] text-[#8E918B]">
+                <MapPin className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
+                <span>No rejected assets recorded for this buyer.</span>
               </div>
             )}
           </Card>
@@ -1678,87 +1680,55 @@ export function BuyerMemoryProfile({
           </Card>
         </div>
 
-        {/* Right rail — ActionStack and details */}
+        {/* Right rail — ActionStack */}
         <div className="grid content-start gap-6">
           <ActionStack actions={nextActions} title="Memory-derived next actions" />
-
-          {/* Buyer-safe content Card */}
-          <Card className="overflow-hidden border border-[#E7E7E7]">
-            <CardHeader
-              title="Buyer-safe content"
-              description="Copyable preview of the memory-derived brief"
-              action={
-                <CardHeaderIcon>
-                  <MessageSquareText className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            <div className="p-6 bg-white border-t border-[#E7E7E7]">
-              <div className="bg-[#FBFBFB] border border-[#E7E7E7] rounded-[12px] p-5">
-                <h3 className="text-[14px] font-semibold text-[#171719] leading-snug">
-                  &ldquo;{buyerSafeBrief.headline}&rdquo;
-                </h3>
-                <ul className="mt-4 space-y-2.5 border-l-2 border-[#E2ECE9] pl-4">
-                  {buyerSafeBrief.body.map((line, index) => (
-                    <li
-                      key={`${line}-${index}`}
-                      className="text-[13px] leading-relaxed text-[#5F625E]"
-                    >
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="mt-5 pt-4 border-t border-[#E7E7E7]">
-                <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#8E918B] block mb-2">
-                  Approved facts referenced:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {buyerSafeBrief.approvedFacts.map((fact, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center text-[12px] bg-[#E1F1EA]/60 text-[#0F8F62] px-2.5 py-0.5 rounded-[6px] font-medium border border-[#E1F1EA]"
-                    >
-                      {fact}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Verification context Card */}
-          <Card className="overflow-hidden border border-[#E7E7E7]">
-            <CardHeader
-              title={verification?.requestedAccess ?? "Access request"}
-              eyebrow="Verification context"
-              action={
-                <CardHeaderIcon>
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            <div className="p-6 bg-white border-t border-[#E7E7E7]">
-              <div className="flex items-center justify-between gap-3">
-                <Badge className={verificationTone.className}>
-                  <StatusDot className={verificationTone.dotClassName} />
-                  {verification?.status ?? "Needs Review"}
-                </Badge>
-                <span className="font-mono text-base font-bold tabular-nums text-[#171719]">
-                  Score: {verification?.score ?? 0}
-                </span>
-              </div>
-              
-              <ProgressBar className="mt-4" value={verification?.score ?? 0} />
-              
-              <p className="mt-4 text-[13px] leading-relaxed text-[#5F625E] bg-[#FBFBFB] p-3 rounded-[8px] border border-[#E7E7E7]">
-                {verification?.recommendedAction ?? "No verification recommendation recorded."}
-              </p>
-            </div>
-          </Card>
         </div>
       </div>
+
+      {/* Buyer-safe content — full-width below the two-column row */}
+      <Card className="mt-6 overflow-hidden border border-[#E7E7E7]">
+        <CardHeader
+          title="Buyer-safe content"
+          description="Copyable preview of the memory-derived brief"
+          action={
+            <CardHeaderIcon>
+              <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+            </CardHeaderIcon>
+          }
+        />
+        <div className="grid gap-5 border-t border-[#E7E7E7] bg-white p-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+          <div className="bg-[#FBFBFB] border border-[#E7E7E7] rounded-[12px] p-5">
+            <h3 className="text-[14px] font-semibold text-[#171719] leading-snug">
+              &ldquo;{buyerSafeBrief.headline}&rdquo;
+            </h3>
+            <ul className="mt-4 space-y-2.5 border-l-2 border-[#E2ECE9] pl-4">
+              {buyerSafeBrief.body.map((line, index) => (
+                <li
+                  key={`${line}-${index}`}
+                  className="text-[13px] leading-relaxed text-[#5F625E]"
+                >
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="lg:border-l lg:border-[#E7E7E7] lg:pl-5">
+            <span className="bb-mono-label block mb-2">Approved facts referenced</span>
+            <div className="flex flex-wrap gap-1.5">
+              {buyerSafeBrief.approvedFacts.map((fact, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center text-[12px] bg-[#E1F1EA]/60 text-[#0F8F62] px-2.5 py-0.5 rounded-[6px] font-medium border border-[#E1F1EA]"
+                >
+                  {fact}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <ConfirmDialog
         cancelLabel="Keep buyer"
