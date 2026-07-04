@@ -55,11 +55,16 @@ import {
 import type {
   BuyerProfile,
   Conversation,
+  DealRoom,
   FollowUpDraft,
   MatchResult,
   Priority,
   YachtListing,
 } from "@/lib/types";
+import { DealWorkflowStepper } from "./buyers/deal-workflow-stepper";
+import { BuyerTimeline } from "./buyers/buyer-timeline";
+import { BuyerTrust } from "./buyers/buyer-trust";
+import { StageControl } from "./buyers/stage-control";
 import { cn, daysUntil, formatCurrency, formatDate, percentage } from "@/lib/utils";
 import {
   Badge,
@@ -120,6 +125,8 @@ function priorityTone(priority: Priority): "error" | "warning" | "info" | "neutr
 function stageTone(
   stage: BuyerProfile["currentStage"],
 ): "success" | "info" | "warning" | "neutral" {
+  if (stage === "Closed Won") return "success";
+  if (stage === "Closed Lost") return "neutral";
   if (stage === "Negotiation") return "success";
   if (stage === "Viewing Planned") return "success";
   if (stage === "Shortlist Sent") return "info";
@@ -864,6 +871,8 @@ function BuyersExplainerRow({
   );
 }
 
+type BuyerProfileTab = "memory" | "matches" | "drafts" | "timeline" | "trust";
+
 export function BuyerMemoryProfile({
   buyerId,
   buyerOverride,
@@ -873,15 +882,17 @@ export function BuyerMemoryProfile({
   storedListings = [],
   storedConversations = [],
   storedDrafts = [],
+  storedDealRoom,
 }: {
   buyerId: string;
   buyerOverride?: BuyerProfile;
   includeDemo?: boolean;
-  initialTab?: "memory" | "matches" | "drafts";
+  initialTab?: BuyerProfileTab;
   segment?: BrokerSegment;
   storedListings?: YachtListing[];
   storedConversations?: Conversation[];
   storedDrafts?: FollowUpDraft[];
+  storedDealRoom?: DealRoom;
 }) {
   const staticProfile = includeDemo ? getBuyerMemoryProfile(buyerId, segment) : undefined;
   // Match a real (stored) buyer only against the broker's real inventory —
@@ -897,7 +908,11 @@ export function BuyerMemoryProfile({
     : staticProfile
       ? buildBuyerMemoryModel(staticProfile.buyer, segment, inventory)
       : undefined;
-  const [tab, setTab] = useState<"memory" | "matches" | "drafts">(initialTab ?? "memory");
+  const [tab, setTab] = useState<BuyerProfileTab>(initialTab ?? "memory");
+  // Local-only buyer overlay so demo-buyer stage / closed-value changes reflect
+  // immediately without a Supabase round trip. Stored buyers get a router
+  // refresh through the stage helper.
+  const [localBuyer, setLocalBuyer] = useState<BuyerProfile | null>(null);
   const [aiMatches, setAiMatches] = useState<AiMatch[] | null>(null);
   const [aiMode, setAiMode] = useState<"ai" | "deterministic" | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -989,7 +1004,6 @@ export function BuyerMemoryProfile({
   }
 
   const {
-    buyer,
     verification,
     matches,
     conversations: demoConversations,
@@ -998,6 +1012,11 @@ export function BuyerMemoryProfile({
     nextActions,
     buyerSafeBrief,
   } = profile;
+  const buyer = localBuyer ?? profile.buyer;
+  // A "stored" buyer is one that lives in Supabase (buyerOverride was passed
+  // in from the server component). Demo buyers get an optimistic-only path.
+  const isStoredBuyer = Boolean(buyerOverride);
+  const buyerTasks = getTasksForSegment(segment).filter((task) => task.buyerId === buyer.id);
   const conversations = mergeById(storedConversations, demoConversations);
   const drafts = mergeById(storedDrafts, demoDrafts);
   const verificationTone = getVerificationTone(verification?.status ?? "Needs Review");
@@ -1133,7 +1152,11 @@ export function BuyerMemoryProfile({
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
-            <Badge tone={stageTone(buyer.currentStage)}>{buyer.currentStage}</Badge>
+            <StageControl
+              buyer={buyer}
+              isStored={isStoredBuyer}
+              onLocalChange={(next) => setLocalBuyer(next)}
+            />
             <Badge tone={urgencyTone(buyer.urgency)}>{buyer.urgency}</Badge>
             <Badge className={verificationTone.className}>
               <StatusDot className={verificationTone.dotClassName} />
@@ -1263,6 +1286,20 @@ export function BuyerMemoryProfile({
         </Tile>
       </section>
 
+      {/* Deal workflow — Capture → Qualify → Match → Share → View → Close.
+          State is derived from real data; in-progress drafts show an amber dot
+          so an unfinished flow surfaces here instead of vanishing. */}
+      <div className="mt-7">
+        <DealWorkflowStepper
+          buyer={buyer}
+          conversations={conversations}
+          matches={matches}
+          drafts={drafts}
+          dealRoom={storedDealRoom}
+          verification={verification}
+        />
+      </div>
+
       {/* Tabbed Buyer Profile card — overflow-hidden so inner rounded edges clip cleanly. */}
       <Card className="mt-7 overflow-hidden rounded-[12px]" id="buyer-profile">
         <CardHeader
@@ -1271,10 +1308,25 @@ export function BuyerMemoryProfile({
               ? "Criteria and relationship memory"
               : tab === "matches"
                 ? "Current recommendations and missing criteria"
-                : "Recent conversations and drafts"
+                : tab === "timeline"
+                  ? "Timeline of tasks, conversations, and drafts"
+                  : tab === "trust"
+                    ? "Verification and access readiness"
+                    : "Recent conversations and drafts"
           }
           action={<BuyerMemoryNav value={tab} onChange={setTab} />}
         />
+
+        {tab === "timeline" ? (
+          <BuyerTimeline
+            buyer={buyer}
+            tasks={buyerTasks}
+            conversations={conversations}
+            drafts={drafts}
+          />
+        ) : null}
+
+        {tab === "trust" ? <BuyerTrust verification={verification} /> : null}
 
         {tab === "memory" ? (
           <div className="grid gap-5 px-6 py-5">
@@ -1533,16 +1585,7 @@ export function BuyerMemoryProfile({
                 <div className="mt-3 max-h-[380px] overflow-y-auto rounded-[12px] border border-[#E7E7E7] bg-white">
                   <ul className="divide-y divide-[#E7E7E7]">
                     {drafts.map((draft) => (
-                      <li key={draft.id} className="px-5 py-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge tone="success">{draft.status}</Badge>
-                          <Badge tone="neutral">{draft.channel}</Badge>
-                        </div>
-                        <h2 className="mt-2 text-[14px] font-semibold text-[#171719]">
-                          {draft.subject}
-                        </h2>
-                        <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{draft.body}</p>
-                      </li>
+                      <DraftRow key={draft.id} draft={draft} />
                     ))}
                   </ul>
                 </div>
@@ -1863,16 +1906,59 @@ function NotesTile({
   );
 }
 
+function DraftRow({ draft }: { draft: FollowUpDraft }) {
+  // "Approve & copy" label — sending isn't wired end-to-end yet, so we don't
+  // promise a send. Clipboard copy gives the broker the exact approved text
+  // they can paste into their real email/WhatsApp client.
+  const [copied, setCopied] = useState(false);
+  const disabled = draft.status === "Approved";
+
+  async function onApprove() {
+    try {
+      await navigator.clipboard.writeText(`${draft.subject}\n\n${draft.body}`);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Best-effort. Some browsers block clipboard writes without user gesture,
+      // but a click IS a gesture — this path is only hit when clipboard is
+      // fully blocked (e.g. non-secure origin).
+    }
+  }
+
+  return (
+    <li className="px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone="success">{draft.status}</Badge>
+          <Badge tone="neutral">{draft.channel}</Badge>
+        </div>
+        <button
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] disabled:opacity-50"
+          disabled={disabled}
+          onClick={onApprove}
+          type="button"
+        >
+          {copied ? "Copied to clipboard" : "Approve & copy"}
+        </button>
+      </div>
+      <h2 className="mt-2 text-[14px] font-semibold text-[#171719]">{draft.subject}</h2>
+      <p className="mt-2 text-[13px] leading-6 text-[#5F625E]">{draft.body}</p>
+    </li>
+  );
+}
+
 function BuyerMemoryNav({
   value,
   onChange,
 }: {
-  value: "memory" | "matches" | "drafts";
-  onChange: (next: "memory" | "matches" | "drafts") => void;
+  value: BuyerProfileTab;
+  onChange: (next: BuyerProfileTab) => void;
 }) {
-  const items: { label: string; key: "memory" | "matches" | "drafts" }[] = [
+  const items: { label: string; key: BuyerProfileTab }[] = [
     { label: "Memory", key: "memory" },
     { label: "Matches", key: "matches" },
+    { label: "Timeline", key: "timeline" },
+    { label: "Trust", key: "trust" },
     { label: "Drafts", key: "drafts" },
   ];
 

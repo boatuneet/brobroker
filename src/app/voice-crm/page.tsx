@@ -5,7 +5,7 @@ import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 
 export const metadata = {
-  title: "Voice CRM · BroBroker",
+  title: "Capture · BroBroker",
   description: "Turn call notes into memory, tasks, and follow-ups.",
 };
 
@@ -21,7 +21,7 @@ export default async function VoiceCrmPage({
   const prefillBuyerId = Array.isArray(params.buyer) ? params.buyer[0] : params.buyer;
 
   return (
-    <AppShell active="Voice CRM" pageActions={<VoiceCrmClearButton />} pageTitle="Voice CRM">
+    <AppShell active="Capture" pageActions={<VoiceCrmClearButton />} pageTitle="Capture">
       <VoiceToCrmWorkspace
         key={segment}
         includeDemo={includeDemo}

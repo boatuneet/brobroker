@@ -3,6 +3,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   Bot,
   CheckCircle2,
   Clock3,
@@ -11,6 +12,7 @@ import {
   Info,
   Mic,
   RotateCcw,
+  Save,
   Send,
   Sparkles,
   Target,
@@ -144,6 +146,50 @@ export function VoiceCrmClearButton() {
   );
 }
 
+/* Normalize a person's name for comparison: strip accents, punctuation, collapse
+   whitespace, lowercase. Used by the mismatch guard so "O'Brien" == "obrien". */
+function normalizeName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/* Compare the extracted (parsed) buyer name against the selected saved buyer's
+   name. Returns null when they plausibly match; returns the pair when they
+   clearly refer to different people. Matches on full-name equality OR shared
+   last name — first-name-only matches (e.g. two different Daniels) trigger the
+   warning. Sentinel "New buyer" from the extractor is treated as no mismatch. */
+function detectBuyerNameMismatch(
+  parsedName: string | undefined,
+  selectedName: string | undefined,
+): { parsed: string; selected: string } | null {
+  if (!parsedName || !selectedName) return null;
+  if (parsedName === "New buyer") return null;
+
+  const parsed = normalizeName(parsedName);
+  const selected = normalizeName(selectedName);
+  if (!parsed || !selected) return null;
+  if (parsed === selected) return null;
+
+  const parsedTokens = parsed.split(" ");
+  const selectedTokens = selected.split(" ");
+  const parsedLast = parsedTokens[parsedTokens.length - 1];
+  const selectedLast = selectedTokens[selectedTokens.length - 1];
+  if (parsedLast && parsedLast === selectedLast) return null;
+
+  // Single-token parsed name (just a first name) — only warn if it doesn't
+  // appear anywhere in the selected buyer's name.
+  if (parsedTokens.length === 1) {
+    if (selectedTokens.includes(parsedTokens[0])) return null;
+  }
+
+  return { parsed: parsedName, selected: selectedName };
+}
+
 export function VoiceToCrmWorkspace({
   includeDemo = true,
   prefillBuyerId,
@@ -172,6 +218,13 @@ export function VoiceToCrmWorkspace({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingDeleteRunId, setPendingDeleteRunId] = useState<string | null>(null);
+  // Persisted-to-CRM flag for the current parse. Save button flips this true
+  // after a successful persistVoiceRunToSupabase (or local mirror when offline).
+  const [savedToCrm, setSavedToCrm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Broker's explicit acknowledgement of the name mismatch: "keep" (stay on the
+  // selected buyer despite the mismatch) or null (unresolved — blocks save).
+  const [mismatchAck, setMismatchAck] = useState<"keep" | null>(null);
   // Default to "existing" only if we actually have saved buyers; otherwise "new"
   // so the workspace isn't stuck with an empty combobox.
   const [captureMode, setCaptureMode] = useState<CaptureMode>(
@@ -220,7 +273,12 @@ export function VoiceToCrmWorkspace({
 
   const hasParsed = parsedSummary.trim().length > 0;
 
-  async function parseCurrentSummary() {
+  // Parse-only: extract memory + generate drafts as a PREVIEW. Nothing is
+  // persisted here — no Supabase write, no local runs list, no session buyer
+  // mirror. The broker reviews the parsed result and then hits "Save to CRM"
+  // to commit. This separation lets the mismatch guard interrupt before any
+  // data lands.
+  function parseCall() {
     const trimmed = callSummary.trim();
     if (!trimmed) return;
     const nextWorkflow = getVoiceToCrmWorkflow(callSummary, segment, { includeDemo });
@@ -229,15 +287,31 @@ export function VoiceToCrmWorkspace({
       ...draft,
       id: `${runId}-${draft.id}`,
     }));
+
+    setParsedSummary(callSummary);
+    setDrafts(runDrafts);
+    setAuditLog(nextWorkflow.auditTrail);
+    setActiveRunId(runId);
+    setSyncMessage(null);
+    setSyncError(null);
+    setSavedToCrm(false);
+    setMismatchAck(null);
+  }
+
+  // Save-to-CRM: commits the current parse to Supabase (when configured) and
+  // mirrors it into the local runs list + session buyers. Reuses the exact
+  // persistence path the old combined parse-and-save flow used.
+  async function saveToCrm() {
+    if (!parsedSummary.trim() || !activeRunId) return;
+    setSaving(true);
+    const nextWorkflow = getVoiceToCrmWorkflow(parsedSummary, segment, { includeDemo });
+    const runId = activeRunId;
+    // Re-key generated task ids to this run id (drafts already carry it).
     const runTasks = nextWorkflow.tasks.map((task) => ({
       ...task,
       id: `${runId}-${task.id}`,
     }));
 
-    // Buyer-attach branching:
-    // - "existing" mode → reuse selected buyer's id + name so the upsert lands
-    //   on the same buyers row (Supabase upsert is keyed on id).
-    // - "new" mode → fall back to extracted buyer or a synthetic voice-run id.
     const useExistingBuyer = captureMode === "existing" && selectedBuyer;
     const effectiveBuyerName = useExistingBuyer
       ? selectedBuyer.name
@@ -246,8 +320,6 @@ export function VoiceToCrmWorkspace({
       ? selectedBuyer.id
       : (nextWorkflow.buyer?.id ?? buildVoiceBuyerId(runId, nextWorkflow.extracted.buyerName));
 
-    // Carry the buyer-attach decision into downstream workflow snapshots so the
-    // parsed CRM card and persistence both reference the same buyer name.
     const effectiveWorkflow = useExistingBuyer
       ? {
           ...nextWorkflow,
@@ -258,12 +330,6 @@ export function VoiceToCrmWorkspace({
         }
       : nextWorkflow;
 
-    setParsedSummary(callSummary);
-    setDrafts(runDrafts);
-    setAuditLog(effectiveWorkflow.auditTrail);
-    setActiveRunId(runId);
-    setSyncMessage(null);
-    setSyncError(null);
     const run = {
       id: runId,
       buyerId,
@@ -274,12 +340,9 @@ export function VoiceToCrmWorkspace({
       createdAt: nowIso,
     };
     setSavedRuns((currentRuns) => {
-      const nextRuns = [
-        run,
-        ...currentRuns,
-      ].slice(0, 8);
+      const nextRuns = [run, ...currentRuns].slice(0, 8);
       writePersisted(voiceRunsKey, nextRuns);
-      mirrorWorkflowEvent("voice_crm_parse", run.id, {
+      mirrorWorkflowEvent("voice_crm_save", run.id, {
         extracted: effectiveWorkflow.extracted,
         tasks: effectiveWorkflow.tasks,
         drafts: effectiveWorkflow.drafts,
@@ -299,13 +362,14 @@ export function VoiceToCrmWorkspace({
 
     try {
       const persisted = await persistVoiceRunToSupabase({
-        callSummary,
-        drafts: runDrafts,
+        callSummary: parsedSummary,
+        drafts,
         run,
         segment,
         tasks: runTasks,
         workflow: effectiveWorkflow,
       });
+      setSavedToCrm(true);
       setSyncMessage(
         persisted
           ? "Buyer memory, tasks, and follow-up drafts saved."
@@ -313,6 +377,8 @@ export function VoiceToCrmWorkspace({
       );
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : "Could not save this voice CRM run.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -324,6 +390,8 @@ export function VoiceToCrmWorkspace({
     setActiveRunId("");
     setSyncMessage(null);
     setSyncError(null);
+    setSavedToCrm(false);
+    setMismatchAck(null);
     writePersisted(activeVoiceKey, null);
   }
 
@@ -371,6 +439,9 @@ export function VoiceToCrmWorkspace({
     });
   }
 
+  // "Approve & copy" — marks the draft broker-approved AND copies the draft
+  // body to the clipboard. There is no send infrastructure yet, so the broker
+  // is the delivery channel; approval + clipboard is the honest hand-off.
   async function approveDraft(id: string) {
     const draft = drafts.find((candidate) => candidate.id === id);
     setDrafts((currentDrafts) =>
@@ -382,8 +453,8 @@ export function VoiceToCrmWorkspace({
       {
         id: createAuditId(id, "approved"),
         actor: "Broker",
-        label: "Draft approved",
-        detail: `${draft?.kind ?? "Follow-up"} marked approved. No external message was sent from the prototype.`,
+        label: "Draft approved & copied",
+        detail: `${draft?.kind ?? "Follow-up"} marked approved and copied to clipboard for the broker to send.`,
         occurredAt: nowIso,
       },
       ...currentEvents,
@@ -393,12 +464,29 @@ export function VoiceToCrmWorkspace({
 
     if (!draft) return;
 
+    // Copy the draft body (subject + body when both present) so the broker can
+    // paste it into their real send channel immediately.
+    const copyText = [draft.subject, draft.body].filter(Boolean).join("\n\n");
+    let copyOk = false;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(copyText);
+        copyOk = true;
+      }
+    } catch {
+      copyOk = false;
+    }
+
     try {
       const persisted = await persistDraftApprovalToSupabase(draft);
       setSyncMessage(
-        persisted
-          ? "Draft approved and saved."
-          : "Draft approved on this device. No synced draft was found.",
+        copyOk
+          ? persisted
+            ? "Copied. Draft approved and saved."
+            : "Copied. Draft approved on this device."
+          : persisted
+            ? "Draft approved and saved. Select the text to copy manually."
+            : "Draft approved on this device. Select the text to copy manually.",
       );
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : "Could not save this approval.");
@@ -458,10 +546,44 @@ export function VoiceToCrmWorkspace({
       ? `/buyers/${selectedBuyer.id}?tab=matches`
       : "/matching";
 
+  // Name-mismatch guard: after parsing, if the extracted buyer name conflicts
+  // with the selected saved buyer's name, block "Save to CRM" until the broker
+  // resolves it. Only runs in "existing" mode with a selected buyer + a parse.
+  const parsedBuyerName = hasParsed ? workflow.extracted.buyerName : undefined;
+  const rawMismatch =
+    hasParsed && captureMode === "existing" && selectedBuyer
+      ? detectBuyerNameMismatch(parsedBuyerName, selectedBuyer.name)
+      : null;
+  // Look up an alternate saved buyer that DOES match the parsed name — powers
+  // the "Switch to {parsed name}" action when available.
+  const suggestedSwitch = useMemo(() => {
+    if (!rawMismatch) return undefined;
+    const parsed = normalizeName(rawMismatch.parsed);
+    return storedBuyers.find((buyer) => {
+      const bn = normalizeName(buyer.name);
+      if (bn === parsed) return true;
+      const bnTokens = bn.split(" ");
+      const pTokens = parsed.split(" ");
+      return (
+        bnTokens[bnTokens.length - 1] === pTokens[pTokens.length - 1] ||
+        (pTokens.length === 1 && bnTokens.includes(pTokens[0]))
+      );
+    });
+  }, [rawMismatch, storedBuyers]);
+  // Broker has dismissed the warning via "Keep" — treat as resolved for save.
+  const mismatch = rawMismatch && mismatchAck !== "keep" ? rawMismatch : null;
+  const saveBlocked = Boolean(mismatch);
+
   useEffect(() => {
     if (!parsedSummary.trim() && drafts.length === 0 && auditLog.length === 0) return;
     writePersisted(activeVoiceKey, { activeRunId, callSummary, parsedSummary, drafts, auditLog });
   }, [activeRunId, auditLog, callSummary, drafts, parsedSummary]);
+
+  // Any change to who this parse targets invalidates a prior mismatch dismissal
+  // — the broker must re-acknowledge for the new target.
+  useEffect(() => {
+    setMismatchAck(null);
+  }, [selectedBuyerId, captureMode]);
 
   // The top-bar "Clear capture" button resets us via a window event. A ref
   // keeps the latest reset handler current without re-subscribing each render.
@@ -663,9 +785,9 @@ export function VoiceToCrmWorkspace({
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <Button disabled={!callSummary.trim()} onClick={() => void parseCurrentSummary()} type="button">
+                <Button disabled={!callSummary.trim()} onClick={() => parseCall()} type="button">
                   <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  Parse & save to CRM
+                  Parse call
                 </Button>
                 <Button
                   onClick={() => setCallSummary(exampleCallSummary)}
@@ -679,6 +801,9 @@ export function VoiceToCrmWorkspace({
                     Unparsed changes
                   </span>
                 ) : null}
+                <span className="text-[12px] leading-5 text-[#8E918B]">
+                  Preview only — review before saving.
+                </span>
               </div>
             </div>
           </Card>
@@ -687,7 +812,7 @@ export function VoiceToCrmWorkspace({
             <CardHeader
               eyebrow="Parsed CRM update"
               title="Buyer memory, tasks, and pipeline changes"
-              description="Parsing saves the CRM capture for this workspace; approval only applies to follow-up drafts."
+              description="Review the parsed memory, tasks, and drafts. Nothing is saved until you press Save to CRM."
               action={
                 <CardHeaderIcon>
                   <Bot className="h-4 w-4" aria-hidden="true" />
@@ -696,6 +821,67 @@ export function VoiceToCrmWorkspace({
             />
             {hasParsed ? (
               <>
+                {/* Name-mismatch guard — blocks Save to CRM until the broker
+                    picks: switch to the parsed-name buyer, create new, or keep
+                    the current selection despite the mismatch. Rendered BEFORE
+                    the attachment strip so it can't be missed. */}
+                {mismatch ? (
+                  <div
+                    className="mx-6 mt-5 rounded-[12px] border border-[#E4B394] bg-[#FBEFE5] p-4"
+                    role="alert"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle
+                        className="mt-0.5 h-5 w-5 shrink-0 text-[#A86642]"
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="bb-mono-label text-[#A86642]">Name mismatch</p>
+                        <p className="mt-1 text-[13.5px] leading-6 text-[#5A3720]">
+                          This note mentions{" "}
+                          <span className="font-medium text-[#171719]">{mismatch.parsed}</span>,
+                          but will save to{" "}
+                          <span className="font-medium text-[#171719]">{mismatch.selected}</span>.
+                          Pick who this call belongs to before saving.
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {suggestedSwitch ? (
+                            <button
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[13px] font-medium text-white transition-colors hover:bg-[#0a4a3f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+                              onClick={() => {
+                                setSelectedBuyerId(suggestedSwitch.id);
+                                setMismatchAck(null);
+                              }}
+                              type="button"
+                            >
+                              <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                              Switch to {suggestedSwitch.name}
+                            </button>
+                          ) : null}
+                          <button
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-[#E4B394] bg-white px-3 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#A86642] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A86642]"
+                            onClick={() => {
+                              setCaptureMode("new");
+                              setMismatchAck(null);
+                            }}
+                            type="button"
+                          >
+                            <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                            Create new buyer from this note
+                          </button>
+                          <button
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-[#E4B394] bg-transparent px-3 text-[13px] font-medium text-[#5A3720] transition-colors hover:bg-[#F5E1D2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A86642]"
+                            onClick={() => setMismatchAck("keep")}
+                            type="button"
+                          >
+                            Keep {mismatch.selected}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 {/* Attachment confirmation strip — only in existing mode with a real buyer selected. */}
                 {captureMode === "existing" && selectedBuyer ? (
                   <div className="mx-6 mt-5 flex flex-wrap items-center gap-2 rounded-[12px] border border-[#E7E7E7] bg-white px-4 py-2.5 text-[12.5px] leading-6 text-[#5F625E]">
@@ -708,19 +894,34 @@ export function VoiceToCrmWorkspace({
                   </div>
                 ) : null}
 
-                {/* Post-parse hand-off — turn the captured memory into a ranked
-                    shortlist via the matching engine. */}
+                {/* Primary save-to-CRM action (blocked while mismatch is
+                    unresolved) plus the follow-on "Build shortlist" hand-off
+                    that only shows once the capture has been persisted. */}
                 <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
                   <p className="min-w-0 text-[12.5px] leading-6 text-[#5F625E]">
-                    Memory and tasks are saved — build a ranked shortlist for this buyer next.
+                    {savedToCrm
+                      ? "Memory and tasks are saved — build a ranked shortlist for this buyer next."
+                      : `Ready to persist this capture to ${displayBuyerName}'s buyer memory.`}
                   </p>
-                  <Link
-                    className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] bg-[#003C33] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0a4a3f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
-                    href={shortlistHref}
-                  >
-                    <Target className="h-4 w-4" aria-hidden="true" />
-                    Build shortlist
-                  </Link>
+                  {savedToCrm ? (
+                    <Link
+                      className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] bg-[#003C33] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0a4a3f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+                      href={shortlistHref}
+                    >
+                      <Target className="h-4 w-4" aria-hidden="true" />
+                      Build shortlist
+                    </Link>
+                  ) : (
+                    <button
+                      className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] bg-[#003C33] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0a4a3f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33] disabled:cursor-not-allowed disabled:bg-[#8E918B]"
+                      disabled={saveBlocked || saving}
+                      onClick={() => void saveToCrm()}
+                      type="button"
+                    >
+                      <Save className="h-4 w-4" aria-hidden="true" />
+                      {saving ? "Saving…" : `Save to ${displayBuyerName}`}
+                    </button>
+                  )}
                 </div>
 
                 {/* Profile updates as a clean divided card + extracted preferences. */}
@@ -897,7 +1098,7 @@ export function VoiceToCrmWorkspace({
             <CardHeader
               eyebrow="Approval queue"
               title="Editable generated follow-ups"
-              description="Edit subject or body here. Approval marks the draft broker-approved; it does not send an email, WhatsApp, or SMS."
+              description="Edit subject or body here. Approve & copy marks the draft approved and copies it to your clipboard for sending — the prototype does not send messages itself."
               action={
                 <CardHeaderIcon>
                   <Send className="h-4 w-4" aria-hidden="true" />
@@ -912,8 +1113,8 @@ export function VoiceToCrmWorkspace({
                     <div className="flex flex-wrap items-start gap-2 text-[13px] leading-6 text-[#003C33]">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                       <p>
-                        All {drafts.length} drafts approved. The prototype does not send messages
-                        automatically — copy or hand off to your delivery channel.
+                        All {drafts.length} drafts approved. Each Approve & copy already copied the
+                        draft to your clipboard — paste into your delivery channel to send.
                       </p>
                     </div>
                   </Tile>
@@ -949,7 +1150,7 @@ export function VoiceToCrmWorkspace({
                         variant="secondary"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        {draft.status === "Approved" ? "Approved" : "Approve"}
+                        {draft.status === "Approved" ? "Approved & copied" : "Approve & copy"}
                       </Button>
                     </div>
 

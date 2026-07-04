@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -22,6 +22,8 @@ import {
   type DealRoomReadinessCheck,
 } from "@/lib/services";
 import { mirrorWorkflowEvent, readPersisted, writePersisted } from "@/lib/browser-persistence";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { BuyerProfile, DealRoom, YachtListing } from "@/lib/types";
 import { cn, formatDate, percentage } from "@/lib/utils";
 import {
@@ -68,11 +70,75 @@ export function DealRoomsWorkspace({
   const [savedRooms] = useState<DealRoom[]>(() =>
     readPersisted<DealRoom[]>("brobroker:deal-rooms:saved", []),
   );
+  /* Local override of brokerApprovalStatus per room — lets the "Mark as
+     reviewed" chip flip the badge instantly without a full refetch.
+     Persists to localStorage + Supabase (when signed in), mirroring how
+     deal-room-create writes on Create. */
+  const [approvalOverrides, setApprovalOverrides] = useState<Record<string, DealRoom["brokerApprovalStatus"]>>(
+    {},
+  );
+  const roomsWithOverrides = useMemo(
+    () =>
+      [...storedRooms, ...savedRooms].map((room) =>
+        approvalOverrides[room.id]
+          ? { ...room, brokerApprovalStatus: approvalOverrides[room.id] }
+          : room,
+      ),
+    [storedRooms, savedRooms, approvalOverrides],
+  );
   const existingRooms = useMemo(
-    () => getBrokerDealRoomWorkspace([...storedRooms, ...savedRooms], segment, pools),
-    [storedRooms, savedRooms, segment, pools],
+    () => getBrokerDealRoomWorkspace(roomsWithOverrides, segment, pools),
+    [roomsWithOverrides, segment, pools],
   );
   const [copiedRoomId, setCopiedRoomId] = useState<string | null>(null);
+
+  const markRoomReviewed = useCallback(async (room: DealRoom) => {
+    /* Optimistic UI first — the chip flips green instantly. */
+    setApprovalOverrides((current) => ({ ...current, [room.id]: "Approved" }));
+
+    const updated: DealRoom = {
+      ...room,
+      brokerApprovalStatus: "Approved",
+      lastUpdatedAt: new Date().toISOString(),
+    };
+
+    /* Update the localStorage draft mirror so a page refresh keeps the
+       Approved state even before Supabase confirms. */
+    const savedDrafts = readPersisted<DealRoom[]>("brobroker:deal-rooms:saved", []);
+    const draftIndex = savedDrafts.findIndex((candidate) => candidate.id === room.id);
+    if (draftIndex >= 0) {
+      const next = [...savedDrafts];
+      next[draftIndex] = updated;
+      writePersisted("brobroker:deal-rooms:saved", next);
+    }
+
+    /* Persist to Supabase when possible — same pattern as room create. */
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const { error } = await supabase
+            .from("deal_rooms")
+            .update({
+              broker_approval_status: "Approved",
+              updated_at: updated.lastUpdatedAt,
+            })
+            .eq("id", room.id)
+            .eq("owner_user_id", user.id);
+          if (error) {
+            console.warn("Could not save reviewed state to Supabase", error.message);
+          }
+        }
+      } catch (error) {
+        console.warn("Could not save reviewed state to Supabase", error);
+      }
+    }
+
+    mirrorWorkflowEvent("deal_room_reviewed", room.id, { roomId: room.id });
+  }, []);
 
   if (buyers.length === 0 && existingRooms.length === 0) {
     return <FirstRunDealRooms />;
@@ -100,7 +166,7 @@ export function DealRoomsWorkspace({
         metrics={[
           { label: "Active rooms", value: `${activeEntries.length}` },
           { label: "Ready to share", value: `${readyCount}` },
-          { label: "Awaiting approval", value: `${pendingApproval}` },
+          { label: "Awaiting review", value: `${pendingApproval}` },
         ]}
       />
 
@@ -125,6 +191,7 @@ export function DealRoomsWorkspace({
                   copied={copiedRoomId === entry.room.id}
                   entry={entry}
                   onCopy={() => copyRoomLink(entry.room.id)}
+                  onMarkReviewed={() => markRoomReviewed(entry.room)}
                   saved={persistedRoomIds.has(entry.room.id)}
                 />
               ))}
@@ -168,11 +235,13 @@ function RoomRow({
   entry,
   copied,
   onCopy,
+  onMarkReviewed,
   saved,
 }: {
   entry: WorkspaceEntry;
   copied: boolean;
   onCopy: () => void;
+  onMarkReviewed: () => void;
   saved: boolean;
 }) {
   const { room, buyer, listings, matches, approvedDocuments } = entry;
@@ -181,6 +250,15 @@ function RoomRow({
     room.status === "Active" ? "success" : room.status === "Paused" ? "warning" : "neutral";
   const shownListings = listings.slice(0, 3);
   const moreCount = listings.length - shownListings.length;
+  /* Compose the buyer-safe listings meta row from parts that actually have
+     values — avoids the "— · 4 approved docs" artifact when avgFit is 0
+     or approvedDocuments is empty. */
+  const listingsMeta = [
+    readiness.avgFit ? `${readiness.avgFit}% avg fit` : null,
+    approvedDocuments.length
+      ? `${approvedDocuments.length} approved doc${approvedDocuments.length === 1 ? "" : "s"}`
+      : null,
+  ].filter(Boolean);
 
   return (
     <li className="grid gap-5 px-6 py-6">
@@ -196,7 +274,7 @@ function RoomRow({
             {saved ? " · Saved draft" : ""}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             className="inline-flex min-h-9 items-center gap-2 rounded-[8px] bg-[#003C33] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
             href={`/deal-rooms/${room.id}`}
@@ -204,24 +282,19 @@ function RoomRow({
             Open room
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
-          <Button
-            disabled={!readiness.isShareable}
-            onClick={onCopy}
-            size="sm"
-            type="button"
-            variant="secondary"
-          >
-            {readiness.isShareable ? (
+          {readiness.isShareable ? (
+            <Button onClick={onCopy} size="sm" type="button" variant="secondary">
               <Link2 className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <LockKeyhole className="h-4 w-4" aria-hidden="true" />
-            )}
-            {copied
-              ? "Link copied"
-              : readiness.isShareable
-                ? "Copy private link"
-                : "Locked until ready"}
-          </Button>
+              {copied ? "Link copied" : "Copy private link"}
+            </Button>
+          ) : (
+            /* Status label — no border/hover, not a button. Real actions
+               live on the readiness chips below. */
+            <span className="inline-flex items-center gap-1.5 px-1 text-[13px] font-medium text-[#8E918B]">
+              <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+              Locked until ready
+            </span>
+          )}
         </div>
       </div>
 
@@ -238,17 +311,23 @@ function RoomRow({
           </p>
         </div>
         <div className="mt-3">
-          <DealRoomReadinessPills checks={readiness.checks} />
+          <DealRoomReadinessPills
+            checks={readiness.checks}
+            context={{
+              roomId: room.id,
+              firstListingId: listings[0]?.id,
+              onMarkReviewed,
+            }}
+          />
         </div>
       </div>
 
       <div>
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <p className="bb-mono-label">Buyer-safe listings</p>
-          <p className="text-[12px] text-[#8E918B]">
-            {readiness.avgFit ? `${readiness.avgFit}% avg fit` : "—"} · {approvedDocuments.length}{" "}
-            approved docs
-          </p>
+          {listingsMeta.length ? (
+            <p className="text-[12px] text-[#8E918B]">{listingsMeta.join(" · ")}</p>
+          ) : null}
         </div>
         {listings.length === 0 ? (
           <p className="mt-2 text-[13px] text-[#8E918B]">No listings curated yet.</p>
@@ -262,8 +341,13 @@ function RoomRow({
                     <p className="min-w-0 truncate text-[14px] font-medium text-[#171719]">
                       {listing.name}
                     </p>
-                    <span className="font-mono text-[12px] font-semibold tabular-nums text-[#171719]">
-                      {percentage(fit)}
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
+                        Fit
+                      </span>
+                      <span className="font-mono text-[12px] font-semibold tabular-nums text-[#171719]">
+                        {percentage(fit)}
+                      </span>
                     </span>
                   </div>
                   <p className="mt-0.5 truncate text-[12px] text-[#8E918B]">

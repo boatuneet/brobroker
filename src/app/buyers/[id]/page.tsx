@@ -8,6 +8,7 @@ import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getBuyerMemoryProfile } from "@/lib/services";
 import { getStoredBuyerById } from "@/lib/supabase/buyers";
 import { getStoredConversationsForBuyer } from "@/lib/supabase/conversations";
+import { getStoredDealRooms } from "@/lib/supabase/deal-rooms";
 import { getStoredFollowUpDraftsForBuyer } from "@/lib/supabase/follow-up-drafts";
 import { getStoredListingsForSegment } from "@/lib/supabase/listings";
 
@@ -49,8 +50,8 @@ export async function generateMetadata({
   };
 }
 
-const VALID_TABS = new Set(["memory", "matches", "drafts"] as const);
-type ProfileTab = "memory" | "matches" | "drafts";
+const VALID_TABS = new Set(["memory", "matches", "drafts", "timeline", "trust"] as const);
+type ProfileTab = "memory" | "matches" | "drafts" | "timeline" | "trust";
 
 /* Each Supabase helper is internally guarded (returns [] / undefined on
    error), but a single unexpected throw — e.g. a network blip during
@@ -81,14 +82,18 @@ export default async function BuyerMemoryPage({
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
   const profile = includeDemo ? getBuyerMemoryProfile(id, segment) : undefined;
-  const [storedBuyer, storedListings, storedConversations, storedDrafts] = await Promise.all([
+  const [storedBuyer, storedListings, storedConversations, storedDrafts, allDealRooms] = await Promise.all([
     profile
       ? Promise.resolve(undefined)
       : safeAwait(getStoredBuyerById(id), undefined),
     safeAwait(getStoredListingsForSegment(segment), []),
     safeAwait(getStoredConversationsForBuyer(id), []),
     safeAwait(getStoredFollowUpDraftsForBuyer(id), []),
+    safeAwait(getStoredDealRooms(), []),
   ]);
+  // Deal rooms live in a shared table — pick the one attached to this buyer.
+  // Newest wins (getStoredDealRooms already orders by updated_at desc).
+  const storedDealRoom = allDealRooms.find((room) => room.buyerId === id);
 
   if (!profile && !storedBuyer) {
     notFound();
@@ -117,6 +122,7 @@ export default async function BuyerMemoryPage({
         storedListings={storedListings}
         storedConversations={storedConversations}
         storedDrafts={storedDrafts}
+        storedDealRoom={storedDealRoom}
       />
     </AppShell>
   );

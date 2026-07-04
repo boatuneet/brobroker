@@ -42,19 +42,25 @@ export function KnowledgeWorkspace({
   model,
   notePages,
   notesByPage,
+  initialPageId,
 }: {
   model: KnowledgeVaultModel;
   notePages?: KnowledgePage[];
   notesByPage?: Record<string, VaultNote[]>;
+  /* Seeded from ?page=<id> so deep-links from other pages (e.g. the
+     contextual knowledge card on a listing) land on the right page. */
+  initialPageId?: string;
 }) {
   const segmentTitle = getBrokerSegmentMeta(model.segment).title;
   const starterPrompts = useMemo(() => buildStarterPrompts(model), [model]);
 
-  const [mobileTab, setMobileTab] = useState<"chat" | "pages">("chat");
+  const [mobileTab, setMobileTab] = useState<"chat" | "pages">(
+    initialPageId ? "pages" : "chat",
+  );
 
   // chat citation → open page in the right pane
-  const [focusPageId, setFocusPageId] = useState<string | null>(null);
-  const [focusNonce, setFocusNonce] = useState(0);
+  const [focusPageId, setFocusPageId] = useState<string | null>(initialPageId ?? null);
+  const [focusNonce, setFocusNonce] = useState(initialPageId ? 1 : 0);
 
   // "Ask about this" → seed the composer on the left
   const [seedPrompt, setSeedPrompt] = useState<string>("");

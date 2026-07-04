@@ -101,9 +101,15 @@ export function DealRoomCreate({
     );
   }
 
-  const room = selectedBuyer
+  const baseRoom = selectedBuyer
     ? createDealRoomFromBuyer(selectedBuyer.id, selectedListingIds, segment, pools)
     : undefined;
+  /* Rename verbose auto-titles ("Daniel Kudarauskas Private Asset Shortlist")
+     to the friendlier "Shortlist for Daniel K." format. Applied here rather
+     than in services.ts so the fix is scoped to the surface the user sees. */
+  const room = baseRoom && selectedBuyer
+    ? { ...baseRoom, title: buildShortlistTitle(selectedBuyer.name) }
+    : baseRoom;
   const roomListings = room
     ? room.listingIds
         .map((id) => listings.find((listing) => listing.id === id))
@@ -311,7 +317,10 @@ export function DealRoomCreate({
             <div className="rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-4">
               <p className="bb-mono-label">Readiness</p>
               <div className="mt-3">
-                <DealRoomReadinessPills checks={readiness.checks} />
+                <DealRoomReadinessPills
+                  checks={readiness.checks}
+                  context={{ firstListingId: roomListings[0]?.id }}
+                />
               </div>
               <p
                 className={cn(
@@ -351,6 +360,16 @@ export function DealRoomCreate({
 function firstBlocker(checks: DealRoomReadinessCheck[]): string {
   const blocking = checks.find((check) => !check.done);
   return (blocking?.label ?? "review").toLowerCase();
+}
+
+/* "Daniel Kudarauskas" -> "Shortlist for Daniel K." — falls back to just
+   the first name (or the raw name) when a last initial can't be derived. */
+function buildShortlistTitle(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "Shortlist";
+  const [first, ...rest] = parts;
+  const lastInitial = rest.length ? rest[rest.length - 1]!.charAt(0).toUpperCase() : "";
+  return lastInitial ? `Shortlist for ${first} ${lastInitial}.` : `Shortlist for ${first}`;
 }
 
 function mergeById<T extends { id: string }>(primary: T[], fallback: T[]): T[] {

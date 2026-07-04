@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ContextualKnowledgeCard } from "@/components/knowledge/contextual-knowledge-card";
 import { ListingBrain } from "@/components/listings";
 import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
+import { buildKnowledgeVault } from "@/lib/knowledge-vault";
 import { getListingBrain } from "@/lib/services";
-import { getStoredListingById } from "@/lib/supabase/listings";
+import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
+import {
+  getStoredListingById,
+  getStoredListingsForSegment,
+} from "@/lib/supabase/listings";
 
 // Render dynamically — listings come from Supabase at request time. The
 // previous implementation imported getListingIds() from a "use client"
@@ -66,6 +72,20 @@ export default async function ListingBrainPage({
   const listingName =
     storedListing?.name ?? (includeDemo ? getListingBrain(id, segment)?.listing.name : undefined) ?? "Listing";
 
+  // Build the knowledge vault once, server-side, so the contextual card can
+  // pull just the pages/gaps tied to this listing without re-compiling.
+  const [storedListings, storedBuyers] = await Promise.all([
+    getStoredListingsForSegment(segment),
+    getStoredBuyersForSegment(segment),
+  ]);
+  const vault = buildKnowledgeVault(segment, {
+    storedListings,
+    storedBuyers,
+    includeDemo,
+  });
+  const ownerId =
+    storedListing?.ownerId ?? (includeDemo ? getListingBrain(id, segment)?.listing.ownerId : undefined);
+
   return (
     <AppShell
       active="Listings"
@@ -85,6 +105,14 @@ export default async function ListingBrainPage({
         listingOverride={storedListing}
         segment={segment}
       />
+      <div className="mx-auto w-full max-w-[1536px] px-6 pb-10 sm:px-10 lg:px-14">
+        <ContextualKnowledgeCard
+          entityId={id}
+          entityType="listing"
+          model={vault}
+          ownerId={ownerId}
+        />
+      </div>
     </AppShell>
   );
 }
