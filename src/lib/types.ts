@@ -28,6 +28,13 @@ export interface DocumentAsset {
   category: "Survey" | "Title" | "VAT" | "Maintenance" | "Media" | "Specs" | "Finance";
   status: DocumentStatus;
   updatedAt: string;
+  /* Uploaded file, when one is attached. Stored in the broker-documents
+     bucket; `filePath` is the object path (a signed URL is generated on
+     demand to view/download). Optional so metadata-only docs still work. */
+  filePath?: string;
+  fileName?: string;
+  fileSizeBytes?: number;
+  mimeType?: string;
 }
 
 export interface ListingComp {

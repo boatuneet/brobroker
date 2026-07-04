@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ExternalLink,
   FileText,
   Gauge,
   ListChecks,
@@ -23,10 +24,13 @@ import {
   ScrollText,
   ShieldCheck,
   Sparkles,
+  Upload,
+  X,
 } from "lucide-react";
 import type { BrokerTask, DocumentAsset, DocumentStatus, SellerProfile, YachtListing } from "@/lib/types";
 import { formatSpecSheet } from "@/lib/spec-format";
 import { updateListingDocuments } from "@/lib/supabase/update-listing-documents";
+import { getDocumentSignedUrl, uploadListingDocument } from "@/lib/supabase/upload-listing-document";
 import { cn, formatDate, percentage } from "@/lib/utils";
 import { Badge, CardHeader, EmptyState, ProgressBar } from "./ui";
 
@@ -137,18 +141,37 @@ export function ListingBrainTabs({
      broker approves it for sharing via the same Approve action. Persists to
      the assets.documents column like approve/unapprove. */
   const addDocument = useCallback(
-    async (input: { title: string; category: DocumentAsset["category"] }) => {
+    async (input: { title: string; category: DocumentAsset["category"]; file?: File | null }) => {
       const id =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? `doc-${crypto.randomUUID()}`
           : `doc-${Date.now()}`;
+
+      // Upload the file first (if any) so we can store its path on the doc.
+      let filePath: string | undefined;
+      if (input.file) {
+        const upload = await uploadListingDocument(listing.id, id, input.file);
+        if (!upload.ok) {
+          throw new Error(upload.error);
+        }
+        filePath = upload.filePath;
+      }
+
       const newDoc: DocumentAsset = {
         id,
-        title: input.title.trim(),
+        title: input.title.trim() || input.file?.name || "Untitled document",
         category: input.category,
         // Added docs start broker-only; the broker approves to share.
         status: "Internal",
         updatedAt: new Date().toISOString(),
+        ...(filePath
+          ? {
+              filePath,
+              fileName: input.file?.name,
+              fileSizeBytes: input.file?.size,
+              mimeType: input.file?.type || undefined,
+            }
+          : {}),
       };
       const next = [...documents, newDoc];
       setDocuments(next);
@@ -501,26 +524,40 @@ const DOCUMENT_CATEGORIES: DocumentAsset["category"][] = [
   "Finance",
 ];
 
-/* Register a document the broker holds. No file upload yet — this captures
-   the document's existence + category so it can flow through approval into
-   a deal room. New docs land as broker-only (Internal) until approved. */
+/* Register a document the broker holds — with an optional file. When a file
+   is attached it's uploaded to the private broker-documents bucket and the
+   doc stores its path; without one, it's tracked as metadata only. New docs
+   land broker-only (Internal) until approved for sharing. */
 function AddDocumentForm({
   onAdd,
 }: {
-  onAdd: (input: { title: string; category: DocumentAsset["category"] }) => void | Promise<void>;
+  onAdd: (input: {
+    title: string;
+    category: DocumentAsset["category"];
+    file?: File | null;
+  }) => void | Promise<void>;
 }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<DocumentAsset["category"]>("Survey");
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
-  const canAdd = title.trim().length > 0 && !busy;
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // A doc needs at least a title OR a file (the file's name becomes the title).
+  const canAdd = (title.trim().length > 0 || Boolean(file)) && !busy;
 
   async function handleAdd() {
     if (!canAdd) return;
     setBusy(true);
+    setError(null);
     try {
-      await onAdd({ title, category });
+      await onAdd({ title, category, file });
       setTitle("");
       setCategory("Survey");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not add the document.");
     } finally {
       setBusy(false);
     }
@@ -561,6 +598,44 @@ function AddDocumentForm({
           {busy ? "Adding…" : "Add document"}
         </button>
       </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 py-1.5 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33]">
+          <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+          {file ? "Change file" : "Attach file"}
+          <input
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.heic,.xls,.xlsx,.csv"
+            className="sr-only"
+            onChange={(event) => {
+              const picked = event.target.files?.[0] ?? null;
+              setFile(picked);
+              if (picked && !title.trim()) setTitle(picked.name.replace(/\.[^.]+$/, ""));
+            }}
+            ref={fileInputRef}
+            type="file"
+          />
+        </label>
+        {file ? (
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-[#5F625E]">
+            <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="max-w-[220px] truncate">{file.name}</span>
+            <button
+              className="text-[#8E918B] hover:text-[#A4361C]"
+              onClick={() => {
+                setFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              type="button"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </span>
+        ) : (
+          <span className="text-[12px] text-[#8E918B]">Optional — attach the actual file to store it.</span>
+        )}
+      </div>
+      {error ? (
+        <p className="mt-2 text-[12px] text-[#A4361C]">{error}</p>
+      ) : null}
     </div>
   );
 }
@@ -597,6 +672,18 @@ function DocumentRow({
     }
   }
 
+  const [viewBusy, setViewBusy] = useState(false);
+  async function handleView() {
+    if (!document.filePath) return;
+    setViewBusy(true);
+    try {
+      const url = await getDocumentSignedUrl(document.filePath);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    } finally {
+      setViewBusy(false);
+    }
+  }
+
   return (
     <li className="grid gap-3 px-4 py-4 sm:grid-cols-[36px_minmax(0,1fr)_auto] sm:items-center">
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F2EE] text-[#003C33]">
@@ -606,9 +693,22 @@ function DocumentRow({
         <h3 className="text-[14px] font-medium text-[#171719]">{document.title}</h3>
         <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
           {document.category} · {formatDate(document.updatedAt)}
+          {document.filePath ? " · File attached" : ""}
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-2 sm:flex-nowrap">
+        {document.filePath ? (
+          <button
+            aria-label={`View ${document.title}`}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-2.5 text-[12px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] disabled:pointer-events-none disabled:opacity-50"
+            disabled={viewBusy}
+            onClick={handleView}
+            type="button"
+          >
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            {viewBusy ? "Opening…" : "View"}
+          </button>
+        ) : null}
         <Badge tone={documentTone(document.status)}>{document.status}</Badge>
         {isMissing ? (
           <span className="text-[12px] italic text-[#8E918B]">Upload before it can be approved</span>
