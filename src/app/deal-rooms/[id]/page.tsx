@@ -6,6 +6,7 @@ import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getDealRoomById } from "@/lib/services";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 import { getStoredDealRooms } from "@/lib/supabase/deal-rooms";
+import { getRoomQuestions } from "@/lib/supabase/deal-room-questions";
 import { getStoredListingsForSegmentWithPreview } from "@/lib/supabase/listings";
 
 // Render dynamically — deal-room IDs aren't known at build time and the
@@ -27,10 +28,11 @@ export default async function PrivateDealRoomPage({
   const includeDemo = await isDemoModeEnabled();
   /* Preview variant signs each listing's first photo so the room renders
      real imagery for broker-stored inventory, not placeholders. */
-  const [storedBuyers, storedListings, storedRooms] = await Promise.all([
+  const [storedBuyers, storedListings, storedRooms, roomQuestions] = await Promise.all([
     getStoredBuyersForSegment(segment),
     getStoredListingsForSegmentWithPreview(segment),
     getStoredDealRooms(),
+    getRoomQuestions(id),
   ]);
   /* Resolve the room title server-side for the breadcrumb. Rooms saved only
      in the browser (localStorage drafts) share deterministic IDs with their
@@ -62,6 +64,8 @@ export default async function PrivateDealRoomPage({
         storedBuyers={storedBuyers}
         storedListings={storedListings}
         storedRooms={storedRooms}
+        viewer="broker"
+        initialQuestions={roomQuestions}
       />
     </AppShell>
   );

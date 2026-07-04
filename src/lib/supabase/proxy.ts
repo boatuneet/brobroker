@@ -6,8 +6,12 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
    redirects unauthenticated traffic to /login.
 
    Auth API endpoints (/auth/...) must be reachable while signed out so the
-   sign-up + sign-out callbacks can run. */
-const PUBLIC_ROUTES = ["/login", "/signup", "/auth", "/room"];
+   sign-up + sign-out callbacks can run.
+
+   Only the buyer-facing room-question endpoint is public under /api; the rest
+   of /api stays gated so anonymous traffic can't hit the AI/compute routes
+   (verify-buyer, knowledge-chat, matching) and burn quota. */
+const PUBLIC_ROUTES = ["/login", "/signup", "/auth", "/room", "/api/room-question"];
 
 function isPublicRoute(pathname: string): boolean {
   // The marketing landing at "/" is public (logged-out visitors + post-logout).

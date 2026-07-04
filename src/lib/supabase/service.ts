@@ -26,6 +26,44 @@ function createServiceClient() {
   });
 }
 
+/* Insert a buyer question into deal_room_questions using the service role
+   (bypasses RLS). The public /api/room-question route is the only caller.
+   Returns:
+   - { ok: true }        row inserted
+   - { ok: true, demo }  service role not configured — demo path, no-op
+   - { ok: false, ... }  room missing or DB error
+   ponytail: rate limiting is future work. */
+export async function insertRoomQuestion(
+  roomId: string,
+  question: string,
+  autoAnswer: string | undefined,
+): Promise<
+  | { ok: true; demo?: boolean }
+  | { ok: false; status: number; error: string }
+> {
+  const supabase = createServiceClient();
+  if (!supabase) return { ok: true, demo: true };
+
+  // Reject unknown rooms so the endpoint isn't an open write sink.
+  const { data: roomRow, error: roomError } = await supabase
+    .from("deal_rooms")
+    .select("id")
+    .eq("id", roomId)
+    .maybeSingle();
+
+  if (roomError) return { ok: false, status: 500, error: roomError.message };
+  if (!roomRow) return { ok: false, status: 404, error: "Room not found" };
+
+  const { error } = await supabase.from("deal_room_questions").insert({
+    room_id: roomId,
+    question,
+    auto_answer: autoAnswer ?? null,
+  });
+
+  if (error) return { ok: false, status: 500, error: error.message };
+  return { ok: true };
+}
+
 export const getPublicDealRoomBundle = cache(async (
   roomId: string,
 ): Promise<{ room: DealRoom; listings: YachtListing[] } | null> => {

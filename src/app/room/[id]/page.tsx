@@ -68,6 +68,7 @@ export default async function PublicRoomPage({
           storedBuyers={[]}
           storedListings={bundle?.listings ?? []}
           storedRooms={bundle ? [bundle.room] : []}
+          viewer="buyer"
         />
       </div>
     </RoomChrome>
