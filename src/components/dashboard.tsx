@@ -345,7 +345,7 @@ export function Dashboard({
                 />
                 {topTaskBuyer ? (
                   <Link
-                    className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#E7E7E7] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
                     href={`/buyers/${topTaskBuyer.id}`}
                   >
                     Open buyer
@@ -364,7 +364,7 @@ export function Dashboard({
                 Add inquiry
               </Link>
               <Link
-                className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#E7E7E7] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:bg-[#F1F2EE]"
+                className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]"
                 href="/voice-crm"
               >
                 <Bot className="h-4 w-4" aria-hidden="true" />

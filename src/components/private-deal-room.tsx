@@ -219,7 +219,7 @@ export function PrivateDealRoom({
                   value={question}
                 />
                 <div>
-                  <Button onClick={askQuestion} type="button">
+                  <Button onClick={askQuestion} type="button" variant="secondary">
                     Ask question
                   </Button>
                 </div>

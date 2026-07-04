@@ -333,7 +333,7 @@ function RoomRow({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#003C33] bg-white px-4 text-[13px] font-medium text-[#003C33] transition-colors hover:bg-[#F1F2EE]"
+            className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]"
             href={`/deal-rooms/${room.id}`}
           >
             Open room

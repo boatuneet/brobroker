@@ -587,7 +587,7 @@ function ListingDetailHero({
       <div className="relative min-w-0 p-6 pb-0 sm:p-8 sm:pb-0">
         <div className="absolute right-5 top-5 flex items-center gap-2 sm:right-6 sm:top-6">
           <Link
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] bg-[#003C33] px-3.5 text-[13px] font-medium text-white hover:bg-[#0B4A3F]"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3.5 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]"
             href={`/listings/${listing.id}/edit`}
           >
             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />

@@ -67,7 +67,7 @@ export function Button({
         variant === "primary" &&
           "bg-[#003C33] text-white hover:bg-[#0B4A3F]",
         variant === "secondary" &&
-          "border border-[#D9DAD4] bg-white text-[#171719] hover:border-[#003C33]",
+          "border border-[#D9DAD4] bg-white text-[#171719] hover:border-[#003C33] hover:bg-[#F1F2EE]",
         variant === "ghost" &&
           "text-[#5F625E] hover:bg-[#F1F2EE]",
         variant === "danger" &&

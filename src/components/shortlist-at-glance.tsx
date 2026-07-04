@@ -16,18 +16,15 @@ export interface ShortlistRow {
    so the broker can approve from here. Renders as a dense table on desktop
    and a compact key-value stack on small screens. */
 export function ShortlistAtGlance({
-  eyebrow = "Comparison",
   title = "Shortlist at a glance",
   rows,
 }: {
-  eyebrow?: string;
   title?: string;
   rows: ShortlistRow[];
 }) {
   return (
     <Card className="px-5 py-4 sm:px-6 sm:py-5">
       <div className="flex items-baseline gap-3 pb-3">
-        <p className="bb-mono-label">{eyebrow}</p>
         <h2 className="bb-display text-xl font-semibold tracking-[-0.01em] text-[#171719]">
           {title}
         </h2>

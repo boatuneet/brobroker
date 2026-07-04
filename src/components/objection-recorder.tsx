@@ -113,7 +113,7 @@ export function ObjectionRecorder({
           </label>
 
           <div>
-            <Button disabled={!canAdd} onClick={addObjection} type="button">
+            <Button disabled={!canAdd} onClick={addObjection} type="button" variant="secondary">
               <Plus className="h-4 w-4" aria-hidden="true" />
               Add objection
             </Button>
