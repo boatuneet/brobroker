@@ -90,7 +90,7 @@ export function SelectMenu({
 
       {open && !disabled ? (
         <div
-          className="absolute right-0 z-50 mt-2 max-h-72 w-full min-w-[15rem] overflow-auto rounded-[10px] border border-[#E7E7E7] bg-white p-1.5"
+          className="absolute right-0 z-50 mt-2 max-h-72 w-full min-w-[15rem] overflow-auto rounded-[10px] border border-[#D9DAD4] bg-white p-1.5 shadow-[0_16px_40px_rgba(23,31,25,0.16)]"
           role="listbox"
           aria-labelledby={label ? `${id}-label` : undefined}
         >

@@ -270,18 +270,19 @@ export function DealRoomCreate({
                 }))}
                 value={buyerId}
               />
-              <label className="block">
-                <span className="bb-mono-label">Room name</span>
+              {/* Label + control styled to match SelectMenu exactly so the
+                  buyer and room-name fields read as one aligned pair. */}
+              <label className="block min-w-0">
+                <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.12em] text-[#8E918B]">
+                  Room name
+                </span>
                 <input
-                  className="mt-1.5 h-10 w-full rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[13px] text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33]"
+                  className="h-11 w-full rounded-[10px] border border-[#D9DAD4] bg-white px-3.5 text-[14px] font-medium text-[#171719] outline-none transition-colors placeholder:font-normal placeholder:text-[#A9ABA5] hover:border-[#A9ABA5] focus:border-[#003C33] focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[#4c6ee6]"
                   onChange={(event) => setRoomTitle(event.target.value)}
                   placeholder="e.g. Daniel — Sunseeker search"
                   type="text"
                   value={roomTitle}
                 />
-                <span className="mt-1 block text-[11.5px] text-[#8E918B]">
-                  Name it by the search so a buyer with several requirement sets keeps separate rooms.
-                </span>
               </label>
             </div>
           </Card>
