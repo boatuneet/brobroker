@@ -2264,10 +2264,10 @@ function MatchPanel({
             <button
               aria-pressed={selected}
               className={cn(
-                "inline-flex min-h-8 items-center gap-1.5 rounded-[8px] px-3 text-[12.5px] font-medium transition-colors",
+                "inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12.5px] font-medium transition-colors",
                 selected
-                  ? "bg-[#003C33] text-white hover:bg-[#0B4A3F]"
-                  : "border border-[#003C33] bg-white text-[#003C33] hover:bg-[#F1F2EE]",
+                  ? "border-[#003C33] bg-[#F1F2EE] text-[#003C33] hover:bg-[#E7EAE4]"
+                  : "border-[#003C33] bg-white text-[#003C33] hover:bg-[#F1F2EE]",
               )}
               onClick={onToggleSelect}
               type="button"

@@ -103,9 +103,19 @@ export function DealRoomCreate({
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  /* Room title is editable — one buyer can run several searches (multiple
+     requirement sets), so "Shortlist for Daniel B." isn't enough to tell two
+     rooms apart. Defaults to the buyer's name; broker can rename. Resets to
+     the suggested title when the buyer changes. */
+  const [roomTitle, setRoomTitle] = useState(() => {
+    const buyer = buyers.find((candidate) => candidate.id === resolvedInitialBuyerId);
+    return buyer ? buildShortlistTitle(buyer.name) : "";
+  });
+
   function changeBuyer(nextBuyerId: string) {
     setBuyerId(nextBuyerId);
     const nextBuyer = buyers.find((buyer) => buyer.id === nextBuyerId);
+    setRoomTitle(nextBuyer ? buildShortlistTitle(nextBuyer.name) : "");
     setSelectedListingIds(
       nextBuyer
         ? generateMatchesForBuyer(nextBuyer, listings)
@@ -141,7 +151,7 @@ export function DealRoomCreate({
      to the friendlier "Shortlist for Daniel K." format. Applied here rather
      than in services.ts so the fix is scoped to the surface the user sees. */
   const room = baseRoom && selectedBuyer
-    ? { ...baseRoom, title: buildShortlistTitle(selectedBuyer.name) }
+    ? { ...baseRoom, title: roomTitle.trim() || buildShortlistTitle(selectedBuyer.name) }
     : baseRoom;
   const roomListings = room
     ? room.listingIds
@@ -249,7 +259,7 @@ export function DealRoomCreate({
               title="Choose the buyer"
               description="The room is private to this buyer — only they receive the link."
             />
-            <div className="px-6 py-5">
+            <div className="grid gap-4 px-6 py-5">
               <SelectMenu
                 label="Buyer"
                 onChange={changeBuyer}
@@ -260,6 +270,19 @@ export function DealRoomCreate({
                 }))}
                 value={buyerId}
               />
+              <label className="block">
+                <span className="bb-mono-label">Room name</span>
+                <input
+                  className="mt-1.5 h-10 w-full rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[13px] text-[#171719] outline-none placeholder:text-[#A9ABA5] focus:border-[#003C33]"
+                  onChange={(event) => setRoomTitle(event.target.value)}
+                  placeholder="e.g. Daniel — Sunseeker search"
+                  type="text"
+                  value={roomTitle}
+                />
+                <span className="mt-1 block text-[11.5px] text-[#8E918B]">
+                  Name it by the search so a buyer with several requirement sets keeps separate rooms.
+                </span>
+              </label>
             </div>
           </Card>
 

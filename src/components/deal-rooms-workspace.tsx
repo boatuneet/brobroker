@@ -12,6 +12,7 @@ import {
   Radio,
   ShieldCheck,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { type BrokerSegment, getBuyersForSegment } from "@/lib/broker-segments";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/lib/services";
 import { mirrorWorkflowEvent, readPersisted, writePersisted } from "@/lib/browser-persistence";
 import { createClient } from "@/lib/supabase/client";
+import { deleteDealRoom } from "@/lib/supabase/delete-deal-room";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { BuyerProfile, DealRoom, YachtListing } from "@/lib/types";
 import { cn, formatDate, percentage } from "@/lib/utils";
@@ -77,14 +79,21 @@ export function DealRoomsWorkspace({
   const [approvalOverrides, setApprovalOverrides] = useState<Record<string, DealRoom["brokerApprovalStatus"]>>(
     {},
   );
+  // Rooms removed this session — filtered out optimistically so the list
+  // updates the instant the broker confirms a delete.
+  const [removedRoomIds, setRemovedRoomIds] = useState<Set<string>>(new Set());
+  const [pendingRemove, setPendingRemove] = useState<{ id: string; title: string } | null>(null);
+  const [removing, setRemoving] = useState(false);
   const roomsWithOverrides = useMemo(
     () =>
-      [...storedRooms, ...savedRooms].map((room) =>
-        approvalOverrides[room.id]
-          ? { ...room, brokerApprovalStatus: approvalOverrides[room.id] }
-          : room,
-      ),
-    [storedRooms, savedRooms, approvalOverrides],
+      [...storedRooms, ...savedRooms]
+        .filter((room) => !removedRoomIds.has(room.id))
+        .map((room) =>
+          approvalOverrides[room.id]
+            ? { ...room, brokerApprovalStatus: approvalOverrides[room.id] }
+            : room,
+        ),
+    [storedRooms, savedRooms, approvalOverrides, removedRoomIds],
   );
   const existingRooms = useMemo(
     () => getBrokerDealRoomWorkspace(roomsWithOverrides, segment, pools),
@@ -152,6 +161,22 @@ export function DealRoomsWorkspace({
     setCopiedRoomId(roomId);
   }
 
+  async function confirmRemove() {
+    if (!pendingRemove || removing) return;
+    setRemoving(true);
+    const { id } = pendingRemove;
+    // Optimistic — drop from the list immediately.
+    setRemovedRoomIds((current) => new Set(current).add(id));
+    // Drop any localStorage draft mirror so it doesn't reappear on refresh.
+    const savedDrafts = readPersisted<DealRoom[]>("brobroker:deal-rooms:saved", []);
+    if (savedDrafts.some((room) => room.id === id)) {
+      writePersisted("brobroker:deal-rooms:saved", savedDrafts.filter((room) => room.id !== id));
+    }
+    await deleteDealRoom(id).catch(() => undefined);
+    setRemoving(false);
+    setPendingRemove(null);
+  }
+
   const persistedRoomIds = new Set(savedRooms.map((room) => room.id));
   const activeEntries = existingRooms.filter((entry) => entry.origin !== "suggested");
   const suggestedEntries = existingRooms.filter((entry) => entry.origin === "suggested");
@@ -192,6 +217,7 @@ export function DealRoomsWorkspace({
                   entry={entry}
                   onCopy={() => copyRoomLink(entry.room.id)}
                   onMarkReviewed={() => markRoomReviewed(entry.room)}
+                  onRemove={() => setPendingRemove({ id: entry.room.id, title: entry.room.title })}
                   saved={persistedRoomIds.has(entry.room.id)}
                 />
               ))}
@@ -213,6 +239,48 @@ export function DealRoomsWorkspace({
           </Card>
         ) : null}
       </div>
+
+      {pendingRemove ? (
+        <div
+          aria-labelledby="remove-room-title"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#171719]/30 p-4"
+          onClick={() => !removing && setPendingRemove(null)}
+          role="dialog"
+        >
+          <div
+            className="w-full max-w-md rounded-[12px] border border-[#E7E7E7] bg-white p-6 shadow-[0_20px_48px_rgba(23,31,25,0.16)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="bb-display text-lg font-medium text-[#171719]" id="remove-room-title">
+              Remove this room?
+            </h2>
+            <p className="mt-2 text-[13.5px] leading-6 text-[#5F625E]">
+              “{pendingRemove.title}” will be deleted. The buyer’s private link stops working.
+              This can’t be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                className="inline-flex min-h-9 items-center rounded-[8px] border border-[#E7E7E7] bg-white px-4 text-[13px] font-medium text-[#5F625E] transition-colors hover:bg-[#F1F2EE] disabled:opacity-50"
+                disabled={removing}
+                onClick={() => setPendingRemove(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] bg-[#A4361C] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#8E2E17] disabled:opacity-50"
+                disabled={removing}
+                onClick={confirmRemove}
+                type="button"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                {removing ? "Removing…" : "Remove room"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -236,12 +304,14 @@ function RoomRow({
   copied,
   onCopy,
   onMarkReviewed,
+  onRemove,
   saved,
 }: {
   entry: WorkspaceEntry;
   copied: boolean;
   onCopy: () => void;
   onMarkReviewed: () => void;
+  onRemove: () => void;
   saved: boolean;
 }) {
   const { room, buyer, listings, matches, approvedDocuments } = entry;
@@ -295,6 +365,15 @@ function RoomRow({
               Locked until ready
             </span>
           )}
+          <button
+            aria-label={`Remove ${room.title}`}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] border border-[#E7E7E7] bg-white text-[#8E918B] transition-colors hover:border-[#A86642] hover:text-[#A86642] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A86642]"
+            onClick={onRemove}
+            title="Remove room"
+            type="button"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
       </div>
 
