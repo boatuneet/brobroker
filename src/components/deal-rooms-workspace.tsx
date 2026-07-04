@@ -152,7 +152,9 @@ export function DealRoomsWorkspace({
   }
 
   async function copyRoomLink(roomId: string) {
-    const url = `${window.location.origin}/deal-rooms/${roomId}`;
+    /* Public, no-auth buyer-safe room. Broker's in-app view stays at
+       /deal-rooms/[id]; only the shared link points at /room/[id]. */
+    const url = `${window.location.origin}/room/${roomId}`;
     writePersisted(`brobroker:deal-rooms:${roomId}:share`, { roomId, url });
     mirrorWorkflowEvent("deal_room_share_configured", roomId, { roomId, url });
     await navigator.clipboard?.writeText(url).catch(() => undefined);

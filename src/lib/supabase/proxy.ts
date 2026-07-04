@@ -7,7 +7,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
    Auth API endpoints (/auth/...) must be reachable while signed out so the
    sign-up + sign-out callbacks can run. */
-const PUBLIC_ROUTES = ["/login", "/signup", "/auth"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/auth", "/room"];
 
 function isPublicRoute(pathname: string): boolean {
   // The marketing landing at "/" is public (logged-out visitors + post-logout).
