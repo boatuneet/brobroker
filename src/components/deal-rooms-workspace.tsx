@@ -452,11 +452,17 @@ function SuggestedRoomCard({ entry }: { entry: WorkspaceEntry }) {
   const { room, buyer, listings } = entry;
   const readiness = getDealRoomReadiness(entry);
   const topListing = listings[0];
+  /* Open the CREATE flow prefilled with this buyer + matched listings — not
+     the read-only room view. A suggestion isn't a saved room, so "curate"
+     must land the broker somewhere they can adjust and save. */
+  const curateHref = buyer
+    ? `/deal-rooms/new?buyer=${buyer.id}${listings.map((listing) => `&listing=${listing.id}`).join("")}`
+    : "/deal-rooms/new";
 
   return (
     <Link
       className="group flex flex-col gap-3 rounded-[12px] border border-[#E7E7E7] bg-white p-5 transition-colors hover:border-[#003C33]"
-      href={`/deal-rooms/${room.id}`}
+      href={curateHref}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

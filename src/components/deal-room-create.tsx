@@ -259,7 +259,7 @@ export function DealRoomCreate({
               title="Choose the buyer"
               description="The room is private to this buyer — only they receive the link."
             />
-            <div className="grid gap-4 px-6 py-5">
+            <div className="grid gap-4 px-6 py-5 sm:grid-cols-2 sm:items-start">
               <SelectMenu
                 label="Buyer"
                 onChange={changeBuyer}
@@ -327,7 +327,7 @@ export function DealRoomCreate({
                       No listings match “{listingQuery}”.
                     </p>
                   ) : (
-                    <ul className="mt-3 grid max-h-[440px] gap-2 overflow-y-auto pr-1">
+                    <ul className="mt-3 grid max-h-[640px] gap-2 overflow-y-auto pr-1">
                       {filteredListings.map((listing) => {
                         const isSelected = selectedListingIds.includes(listing.id);
                         const isSuggested = suggestedListingIds.includes(listing.id);
