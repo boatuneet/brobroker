@@ -1,12 +1,16 @@
-"use client";
-
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { BuyerProfile, VerificationSignal, VerificationStatus } from "@/lib/types";
 
 /* Broker-run verification for a stored buyer. There is no dedicated column on
    `buyers` for this yet, so the decision + evidence rides inside
-   `payload.verification` — same read-merge-write pattern as buyer-stage.ts. */
+   `payload.verification` — same read-merge-write pattern as buyer-stage.ts.
+
+   No "use client" directive: the read helpers (readSavedVerification,
+   deriveBaselineSignals, inferStatusFromSignals) run on the server too — the
+   /verification page synthesizes the inbox server-side. saveBuyerVerification
+   only ever runs from the Trust tab (a client component), so its browser-only
+   supabase client is never touched during SSR. */
 
 export type BuyerVerificationDecision = "Verified" | "Needs Review" | "High Risk";
 

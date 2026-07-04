@@ -341,16 +341,17 @@ function StoredBuyerVerification() {
         <div>
           <p className="bb-mono-label">Verification status</p>
           <p className="mt-2 bb-display text-[1.4rem] font-medium leading-[1.1] text-[#171719]">
-            Not started
+            Not verified yet
           </p>
           <p className="mt-2 max-w-md text-[13px] leading-[1.55] text-[#5F625E]">
-            Baseline signals below are derived from what you have on file. Run AI screening or
-            skip straight to a broker decision — this stays on {buyer.name}&apos;s record.
+            You haven&apos;t recorded a verification decision for {buyer.name.split(" ")[0]} yet.
+            The checks below are read automatically from their record. Run an AI screening for a
+            deeper look, then record your decision — it saves to this buyer.
           </p>
         </div>
         {derivedStatus ? (
           <div className="text-right">
-            <p className="bb-mono-label">Baseline reads as</p>
+            <p className="bb-mono-label">Checks suggest</p>
             <Badge className="mt-2" tone={derivedCopy.tone}>
               {derivedCopy.headline}
             </Badge>
