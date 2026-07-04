@@ -855,12 +855,18 @@ export function answerListingQuestion(listing: YachtListing, question: string) {
   const assetType = getListingAssetType(listing);
 
   if (normalized.includes("low maintenance") || normalized.includes("maintenance")) {
-    const maintenanceAngle =
+    /* Imported listings often carry no refit history — build the angle from
+       whichever parts exist so the sentence never reads "around and …". */
+    const refits = listing.refitHistory.join(", ").toLowerCase();
+    const tailAngle =
       assetType === "Car"
-        ? `${listing.refitHistory.join(", ").toLowerCase()} and documented service history`
+        ? "documented service history"
         : assetType === "Real Estate"
-          ? `${listing.refitHistory.join(", ").toLowerCase()} and known running-cost disclosures`
-          : `${listing.refitHistory.join(", ").toLowerCase()} and ${listing.engineHours} engine hours`;
+          ? "known running-cost disclosures"
+          : listing.engineHours
+            ? `${listing.engineHours} engine hours`
+            : "its usage record";
+    const maintenanceAngle = refits ? `${refits} and ${tailAngle}` : tailAngle;
 
     return {
       answer: `${listing.name} can be positioned around ${maintenanceAngle}. The strongest support comes from approved documents and broker-verified records.`,
@@ -872,6 +878,13 @@ export function answerListingQuestion(listing: YachtListing, question: string) {
   }
 
   if (normalized.includes("weakness") || normalized.includes("objection")) {
+    if (!listing.weaknesses.length) {
+      return {
+        answer: `No weaknesses or objections are recorded for ${listing.name} yet. Capture buyer feedback or add known trade-offs to the listing so this answer has substance.`,
+        sources: [],
+        missing: ["Recorded weaknesses or buyer objections"],
+      };
+    }
     return {
       answer: `${listing.name}'s likely objections are ${listing.weaknesses.join(", ").toLowerCase()}. Prepare a direct trade-off explanation before sending to qualified buyers.`,
       sources: ["Broker objection notes", "Buyer feedback memory"],
@@ -898,7 +911,9 @@ export function answerListingQuestion(listing: YachtListing, question: string) {
 
 export function generateListingPitch(listing: YachtListing) {
   const buyerAngle = listing.idealBuyer.replace(/\.$/, "");
-  const strongestFacts = listing.highlights.slice(0, 3).join(", ").toLowerCase();
+  const strongestFacts =
+    listing.highlights.slice(0, 3).join(", ").toLowerCase() ||
+    getListingSpecSummary(listing);
   const caveat = listing.weaknesses[0]?.toLowerCase() ?? "buyer-specific trade-offs";
   const assetLabel = getListingAssetLabel(listing);
   const specSummary = getListingSpecSummary(listing);
@@ -906,7 +921,7 @@ export function generateListingPitch(listing: YachtListing) {
   return {
     short: `${listing.name} is best pitched as a ${listing.builder} ${listing.model} ${assetLabel} for a ${buyerAngle.toLowerCase()}, with ${strongestFacts}.`,
     thirtySecond: `${listing.name} gives a qualified buyer ${strongestFacts} in ${listing.location}. The honest caveat is ${caveat}, so the broker should frame it as a clear trade-off rather than hide it.`,
-    buyerSafe: `${listing.name} is a strong ${assetLabel} fit (${specSummary}) for buyers prioritizing ${listing.highlights.slice(0, 2).join(" and ").toLowerCase()} with a clear next step around viewing and document review.`,
+    buyerSafe: `${listing.name} is a strong ${assetLabel} fit (${specSummary}) for buyers prioritizing ${listing.highlights.slice(0, 2).join(" and ").toLowerCase() || "a verified, well-documented purchase"} with a clear next step around viewing and document review.`,
   };
 }
 
@@ -919,17 +934,21 @@ export function compareListings(primary: YachtListing, secondary?: YachtListing)
   }
 
   const priceDelta = primary.priceEur - secondary.priceEur;
-  const sizeDelta = primary.lengthFt - secondary.lengthFt;
+  /* One decimal — raw float subtraction leaks artifacts like
+     27.450000000000003 straight into broker-facing copy. */
+  const sizeDelta = Math.round((primary.lengthFt - secondary.lengthFt) * 10) / 10;
   const bothYachts = getListingAssetType(primary) === "Yacht" && getListingAssetType(secondary) === "Yacht";
 
   return {
     title: `${primary.name} vs ${secondary.name}`,
     points: [
       bothYachts
-        ? `${primary.name} is ${Math.abs(sizeDelta)}ft ${sizeDelta >= 0 ? "larger" : "smaller"} than ${secondary.name}.`
+        ? Math.abs(sizeDelta) < 1
+          ? `${primary.name} and ${secondary.name} are nearly identical in size.`
+          : `${primary.name} is ${Math.abs(sizeDelta)}ft ${sizeDelta >= 0 ? "larger" : "smaller"} than ${secondary.name}.`
         : `${primary.name} is ${getListingSpecSummary(primary)}, while ${secondary.name} is ${getListingSpecSummary(secondary)}.`,
-      `${primary.name} is ${priceDelta >= 0 ? "priced above" : "priced below"} ${secondary.name} by EUR ${Math.abs(priceDelta).toLocaleString("en-GB")}.`,
-      `${primary.name} offers ${primary.highlights[0].toLowerCase()}, while ${secondary.name} is strongest on ${secondary.highlights[0].toLowerCase()}.`,
+      `${primary.name} is ${priceDelta >= 0 ? "priced above" : "priced below"} ${secondary.name} by ${formatCurrency(Math.abs(priceDelta))}.`,
+      `${primary.name} leads on ${primary.highlights[0]?.toLowerCase() ?? "its overall spec"}, while ${secondary.name} is strongest on ${secondary.highlights[0]?.toLowerCase() ?? "its overall spec"}.`,
       primary.vatStatus === secondary.vatStatus
         ? `Both carry ${primary.vatStatus} status.`
         : `${primary.name} has ${primary.vatStatus} status; ${secondary.name} has ${secondary.vatStatus} status.`,
@@ -2711,7 +2730,12 @@ export function generateBuyerSafeBrief(
   return {
     headline: `${buyer.name.split(" ")[0]}, I kept the shortlist focused on the criteria you gave me.`,
     body: [
-      `Budget fit: ${buyer.budgetMinEur.toLocaleString("en-GB")} to ${buyer.budgetMaxEur.toLocaleString("en-GB")} EUR.`,
+      /* Suppress the budget line for junk/placeholder values ("0 to 3 EUR"
+         from half-filled intake rows) — a wrong number to a buyer is worse
+         than no number. */
+      buyer.budgetMaxEur >= 1000
+        ? `Budget fit: ${formatCurrency(buyer.budgetMinEur)} to ${formatCurrency(buyer.budgetMaxEur)}.`
+        : "Budget: to be confirmed together.",
       buyer.lifestylePreferences.length
         ? `Preferences: ${buyer.lifestylePreferences.slice(0, 3).join(", ").toLowerCase()}.`
         : "Preferences: Flexible.",
