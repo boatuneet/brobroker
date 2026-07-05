@@ -99,7 +99,7 @@ const segmentIcons = {
   Car: CarFront,
   "Real Estate": Building2,
 } satisfies Record<BrokerSegment, LucideIcon>;
-import { SessionBuyerQueue } from "./intake-panels";
+import { SessionBuyerQueue, useSessionBuyers } from "./intake-panels";
 import { OwnerNotePanel } from "./owner-note-panel";
 
 const PAGE_SIZE = 12;
@@ -325,6 +325,8 @@ export function BuyerIndex({
   );
   const [noNextStepOnly, setNoNextStepOnly] = useState(focusNoNextStep);
   const [page, setPage] = useState(1);
+  const [tab, setTab] = useState<"buyers" | "captures">("buyers");
+  const sessionBuyers = useSessionBuyers();
 
   const normalizedQuery = query.trim().toLowerCase();
   const searching = normalizedQuery !== "";
@@ -467,23 +469,38 @@ export function BuyerIndex({
         />
       </section>
 
-      <SessionBuyerQueue />
-
-      {/* Buyers — search + stage chips now live inside the card (Listings pattern). */}
+      {/* Two tabs (was two stacked lists): the full buyer table and the
+          local, session-only CRM captures — one card, clear switch. */}
       <section
         aria-label="Buyers"
         className="mt-8 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white"
       >
-        <div className="border-b border-[#E7E7E7] px-4 py-3 sm:px-5">
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-            <label className="relative block">
+        {/* Tab bar: primary switch on the left; buyer search on the right,
+            shown only on the buyers tab (captures aren't searched here). */}
+        <div className="flex flex-col gap-2 border-b border-[#E7E7E7] px-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="flex items-center gap-5">
+            <BuyerTab
+              active={tab === "buyers"}
+              count={allBuyers.length}
+              label="All buyers"
+              onClick={() => setTab("buyers")}
+            />
+            <BuyerTab
+              active={tab === "captures"}
+              count={sessionBuyers.length}
+              label="Local CRM captures"
+              onClick={() => setTab("captures")}
+            />
+          </div>
+          {tab === "buyers" ? (
+            <label className="relative block w-full pb-3 sm:w-72 sm:pb-0">
               <span className="sr-only">Search buyers</span>
               <Search
                 aria-hidden="true"
                 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8E918B]"
               />
               <input
-                className="h-10 w-full rounded-[10px] border border-[#E7E7E7] bg-white pl-10 pr-9 text-[13px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
+                className="h-9 w-full rounded-[10px] border border-[#E7E7E7] bg-white pl-10 pr-9 text-[13px] text-[#171719] outline-none transition-colors placeholder:text-[#A9ABA5] focus:border-[#1863dc] focus:ring-2 focus:ring-[#1863dc]/15"
                 onChange={(event) => onQueryChange(event.target.value)}
                 placeholder="Family use, VAT, Germany, brand…"
                 type="search"
@@ -500,7 +517,15 @@ export function BuyerIndex({
                 </button>
               ) : null}
             </label>
-            <div className="flex flex-wrap gap-1.5">
+          ) : null}
+        </div>
+
+        {tab === "captures" ? (
+          <SessionBuyerQueue bare />
+        ) : (
+          <>
+        <div className="border-b border-[#E7E7E7] px-4 py-3 sm:px-5">
+          <div className="flex flex-wrap gap-1.5">
               <StatusChip
                 active={stageFilter === "All"}
                 count={searching ? queryFilteredBuyers.length : allBuyers.length}
@@ -532,7 +557,6 @@ export function BuyerIndex({
                   setPage(1);
                 }}
               />
-            </div>
           </div>
         </div>
 
@@ -574,9 +598,11 @@ export function BuyerIndex({
             </div>
           </>
         )}
+          </>
+        )}
       </section>
 
-      {filteredBuyers.length > 0 && pageCount > 1 ? (
+      {tab === "buyers" && filteredBuyers.length > 0 && pageCount > 1 ? (
             <nav
               aria-label="Buyers pagination"
               className="mt-6 flex items-center justify-between gap-3"
@@ -646,6 +672,44 @@ function KpiTile({
       <p className="bb-display mt-3 text-[28px] font-medium leading-none tabular-nums">{value}</p>
       <p className="mt-2 text-[12.5px] leading-[1.5] text-[#5F625E]">{detail}</p>
     </div>
+  );
+}
+
+/* Primary tab for the Buyers card — underline style with a count pill,
+   matching the reference invoice-table tabs. */
+function BuyerTab({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className={cn(
+        "relative -mb-px flex items-center gap-2 whitespace-nowrap border-b-2 py-3.5 text-[13.5px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
+        active
+          ? "border-[#003C33] text-[#171719]"
+          : "border-transparent text-[#8E918B] hover:text-[#171719]",
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+      <span
+        className={cn(
+          "inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+          active ? "bg-[#E1F1EA] text-[#0F8F62]" : "bg-[#F1F2EE] text-[#8E918B]",
+        )}
+      >
+        {count}
+      </span>
+    </button>
   );
 }
 

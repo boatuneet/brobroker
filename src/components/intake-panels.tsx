@@ -151,18 +151,27 @@ export function AssetIntakePanel() {
   );
 }
 
-export function SessionBuyerQueue() {
-  // SSR + first client render → EMPTY_BUYERS so the rendered tree matches.
-  // Once mounted, useSyncExternalStore swaps in the persisted list.
-  const buyers = useSyncExternalStore(
+/* Shared hook for the local (session) buyer captures — SSR + first client
+   render emit an empty list, then useSyncExternalStore swaps in the
+   persisted one. Exposed so the Buyers index can show the tab count. */
+export function useSessionBuyers(): SessionBuyer[] {
+  return useSyncExternalStore(
     subscribeBuyers,
     getBuyersClientSnapshot,
     getBuyersServerSnapshot,
   );
+}
+
+/* `bare` renders just the capture list (+ empty state + edit drawer) with no
+   card/header chrome — used inside the Buyers-index tab, which supplies its
+   own heading. Standalone (default) keeps the framed card and returns null
+   when there are no captures. */
+export function SessionBuyerQueue({ bare = false }: { bare?: boolean }) {
+  const buyers = useSessionBuyers();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SessionBuyer | null>(null);
 
-  if (!buyers.length) {
+  if (!bare && !buyers.length) {
     return null;
   }
 
@@ -198,28 +207,8 @@ export function SessionBuyerQueue() {
     if (editingId === id) cancelEdit();
   }
 
-  return (
-    <article className="mt-8 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white text-[#171719] shadow-[0_14px_38px_rgba(23,31,25,0.05)]">
-      {/* Header — icon + eyebrow + title on the left, descriptor on the right. */}
-      <div className="flex flex-col gap-4 border-b border-[#E7E7E7] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-center gap-4">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-[8px] bg-[#F1F2EE] text-[#003C33]">
-            <Clock3 className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#8E918B]">
-              Captured memory
-            </p>
-            <h3 className="bb-display mt-1 truncate text-[24px] font-semibold tracking-[-0.03em] text-[#171719]">
-              Local CRM captures
-            </h3>
-          </div>
-        </div>
-        <p className="max-w-xl text-[13px] leading-6 text-[#5F625E] lg:text-right">
-          Drafts created from Voice CRM or matching before they become full buyer profiles.
-        </p>
-      </div>
-      <ul className="divide-y divide-[#E7E7E7]">
+  const list = buyers.length ? (
+    <ul className="divide-y divide-[#E7E7E7]">
         {buyers.slice(0, 6).map((buyer) => (
           <li key={buyer.id} className="px-5 py-4">
             {/* Title + badges on the left; compact icon actions pinned top-right. */}
@@ -265,15 +254,59 @@ export function SessionBuyerQueue() {
           </li>
         ))}
       </ul>
+  ) : (
+    <div className="px-5 py-14 text-center">
+      <p className="text-[14px] font-semibold text-[#171719]">No local captures yet</p>
+      <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-6 text-[#8E918B]">
+        Drafts created from Voice CRM or matching land here before they become full buyer
+        profiles.
+      </p>
+    </div>
+  );
 
-      {editingId && draft ? (
-        <EditCaptureDrawer
-          draft={draft}
-          onChange={updateDraft}
-          onClose={cancelEdit}
-          onSave={saveDraft}
-        />
-      ) : null}
+  const drawer =
+    editingId && draft ? (
+      <EditCaptureDrawer
+        draft={draft}
+        onChange={updateDraft}
+        onClose={cancelEdit}
+        onSave={saveDraft}
+      />
+    ) : null;
+
+  // Bare: list only, for embedding inside the Buyers-index tab.
+  if (bare) {
+    return (
+      <>
+        {list}
+        {drawer}
+      </>
+    );
+  }
+
+  return (
+    <article className="mt-8 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white text-[#171719] shadow-[0_14px_38px_rgba(23,31,25,0.05)]">
+      {/* Header — icon + eyebrow + title on the left, descriptor on the right. */}
+      <div className="flex flex-col gap-4 border-b border-[#E7E7E7] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-[8px] bg-[#F1F2EE] text-[#003C33]">
+            <Clock3 className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#8E918B]">
+              Captured memory
+            </p>
+            <h3 className="bb-display mt-1 truncate text-[24px] font-semibold tracking-[-0.03em] text-[#171719]">
+              Local CRM captures
+            </h3>
+          </div>
+        </div>
+        <p className="max-w-xl text-[13px] leading-6 text-[#5F625E] lg:text-right">
+          Drafts created from Voice CRM or matching before they become full buyer profiles.
+        </p>
+      </div>
+      {list}
+      {drawer}
     </article>
   );
 }
