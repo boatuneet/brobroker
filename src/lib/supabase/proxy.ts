@@ -11,7 +11,10 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
    Only the buyer-facing room-question endpoint is public under /api; the rest
    of /api stays gated so anonymous traffic can't hit the AI/compute routes
    (verify-buyer, knowledge-chat, matching) and burn quota. */
-const PUBLIC_ROUTES = ["/login", "/signup", "/auth", "/room", "/api/room-question"];
+/* /api/digest bypasses the middleware because Vercel Cron sends no session
+   cookie — the handler itself checks the CRON_SECRET (GET) or verifies the
+   user (POST), so it stays gated. */
+const PUBLIC_ROUTES = ["/login", "/signup", "/auth", "/room", "/api/room-question", "/api/digest"];
 
 function isPublicRoute(pathname: string): boolean {
   // The marketing landing at "/" is public (logged-out visitors + post-logout).

@@ -11,6 +11,7 @@ import { signOut } from "@/app/auth/actions";
 import { AppShell } from "@/components/app-shell";
 import { BrokerSegmentSelector } from "@/components/broker-segment-selector";
 import { DemoModeToggle } from "@/components/profile/demo-mode-toggle";
+import { NotificationsCard } from "@/components/profile/notifications-card";
 import { ProfileEditor } from "@/components/profile/profile-editor";
 import { RerankConfigCard } from "@/components/profile/rerank-config-card";
 import { Badge, Card, CardHeader } from "@/components/ui";
@@ -165,6 +166,11 @@ export default async function ProfilePage() {
           <div className="px-6 py-5">
             <BrokerSegmentSelector currentSegment={segment} />
           </div>
+        </Card>
+
+        {/* Morning digest — daily email + on-demand test send. */}
+        <Card className="mt-5 !p-6">
+          <NotificationsCard />
         </Card>
 
         {/* AI re-rank agent configuration — broker-tunable ranking logic. */}
