@@ -10,6 +10,9 @@ import { getStoredTasks } from "@/lib/supabase/broker-tasks";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 import { getOpenRoomQuestionSummary } from "@/lib/supabase/deal-room-questions";
 import { getStoredListingsForSegment } from "@/lib/supabase/listings";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { fetchOwnProfile } from "@/lib/supabase/profiles";
+import { createClient } from "@/lib/supabase/server";
 import { getUpcomingViewings } from "@/lib/supabase/room-viewings-server";
 
 export const metadata = {
@@ -43,6 +46,19 @@ function DashboardTopActions() {
   );
 }
 
+/* Greeting name for the banner: profile display name when set, otherwise
+   the account email, otherwise nothing (bare "Welcome back"). */
+async function getWelcomeName(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const profile = await fetchOwnProfile(supabase, user.id);
+  return profile?.full_name || user.email || null;
+}
+
 export default async function DashboardPage() {
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
@@ -57,6 +73,7 @@ export default async function DashboardPage() {
     openQuestions,
     upcomingViewings,
     onboarded,
+    welcomeName,
   ] = await Promise.all([
     getStoredBuyersForSegment(segment),
     getStoredTasks(),
@@ -64,6 +81,7 @@ export default async function DashboardPage() {
     getOpenRoomQuestionSummary(),
     getUpcomingViewings(7),
     hasCompletedOnboarding(),
+    getWelcomeName(),
   ]);
 
   /* A truly fresh broker (no real records, hasn't finished or skipped the
@@ -92,6 +110,7 @@ export default async function DashboardPage() {
         storedListings={storedListings}
         storedTasks={storedTasks}
         upcomingViewings={upcomingViewings}
+        welcomeName={welcomeName}
       />
     </AppShell>
   );

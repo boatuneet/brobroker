@@ -55,6 +55,7 @@ export function Dashboard({
   storedListings = [],
   storedTasks = [],
   upcomingViewings = [],
+  welcomeName = null,
 }: {
   includeDemo?: boolean;
   /* Open buyer questions across the broker's deal rooms (+ the room with
@@ -67,6 +68,9 @@ export function Dashboard({
   /* Structured viewings across the broker's rooms, next 7 days, fetched
      server-side. Sorted ascending. */
   upcomingViewings?: UpcomingViewing[];
+  /* Display name (or email fallback) for the banner greeting; null when
+     the account isn't connected. */
+  welcomeName?: string | null;
 }) {
   const model = getDashboardModel(segment, { includeDemo });
   /* Merge stored (Supabase) records with the demo pools so every surface —
@@ -299,7 +303,7 @@ export function Dashboard({
           what's due today, and which deals are drifting with no next step.
           Vanity counters (completed-this-month, raw open totals) live in
           each workspace, not here. */}
-      <div className="relative overflow-hidden rounded-[16px] bg-[#003C33] p-4 sm:p-5">
+      <div className="relative overflow-hidden rounded-[16px] bg-[#003C33] p-4 sm:p-6">
         {/* Diagonal pinstripe texture — same trick as the reference banner,
             done with a repeating gradient so it costs no asset. */}
         <div
@@ -310,7 +314,11 @@ export function Dashboard({
               "repeating-linear-gradient(115deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 5px, transparent 5px, transparent 22px)",
           }}
         />
-        <div className="relative flex flex-wrap gap-3">
+        <div className="relative">
+        <h2 className="bb-display text-[1.5rem] font-medium text-white">
+          Welcome back{welcomeName ? `, ${welcomeName}` : ""}
+        </h2>
+        <div className="mt-5 flex flex-wrap gap-3">
         <StatRow
           className="border-transparent"
           title="Overdue"
@@ -346,10 +354,11 @@ export function Dashboard({
           }
         />
         </div>
-      </div>
 
-      {/* Pipeline funnel — the executive-view band, spans the full row. */}
-      <PipelineFunnel buyers={allBuyers} className="mt-5" />
+        {/* Pipeline flow — compact stage tiles inside the same banner. */}
+        <PipelineFunnel buyers={allBuyers} className="relative mt-3" />
+        </div>
+      </div>
 
       {/* items-start lets each card keep its content height — otherwise the
           hero stretches to match the risk queue and shows a hollow middle

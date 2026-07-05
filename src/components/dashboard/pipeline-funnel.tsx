@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { BuyerProfile } from "@/lib/types";
-import { cn, formatCurrencyCompact } from "@/lib/utils";
+import { formatCurrencyCompact } from "@/lib/utils";
 
 /* Stages in pipeline order: progressively narrower commitment from
    inquiry → negotiation. Labels match the stage names used on buyer
@@ -25,11 +25,11 @@ function buyerDealValue(buyer: BuyerProfile): number {
   return buyer.budgetMaxEur || buyer.budgetMinEur || 0;
 }
 
-/* The hero band that shows count + euro total per pipeline stage. Visually
-   modeled on the AmoCRM-style funnel: each stage is a tile with a colored
-   ribbon at the top, the count as the big number, and the rolled-up
-   commercial value as the secondary line. Tiles link to the buyers list
-   pre-filtered by stage so the broker can drill in with one click. */
+/* Compact stage-flow strip designed to live INSIDE the dashboard's green
+   hero banner: one slim white tile per stage with chevrons between them so
+   the row reads as a left-to-right pipeline. Each tile still links to the
+   stage-filtered buyers list — the whole card is the affordance, no extra
+   "View buyers" chrome. */
 export function PipelineFunnel({
   buyers,
   className,
@@ -51,73 +51,44 @@ export function PipelineFunnel({
   );
 
   return (
-    <section
-      aria-label="Pipeline funnel"
-      className={cn(
-        "rounded-[12px] border border-[#E7E7E7] bg-white p-5 sm:p-6",
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
-            Pipeline by stage
-          </p>
-          <h2 className="bb-display mt-1.5 text-[1.35rem] font-medium text-[#171719]">
-            Where every deal stands
-          </h2>
-        </div>
-        <Link
-          className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#171719] hover:underline"
-          href="/buyers"
-        >
-          Open buyers
-          <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
-        </Link>
-      </div>
-
-      <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {FUNNEL_STAGES.map((stage) => {
+    <section aria-label="Pipeline funnel" className={className}>
+      <ul className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-0">
+        {FUNNEL_STAGES.map((stage, index) => {
           const list = byStage.get(stage.key) ?? [];
           const total = list.reduce((sum, b) => sum + buyerDealValue(b), 0);
           return (
-            <li key={stage.key}>
+            <li className="flex min-w-0 flex-1 items-center" key={stage.key}>
               <Link
                 aria-label={`View ${stage.label} buyers`}
-                className="group flex h-full flex-col rounded-[10px] border border-[#E7E7E7] bg-[#FBFBFB] p-3.5 transition-all duration-150 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_8px_20px_rgba(23,31,25,0.07)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+                className="min-w-0 flex-1 rounded-[10px] bg-white p-3 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(0,0,0,0.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 href={`/buyers?stage=${encodeURIComponent(stage.key)}`}
                 title={`View ${stage.label} buyers`}
               >
-                {/* Label + a persistent navigate arrow so it's clear the tile
-                    is a link into the (stage-filtered) buyers list. */}
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
-                    {stage.label}
-                  </p>
-                  <ArrowUpRight
-                    aria-hidden="true"
-                    className="h-3.5 w-3.5 shrink-0 text-[#A9ABA5] transition-colors group-hover:text-[#003C33]"
-                  />
+                <p className="truncate text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#8E918B]">
+                  {stage.label}
+                </p>
+                <div className="mt-1.5 flex items-baseline gap-1.5">
+                  <span className="text-[1.25rem] font-semibold leading-none tabular-nums text-[#171719]">
+                    {list.length}
+                  </span>
+                  <span className="truncate text-[11.5px] text-[#5F625E]">
+                    {list.length ? formatCurrencyCompact(total) : "—"}
+                  </span>
                 </div>
-                <p className="mt-3 text-[1.75rem] font-semibold leading-none tabular-nums text-[#171719]">
-                  {list.length}
-                </p>
-                <p className="mt-1 text-[12px] text-[#5F625E]">
-                  {list.length
-                    ? formatCurrencyCompact(total)
-                    : <span className="text-[#A9ABA5]">No deals yet</span>}
-                </p>
-                <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[#003C33] opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                  View buyers
-                </span>
               </Link>
+              {index < FUNNEL_STAGES.length - 1 ? (
+                <ChevronRight
+                  aria-hidden="true"
+                  className="hidden h-4 w-4 shrink-0 text-white/40 sm:block"
+                />
+              ) : null}
             </li>
           );
         })}
       </ul>
 
       {closedWon.length || closedLost.length ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#E7E7E7] pt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link
             className="inline-flex items-center gap-2 rounded-[8px] bg-[#E9F2EC] px-3 py-1.5 text-[12px] font-medium text-[#0F8F62] transition-colors hover:bg-[#DCEBE1]"
             href={`/buyers?stage=${encodeURIComponent("Closed Won")}`}
