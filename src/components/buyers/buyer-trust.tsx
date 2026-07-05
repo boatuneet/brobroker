@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -455,10 +455,16 @@ function StoredBuyerVerification() {
         ) : null}
         {screening ? (
           <div className="mt-3 grid gap-3 rounded-[10px] border border-[#E7E7E7] bg-white p-3.5">
+            {/* The assessment badge judges the INQUIRY only — the public
+                record check below carries its own identity confidence, so
+                both get explicit labels to avoid reading as one verdict. */}
             <div>
-              <Badge tone={ASSESSMENT_COPY[screening.assessment].tone}>
-                {ASSESSMENT_COPY[screening.assessment].label}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="bb-mono-label">Inquiry plausibility</p>
+                <Badge tone={ASSESSMENT_COPY[screening.assessment].tone}>
+                  {ASSESSMENT_COPY[screening.assessment].label}
+                </Badge>
+              </div>
               <p className="mt-2 text-[13.5px] leading-[1.55] text-[#171719]">{screening.summary}</p>
             </div>
             {screening.flags.length ? (
@@ -721,7 +727,7 @@ function SavedVerificationView({
       {saved.screening ? (
         <section aria-label="AI screening result" className="grid gap-3 rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="bb-mono-label">AI screening</p>
+            <p className="bb-mono-label">AI screening · inquiry plausibility</p>
             <Badge tone={ASSESSMENT_COPY[saved.screening.assessment].tone}>
               {ASSESSMENT_COPY[saved.screening.assessment].label}
             </Badge>
@@ -841,9 +847,9 @@ function PublicRecordBlock({
   return (
     <div className="rounded-[10px] border border-[#E2ECE9] bg-[#F7FAF9] p-3.5">
       <p className="bb-mono-label">Public record check</p>
-      <p className="mt-2 whitespace-pre-line text-[13px] leading-[1.6] text-[#171719]">
-        {profile.summary}
-      </p>
+      <div className="mt-2 grid gap-2 text-[13px] leading-[1.6] text-[#171719]">
+        <MarkdownLite text={profile.summary} />
+      </div>
       {profile.sources.length ? (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {profile.sources.map((source) => (
@@ -916,4 +922,86 @@ function ManualCheckLinks({ name, company }: { name: string; company?: string })
       </div>
     </section>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Markdown-lite renderer                                              */
+/* ------------------------------------------------------------------ */
+
+/* The web-search model answers in light markdown (**bold**, *emphasis*,
+   "- " bullets, [label](url) links) despite the prompt asking for plain
+   text. Render those four constructs instead of showing raw asterisks —
+   a full markdown dependency would be overkill for this one surface.
+   ponytail: swap for react-markdown if richer output ever matters. */
+
+const INLINE_TOKEN = /(\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\s]+\)|\*[^*\n]+\*)/g;
+
+function renderInlineMarkdown(text: string, keyPrefix: string): ReactNode[] {
+  return text.split(INLINE_TOKEN).map((part, index) => {
+    const key = `${keyPrefix}-${index}`;
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong className="font-semibold text-[#171719]" key={key}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return (
+        <strong className="font-semibold text-[#171719]" key={key}>
+          {part.slice(1, -1)}
+        </strong>
+      );
+    }
+    const link = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+    if (link) {
+      return (
+        <a
+          className="font-medium text-[#003C33] underline decoration-[#B9CFC8] underline-offset-2 hover:decoration-[#003C33]"
+          href={link[2]}
+          key={key}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {link[1]}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
+function MarkdownLite({ text }: { text: string }) {
+  const lines = text.split(/\r?\n/);
+  const blocks: ReactNode[] = [];
+  let bullets: string[] = [];
+
+  const flushBullets = () => {
+    if (!bullets.length) return;
+    const items = bullets;
+    bullets = [];
+    blocks.push(
+      <ul className="grid list-disc gap-1 pl-4" key={`ul-${blocks.length}`}>
+        {items.map((item, index) => (
+          <li key={`li-${index}`}>{renderInlineMarkdown(item, `li-${blocks.length}-${index}`)}</li>
+        ))}
+      </ul>,
+    );
+  };
+
+  lines.forEach((line, index) => {
+    // "- item" / "• item" / "* item" — note "* " needs the space so a
+    // *bold heading* line isn't mistaken for a bullet.
+    const bullet = line.match(/^\s*(?:[-•]|\*)\s+(.*\S)\s*$/);
+    if (bullet) {
+      bullets.push(bullet[1]);
+      return;
+    }
+    flushBullets();
+    if (!line.trim()) return;
+    blocks.push(<p key={`p-${index}`}>{renderInlineMarkdown(line.trim(), `p-${index}`)}</p>);
+  });
+  flushBullets();
+
+  return <>{blocks}</>;
 }
