@@ -299,8 +299,20 @@ export function Dashboard({
           what's due today, and which deals are drifting with no next step.
           Vanity counters (completed-this-month, raw open totals) live in
           each workspace, not here. */}
-      <div className="flex flex-wrap gap-3">
+      <div className="relative overflow-hidden rounded-[16px] bg-[#003C33] p-4 sm:p-5">
+        {/* Diagonal pinstripe texture — same trick as the reference banner,
+            done with a repeating gradient so it costs no asset. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(115deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 5px, transparent 5px, transparent 22px)",
+          }}
+        />
+        <div className="relative flex flex-wrap gap-3">
         <StatRow
+          className="border-transparent"
           title="Overdue"
           value={overdueCount}
           trend={overdueCount > 0 ? "down" : "up"}
@@ -311,6 +323,7 @@ export function Dashboard({
           }
         />
         <StatRow
+          className="border-transparent"
           title="Due today"
           value={dueTodayCount}
           trend={dueTodayCount > 0 ? "neutral" : "up"}
@@ -321,6 +334,7 @@ export function Dashboard({
           }
         />
         <StatRow
+          className="border-transparent"
           href="/buyers?focus=no-next-step"
           title="No next step"
           value={dealsWithoutTasks.length}
@@ -331,6 +345,7 @@ export function Dashboard({
               : "Every deal has a next step"
           }
         />
+        </div>
       </div>
 
       {/* Pipeline funnel — the executive-view band, spans the full row. */}
