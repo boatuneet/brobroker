@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { PrivateDealRoom } from "@/components/private-deal-room";
 import { getDealRoomById } from "@/lib/services";
-import { getPublicDealRoomBundle } from "@/lib/supabase/service";
+import {
+  getPublicDealRoomBundle,
+  getPublicRoomDocumentUrls,
+  getPublicRoomQuestions,
+} from "@/lib/supabase/service";
 
 /* Public, no-auth buyer room. Two data paths:
    1. Demo rooms (ids seeded in demo-data) resolve without Supabase via
@@ -59,11 +63,22 @@ export default async function PublicRoomPage({
     );
   }
 
+  /* Signed doc links + the Q&A thread (broker replies) — both service-role,
+     both buyer-safe projections. Empty in demo mode. */
+  const [documentUrls, publicQuestions] = bundle
+    ? await Promise.all([
+        getPublicRoomDocumentUrls(bundle.room, bundle.listings),
+        getPublicRoomQuestions(id),
+      ])
+    : [{}, []];
+
   return (
     <RoomChrome>
       <div className="mx-auto w-full max-w-[1100px]">
         <PrivateDealRoom
+          documentUrls={documentUrls}
           includeDemo={!bundle}
+          publicQuestions={publicQuestions}
           roomId={id}
           storedBuyers={[]}
           storedListings={bundle?.listings ?? []}

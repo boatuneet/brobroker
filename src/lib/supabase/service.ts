@@ -118,3 +118,63 @@ function getPayloadPhotos(payload: unknown) {
   const photos = (payload as { photos?: unknown }).photos;
   return Array.isArray(photos) ? (photos as { storagePath?: string }[]) : [];
 }
+
+/* Signed download URLs for a room's APPROVED documents only — the buyer-safe
+   subset. Keyed by document id; docs without an uploaded file are skipped
+   (metadata-only rows have nothing to download). */
+export async function getPublicRoomDocumentUrls(
+  room: DealRoom,
+  listings: YachtListing[],
+): Promise<Record<string, string>> {
+  const supabase = createServiceClient();
+  if (!supabase) return {};
+
+  const approved = listings
+    .flatMap((listing) => listing.documents)
+    .filter((doc) => room.approvedDocumentIds.includes(doc.id) && doc.filePath);
+
+  const urls: Record<string, string> = {};
+  await Promise.all(
+    approved.map(async (doc) => {
+      const { data } = await supabase.storage
+        .from("broker-documents")
+        .createSignedUrl(doc.filePath!, PHOTO_SIGNED_URL_SECONDS);
+      if (data?.signedUrl) urls[doc.id] = data.signedUrl;
+    }),
+  );
+  return urls;
+}
+
+/* Q&A thread for the public room page — the buyer sees their own room's
+   questions and any broker replies. Room id is the access key (same model
+   as the room itself); only Q&A fields are projected, never broker PII. */
+export type PublicRoomQuestion = {
+  id: string;
+  question: string;
+  autoAnswer: string | null;
+  status: "open" | "answered";
+  brokerAnswer: string | null;
+  askedAt: string;
+};
+
+export async function getPublicRoomQuestions(roomId: string): Promise<PublicRoomQuestion[]> {
+  const supabase = createServiceClient();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("deal_room_questions")
+    .select("id, question, auto_answer, status, broker_answer, asked_at")
+    .eq("room_id", roomId)
+    .order("asked_at", { ascending: false })
+    .limit(50);
+
+  if (error || !data) return [];
+  return data.map((row) => ({
+    id: String(row.id),
+    question: row.question,
+    autoAnswer: row.auto_answer,
+    status: row.status === "answered" ? "answered" : "open",
+    brokerAnswer: row.broker_answer,
+    askedAt: row.asked_at,
+  }));
+}

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   CheckCircle2,
+  Download,
   FileText,
   LockKeyhole,
   MailQuestion,
@@ -25,6 +26,9 @@ import {
   markRoomQuestionAnswered,
 } from "@/lib/supabase/answer-room-question";
 import type { RoomQuestion } from "@/lib/supabase/deal-room-questions";
+// Type-only import — erased at compile time, so the server-only guard in
+// service.ts never runs in this client bundle.
+import type { PublicRoomQuestion } from "@/lib/supabase/service";
 import {
   Badge,
   Button,
@@ -54,6 +58,8 @@ export function PrivateDealRoom({
   storedRooms = [],
   viewer = "buyer",
   initialQuestions = [],
+  documentUrls = {},
+  publicQuestions = [],
 }: {
   includeDemo?: boolean;
   roomId: string;
@@ -64,6 +70,13 @@ export function PrivateDealRoom({
   storedRooms?: DealRoom[];
   viewer?: "buyer" | "broker";
   initialQuestions?: RoomQuestion[];
+  /* Signed download URLs for approved documents (doc id → url), generated
+     server-side by whichever page rendered us (public: service role;
+     broker: authed client). Docs without a file simply have no entry. */
+  documentUrls?: Record<string, string>;
+  /* Buyer view only: the room's Q&A thread from the server, so the buyer
+     sees the broker's replies — not just their own local history. */
+  publicQuestions?: PublicRoomQuestion[];
 }) {
   const [persistedRooms] = useState<DealRoom[]>(() =>
     readPersisted<DealRoom[]>("brobroker:deal-rooms:saved", []),
@@ -181,6 +194,7 @@ export function PrivateDealRoom({
               extraRooms={extraRooms}
               segment={segment}
               pools={pools}
+              serverQuestions={publicQuestions}
             />
           )}
 
@@ -196,14 +210,33 @@ export function PrivateDealRoom({
             <div className="grid gap-0">
               {model.approvedDocuments.length ? (
                 <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-                  {model.approvedDocuments.map((document) => (
-                    <li key={document.id} className="px-6 py-4">
-                      <p className="text-[14px] font-medium text-[#171719]">{document.title}</p>
-                      <p className="mt-1 text-[13px] text-[#8E918B]">
-                        {document.category} · updated {formatDate(document.updatedAt)}
-                      </p>
-                    </li>
-                  ))}
+                  {model.approvedDocuments.map((document) => {
+                    const url = documentUrls[document.id];
+                    return (
+                      <li
+                        key={document.id}
+                        className="flex items-center gap-3 px-6 py-4"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] font-medium text-[#171719]">{document.title}</p>
+                          <p className="mt-1 text-[13px] text-[#8E918B]">
+                            {document.category} · updated {formatDate(document.updatedAt)}
+                          </p>
+                        </div>
+                        {url ? (
+                          <a
+                            className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]"
+                            href={url}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                            Open
+                          </a>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <div className="px-6 py-5">
@@ -264,11 +297,13 @@ function BuyerAskCard({
   extraRooms,
   segment,
   pools,
+  serverQuestions = [],
 }: {
   roomId: string;
   extraRooms: DealRoom[];
   segment?: BrokerSegment;
   pools: DealRoomDataPools;
+  serverQuestions?: PublicRoomQuestion[];
 }) {
   const [question, setQuestion] = useState("What specs does the first listing have?");
   // Start empty so SSR and first client render match; hydrate the buyer's own
@@ -370,6 +405,33 @@ function BuyerAskCard({
             />
           </div>
         )}
+
+        {/* Broker replies, from the server — closes the loop so the buyer
+            sees answers on their next visit instead of only hearing back
+            through another channel. */}
+        {serverQuestions.some((item) => item.status === "answered") ? (
+          <div className="border-t border-[#E7E7E7] pt-4">
+            <p className="bb-mono-label">From your broker</p>
+            <ul className="mt-1 grid gap-0 divide-y divide-[#E7E7E7]">
+              {serverQuestions
+                .filter((item) => item.status === "answered" && item.brokerAnswer)
+                .map((item) => (
+                  <li key={item.id} className="py-4">
+                    <p className="text-[13px] text-[#8E918B]">You asked</p>
+                    <p className="mt-1 text-[14px] font-medium text-[#171719]">{item.question}</p>
+                    <div className="mt-2 rounded-[10px] bg-[#F1F2EE] px-3.5 py-2.5">
+                      <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[#003C33]">
+                        Broker reply
+                      </p>
+                      <p className="mt-1 text-[13.5px] leading-6 text-[#171719]">
+                        {item.brokerAnswer}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     </Card>
   );

@@ -8,6 +8,7 @@ import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 import { getStoredDealRooms } from "@/lib/supabase/deal-rooms";
 import { getRoomQuestions } from "@/lib/supabase/deal-room-questions";
 import { getStoredListingsForSegmentWithPreview } from "@/lib/supabase/listings";
+import { getRoomDocumentUrls } from "@/lib/supabase/room-document-urls";
 
 // Render dynamically — deal-room IDs aren't known at build time and the
 // previous setup triggered the same Turbopack server/client classification
@@ -44,6 +45,11 @@ export default async function PrivateDealRoomPage({
     includeDemo,
   });
   const roomTitle = model?.room.title ?? "Buyer room";
+  /* Signed links for approved doc files so the broker can open them right
+     from the room (mirrors what the buyer sees on the public page). */
+  const documentUrls = model
+    ? await getRoomDocumentUrls(model.room, model.listings)
+    : {};
 
   return (
     <AppShell
@@ -58,6 +64,7 @@ export default async function PrivateDealRoomPage({
       }
     >
       <PrivateDealRoom
+        documentUrls={documentUrls}
         includeDemo={includeDemo}
         roomId={id}
         segment={segment}
