@@ -54,6 +54,7 @@ import {
   getVerificationTone,
 } from "@/lib/services";
 import type {
+  BrokerTask,
   BuyerProfile,
   Conversation,
   DealRoom,
@@ -267,20 +268,30 @@ const STAGE_OPTIONS: BuyerProfile["currentStage"][] = [
   "Shortlist Sent",
   "Viewing Planned",
   "Negotiation",
+  "Closed Won",
+  "Closed Lost",
 ];
 
 export function BuyerIndex({
+  focusNoNextStep = false,
   includeDemo = true,
+  initialStage,
   query: initialQuery,
   segment,
   storedBuyers = [],
   storedListings = [],
+  storedTasks = [],
 }: {
+  /* Deep link from Today's "No next step" KPI — pre-applies the filter. */
+  focusNoNextStep?: boolean;
   includeDemo?: boolean;
+  /* Deep link from Today's funnel tiles (?stage=). */
+  initialStage?: string;
   query?: string;
   segment?: BrokerSegment;
   storedBuyers?: BuyerProfile[];
   storedListings?: YachtListing[];
+  storedTasks?: BrokerTask[];
 }) {
   /* When demo mode is off, drop the seed dataset entirely — the broker sees
      only their Supabase-backed buyers and listings. */
@@ -292,9 +303,25 @@ export function BuyerIndex({
     () => mergeListings(storedListings, includeDemo ? getListingsForSegment(segment) : []),
     [includeDemo, storedListings, segment],
   );
+  /* Buyers with at least one open task (real + demo) — inverse powers the
+     "No next step" filter that Today's KPI deep-links to. */
+  const buyerIdsWithOpenTask = useMemo(() => {
+    const demoTasks = includeDemo ? getTasksForSegment(segment) : [];
+    return new Set(
+      [...storedTasks, ...demoTasks]
+        .filter((task) => task.status !== "Done")
+        .map((task) => task.buyerId)
+        .filter((id): id is string => Boolean(id)),
+    );
+  }, [storedTasks, includeDemo, segment]);
 
   const [query, setQuery] = useState(initialQuery ?? "");
-  const [stageFilter, setStageFilter] = useState<BuyerProfile["currentStage"] | "All">("All");
+  const [stageFilter, setStageFilter] = useState<BuyerProfile["currentStage"] | "All">(() =>
+    STAGE_OPTIONS.includes(initialStage as BuyerProfile["currentStage"])
+      ? (initialStage as BuyerProfile["currentStage"])
+      : "All",
+  );
+  const [noNextStepOnly, setNoNextStepOnly] = useState(focusNoNextStep);
   const [page, setPage] = useState(1);
 
   const normalizedQuery = query.trim().toLowerCase();
@@ -321,13 +348,15 @@ export function BuyerIndex({
     return STAGE_OPTIONS.filter((stage) => present.has(stage));
   }, [allBuyers]);
 
-  const filteredBuyers = useMemo(
-    () =>
+  const filteredBuyers = useMemo(() => {
+    const byStage =
       stageFilter === "All"
         ? queryFilteredBuyers
-        : queryFilteredBuyers.filter((buyer) => buyer.currentStage === stageFilter),
-    [queryFilteredBuyers, stageFilter],
-  );
+        : queryFilteredBuyers.filter((buyer) => buyer.currentStage === stageFilter);
+    return noNextStepOnly
+      ? byStage.filter((buyer) => !buyerIdsWithOpenTask.has(buyer.id))
+      : byStage;
+  }, [queryFilteredBuyers, stageFilter, noNextStepOnly, buyerIdsWithOpenTask]);
 
   // Resolve top-match fits once for the entire current-view list.
   const fitByBuyer = useMemo(() => {
@@ -394,9 +423,10 @@ export function BuyerIndex({
   const clearFilters = () => {
     setQuery("");
     setStageFilter("All");
+    setNoNextStepOnly(false);
     setPage(1);
   };
-  const hasFilters = searching || stageFilter !== "All";
+  const hasFilters = searching || stageFilter !== "All" || noNextStepOnly;
 
   return (
     <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
@@ -489,6 +519,17 @@ export function BuyerIndex({
                   />
                 );
               })}
+              {/* Cross-cutting filter (not a stage): deals with no open task.
+                  Today's "No next step" KPI deep-links here pre-applied. */}
+              <StatusChip
+                active={noNextStepOnly}
+                count={queryFilteredBuyers.filter((b) => !buyerIdsWithOpenTask.has(b.id)).length}
+                label="No next step"
+                onClick={() => {
+                  setNoNextStepOnly((current) => !current);
+                  setPage(1);
+                }}
+              />
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ import {
   Compass,
   FileText,
   Gauge,
+  MessageSquareText,
   Radio,
   ShieldCheck,
   Sparkles,
@@ -16,7 +17,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { BrokerSegment } from "@/lib/broker-segments";
-import type { BuyerProfile } from "@/lib/types";
+import type { BrokerTask, BuyerProfile, YachtListing } from "@/lib/types";
 import {
   getBuyerById,
   getDashboardModel,
@@ -32,6 +33,7 @@ import {
 } from "./ui";
 import { StatRow } from "./ui/stat-row";
 import { TaskActionButton } from "./task-action-button";
+import { TaskQuickActions } from "./dashboard/task-quick-actions";
 import { DashboardPulsePreview } from "./pulse/dashboard-pulse-preview";
 import { PipelineFunnel } from "./dashboard/pipeline-funnel";
 
@@ -45,41 +47,49 @@ function dueLabel(date: string) {
 
 export function Dashboard({
   includeDemo = true,
-  openTaskCount: storedOpenTaskCount = 0,
+  openQuestions = { count: 0 },
   segment,
   storedBuyers = [],
+  storedListings = [],
+  storedTasks = [],
 }: {
   includeDemo?: boolean;
-  openTaskCount?: number;
+  /* Open buyer questions across the broker's deal rooms (+ the room with
+     the newest one, for the deep link). */
+  openQuestions?: { count: number; roomId?: string };
   segment?: BrokerSegment;
   storedBuyers?: BuyerProfile[];
+  storedListings?: YachtListing[];
+  storedTasks?: BrokerTask[];
 }) {
   const model = getDashboardModel(segment, { includeDemo });
-  /* Merge stored (Supabase) buyers with the demo-derived model.buyers so
-     the pulse preview + funnel + donut surface every buyer the broker has
-     — both their own pipeline and any demo lanes when demo mode is on.
-     Dedupe by id in case stored data ever collides with a seeded demo
-     row. */
-  const allBuyers = (() => {
+  /* Merge stored (Supabase) records with the demo pools so every surface —
+     hero, queue, funnel, timelines — runs on the broker's REAL data, with
+     demo lanes only when the investor-demo toggle is on. Stored rows list
+     first so they win id collisions. */
+  const dedupeById = <T extends { id: string }>(rows: T[]): T[] => {
     const seen = new Set<string>();
-    const merged: BuyerProfile[] = [];
-    for (const buyer of [...storedBuyers, ...model.buyers]) {
-      if (seen.has(buyer.id)) continue;
-      seen.add(buyer.id);
-      merged.push(buyer);
-    }
-    return merged;
-  })();
+    return rows.filter((row) => (seen.has(row.id) ? false : (seen.add(row.id), true)));
+  };
+  const allBuyers = dedupeById([...storedBuyers, ...model.buyers]);
+  const allListings = dedupeById([...storedListings, ...model.listings]);
+  const allTasks = dedupeById([...storedTasks, ...model.tasks]);
+  const openTasks = allTasks
+    .filter((task) => task.status !== "Done")
+    .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
+  const storedTaskIds = new Set(storedTasks.map((task) => task.id));
+  /* Local resolvers that check the broker's stored records before the demo
+     pools, so stored tasks referencing stored buyers/assets resolve too. */
+  const resolveBuyer = (id?: string) =>
+    id ? allBuyers.find((buyer) => buyer.id === id) ?? getBuyerById(id, segment) : undefined;
+  const resolveListing = (id?: string) =>
+    id ? allListings.find((listing) => listing.id === id) ?? getListingById(id, segment) : undefined;
+
   const pulsePreviewBuyers = allBuyers;
-  /* Buyers that have no open broker task — the dashboard equivalent of
-     the Russian CRM's "Сделок без задач" widget. Computed from demo +
-     stored together so the number stays consistent with what the broker
-     actually sees in the pipeline. */
+  /* Buyers that have no open broker task — deals drifting with no next
+     step. Computed from the merged task set so real tasks count. */
   const buyerIdsWithOpenTask = new Set(
-    model.tasks
-      .filter((task) => task.status !== "Done")
-      .map((task) => task.buyerId)
-      .filter((id): id is string => Boolean(id)),
+    openTasks.map((task) => task.buyerId).filter((id): id is string => Boolean(id)),
   );
   const dealsWithoutTasks = allBuyers.filter(
     (buyer) => !buyerIdsWithOpenTask.has(buyer.id),
@@ -88,16 +98,8 @@ export function Dashboard({
     (sum, buyer) => sum + (buyer.budgetMaxEur || buyer.budgetMinEur || 0),
     0,
   );
-  /* Open-task total reflects whichever data set we have: when the broker
-     hasn't connected Supabase task rows yet, fall back to the demo model
-     count so the tile still shows a useful number. */
-  const liveOpenTaskCount = Math.max(
-    storedOpenTaskCount,
-    model.tasks.filter((task) => task.status !== "Done").length,
-  );
-  const dueTodayCount = model.tasks.filter(
-    (task) => task.status !== "Done" && daysUntil(task.dueAt) === 0,
-  ).length;
+  const liveOpenTaskCount = openTasks.length;
+  const dueTodayCount = openTasks.filter((task) => daysUntil(task.dueAt) === 0).length;
   const pendingDrafts = model.followUpDrafts.filter(
     (draft) => draft.status !== "Approved",
   ).length;
@@ -110,20 +112,18 @@ export function Dashboard({
   }
 
   // Derived numbers powering the visualisations.
-  const pipelineCount = model.buyers.length;
-  const listingCount = model.listings.length;
+  const pipelineCount = allBuyers.length;
+  const listingCount = allListings.length;
   const verificationCount = model.verificationCases.length;
   const dealRoomCount = model.dealRooms.length;
-  const overdueCount = model.overdueTasks.length;
+  const overdueCount = openTasks.filter((task) => daysUntil(task.dueAt) < 0).length;
 
-  // Top urgency drives the anchor tile.
-  const topTask = model.overdueTasks[0];
-  const topTaskBuyer = topTask?.buyerId
-    ? getBuyerById(topTask.buyerId, segment)
-    : undefined;
-  const topTaskListing = topTask?.listingId
-    ? getListingById(topTask.listingId, segment)
-    : undefined;
+  /* The day's #1 task: earliest due date across the MERGED open set (real +
+     demo), so overdue naturally leads and the hero never claims "nothing
+     urgent" while open tasks exist. */
+  const topTask = openTasks[0];
+  const topTaskBuyer = resolveBuyer(topTask?.buyerId);
+  const topTaskListing = resolveListing(topTask?.listingId);
   /* Where the primary "action" button on the focal task should navigate to,
      based on the task kind + linked IDs. Keeps the button label honest:
      "Open matcher" → /matching, "Approve update" → owner page, etc.
@@ -155,19 +155,35 @@ export function Dashboard({
   const reviewCount = model.verificationCases.filter(
     (item) => item.status === "Needs Review",
   ).length;
-  const activeListingCount = model.listings.filter(
+  const activeListingCount = allListings.filter(
     (listing) => listing.status === "Active",
   ).length;
-  const progressedBuyerCount = model.buyers.filter(
+  const progressedBuyerCount = allBuyers.filter(
     (buyer) => buyer.currentStage !== "New Inquiry",
   ).length;
   /* The day's working queue: every open task sorted by due date (overdue
      first), minus the focal task already shown above. Capped so the card
      stays scannable — the tail lives on each buyer/listing record. */
-  const visibleQueueTasks = model.tasks
-    .filter((task) => task.status !== "Done" && task.id !== topTask?.id)
-    .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+  const visibleQueueTasks = openTasks
+    .filter((task) => task.id !== topTask?.id)
     .slice(0, 6);
+
+  /* Going cold: live deals (not closed) with no contact for 14+ days. The
+     data already exists on every buyer — surfacing it is how money stops
+     quietly dying in the pipeline. */
+  const goingColdBuyers = allBuyers.filter(
+    (buyer) =>
+      buyer.currentStage !== "Closed Won" &&
+      buyer.currentStage !== "Closed Lost" &&
+      buyer.lastContactedAt &&
+      daysUntil(buyer.lastContactedAt) <= -14,
+  );
+
+  /* Deep-link targets for the risk rows — land on the specific record that
+     resolves the issue, not a generic index page. */
+  const firstMissingDocListing = model.missingDocuments[0]?.listing;
+  const firstPendingDraft = model.followUpDrafts.find((draft) => draft.status !== "Approved");
+
   const riskSignals: Array<{
     detail: string;
     href: string;
@@ -176,13 +192,34 @@ export function Dashboard({
     value: string;
   }> = [
     {
+      detail: openQuestions.count
+        ? `${openQuestions.count} buyer question${openQuestions.count === 1 ? "" : "s"} waiting in your deal rooms.`
+        : "No open buyer questions.",
+      href: openQuestions.roomId ? `/deal-rooms/${openQuestions.roomId}` : "/deal-rooms",
+      icon: MessageSquareText,
+      label: "Buyer questions",
+      value: `${openQuestions.count}`,
+    },
+    {
       detail: topRiskCase
         ? `${topRiskBuyer?.name ?? "Unknown buyer"}: ${topRiskCase.recommendedAction}`
         : "Verification inbox is clear.",
-      href: "/verification",
+      href: topRiskCase ? `/verification?buyer=${topRiskCase.buyerId}` : "/verification",
       icon: ShieldCheck,
       label: "Verification risk",
       value: highRiskCount ? `${highRiskCount} high` : `${reviewCount} review`,
+    },
+    {
+      detail: goingColdBuyers.length
+        ? `${goingColdBuyers
+            .slice(0, 2)
+            .map((buyer) => buyer.name)
+            .join(", ")} — no contact in 14+ days.`
+        : "Every live deal has recent contact.",
+      href: goingColdBuyers[0] ? `/buyers/${goingColdBuyers[0].id}` : "/buyers",
+      icon: Clock,
+      label: "Going cold",
+      value: `${goingColdBuyers.length}`,
     },
     {
       detail: model.missingDocuments.length
@@ -191,28 +228,32 @@ export function Dashboard({
             .slice(0, 2)
             .join(" · ")
         : "No open document gaps.",
-      href: "/listings",
+      href: firstMissingDocListing
+        ? `/listings/${firstMissingDocListing.id}?tab=docs`
+        : "/listings",
       icon: FileText,
       label: "Missing docs",
       value: `${model.missingDocuments.length}`,
+    },
+    {
+      detail: pendingDrafts
+        ? `${pendingDrafts} drafts waiting for your approval.`
+        : "No follow-up drafts waiting.",
+      href: firstPendingDraft?.buyerId
+        ? `/buyers/${firstPendingDraft.buyerId}?tab=drafts`
+        : "/buyers",
+      icon: CheckCircle,
+      label: "Drafts to approve",
+      value: `${pendingDrafts}`,
     },
     {
       detail: conversationsNeedingSummary
         ? `${conversationsNeedingSummary} captured calls need a written summary.`
         : "All captured calls have summaries.",
       href: "/voice-crm",
-      icon: Clock,
+      icon: Bot,
       label: "Calls to summarize",
       value: `${conversationsNeedingSummary}`,
-    },
-    {
-      detail: pendingDrafts
-        ? `${pendingDrafts} drafts waiting for your approval.`
-        : "No follow-up drafts waiting.",
-      href: "/buyers",
-      icon: CheckCircle,
-      label: "Drafts to approve",
-      value: `${pendingDrafts}`,
     },
   ];
 
@@ -247,7 +288,7 @@ export function Dashboard({
           }
         />
         <StatRow
-          href="/buyers"
+          href="/buyers?focus=no-next-step"
           title="No next step"
           value={dealsWithoutTasks.length}
           trend={dealsWithoutTasks.length > 0 ? "down" : "up"}
@@ -336,7 +377,8 @@ export function Dashboard({
               </div>
 
               {/* Primary action row sits just below the focus chip — no extra
-                  divider needed, the accent fill already separates concerns. */}
+                  divider needed, the accent fill already separates concerns.
+                  Done/snooze make the hero workable without leaving Today. */}
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <TaskActionButton
                   href={topTaskHref}
@@ -352,6 +394,7 @@ export function Dashboard({
                     <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </Link>
                 ) : null}
+                <TaskQuickActions isStored={storedTaskIds.has(topTask.id)} taskId={topTask.id} />
               </div>
             </>
           ) : (
@@ -392,12 +435,8 @@ export function Dashboard({
                   link. */}
               <ul className="mt-3 grid gap-1">
                 {visibleQueueTasks.map((task) => {
-                  const buyer = task.buyerId
-                    ? getBuyerById(task.buyerId, segment)
-                    : undefined;
-                  const listing = task.listingId
-                    ? getListingById(task.listingId, segment)
-                    : undefined;
+                  const buyer = resolveBuyer(task.buyerId);
+                  const listing = resolveListing(task.listingId);
                   const href = resolveTaskHref(
                     task.kind,
                     task.buyerId,
@@ -407,39 +446,41 @@ export function Dashboard({
                     Boolean(listing),
                   );
 
-                  const rowClasses =
-                    "grid gap-3 rounded-[8px] px-3 py-2.5 transition-colors sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center";
-                  const content = (
+                  /* Row anatomy: the title area is the link; done/snooze sit
+                     beside it as siblings (never nest buttons in anchors). */
+                  const titleBlock = (
                     <>
-                      <div className="min-w-0">
-                        <p className="truncate text-[13.5px] font-medium text-[#171719]">
-                          {task.title}
-                        </p>
-                        <p className="mt-0.5 text-[12px] text-[#8E918B]">
-                          {dueLabel(task.dueAt)}
-                        </p>
-                      </div>
-                      {href ? (
-                        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#003C33]">
-                          {task.actionLabel}
-                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
-                      ) : null}
+                      <p className="truncate text-[13.5px] font-medium text-[#171719]">
+                        {task.title}
+                      </p>
+                      <p className="mt-0.5 text-[12px] text-[#8E918B]">
+                        {dueLabel(task.dueAt)}
+                        {buyer ? ` · ${buyer.name}` : ""}
+                      </p>
                     </>
                   );
 
                   return (
-                    <li key={task.id}>
+                    <li
+                      key={task.id}
+                      className="flex items-center gap-3 rounded-[8px] px-3 py-2 transition-colors hover:bg-[#F1F2EE]"
+                    >
                       {href ? (
-                        <Link
-                          className={cn(rowClasses, "hover:bg-[#F1F2EE]")}
-                          href={href}
-                        >
-                          {content}
+                        <Link className="group min-w-0 flex-1" href={href}>
+                          {titleBlock}
+                          <span className="mt-0.5 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#003C33]">
+                            {task.actionLabel}
+                            <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                          </span>
                         </Link>
                       ) : (
-                        <div className={rowClasses}>{content}</div>
+                        <div className="min-w-0 flex-1">{titleBlock}</div>
                       )}
+                      <TaskQuickActions
+                        compact
+                        isStored={storedTaskIds.has(task.id)}
+                        taskId={task.id}
+                      />
                     </li>
                   );
                 })}
@@ -505,7 +546,7 @@ export function Dashboard({
           className="min-h-[320px]"
           conversations={model.conversations}
           drafts={model.followUpDrafts}
-          tasks={model.tasks}
+          tasks={allTasks}
         />
 
         <Card className="overflow-hidden p-0">

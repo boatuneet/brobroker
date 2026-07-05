@@ -4,8 +4,10 @@ import { AppShell } from "@/components/app-shell";
 import { Dashboard } from "@/components/dashboard";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
-import { getStoredOpenTasksCount } from "@/lib/supabase/broker-tasks";
+import { getStoredTasks } from "@/lib/supabase/broker-tasks";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
+import { getOpenRoomQuestionSummary } from "@/lib/supabase/deal-room-questions";
+import { getStoredListingsForSegment } from "@/lib/supabase/listings";
 
 export const metadata = {
   title: "Today · BroBroker",
@@ -41,12 +43,15 @@ function DashboardTopActions() {
 export default async function DashboardPage() {
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
-  /* Pull the broker's Supabase buyers + task counters so the dashboard
-     pulse preview / KPI strip / funnel can surface real data alongside
-     (or instead of) demo data, matching the /pulse screen behaviour. */
-  const [storedBuyers, openTaskCount] = await Promise.all([
+  /* Pull the broker's real Supabase rows — buyers, TASK ROWS (not just
+     counts, so the hero/queue run on real work), listings (to resolve
+     task-linked assets), and the open buyer-question summary for the risk
+     queue. Demo data merges in when the investor-demo toggle is on. */
+  const [storedBuyers, storedTasks, storedListings, openQuestions] = await Promise.all([
     getStoredBuyersForSegment(segment),
-    getStoredOpenTasksCount(),
+    getStoredTasks(),
+    getStoredListingsForSegment(segment),
+    getOpenRoomQuestionSummary(),
   ]);
 
   return (
@@ -57,9 +62,11 @@ export default async function DashboardPage() {
     >
       <Dashboard
         includeDemo={includeDemo}
-        openTaskCount={openTaskCount}
+        openQuestions={openQuestions}
         segment={segment}
         storedBuyers={storedBuyers}
+        storedListings={storedListings}
+        storedTasks={storedTasks}
       />
     </AppShell>
   );

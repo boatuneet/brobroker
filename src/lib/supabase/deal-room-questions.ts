@@ -59,3 +59,28 @@ export const getRoomQuestions = cache(
     return ((data ?? []) as Row[]).map(mapRow);
   },
 );
+
+/* Open-question summary across ALL of the broker's rooms — powers Today's
+   risk queue row. Returns the count plus the room with the newest open
+   question so the row can deep-link straight to the right room panel. */
+export const getOpenRoomQuestionSummary = cache(
+  async (): Promise<{ count: number; roomId?: string }> => {
+    const user = await getCurrentUser();
+    if (!user) return { count: 0 };
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("deal_room_questions")
+      .select("room_id, asked_at")
+      .eq("status", "open")
+      .order("asked_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.warn("Could not summarize open room questions", error.message);
+      return { count: 0 };
+    }
+    const rows = (data ?? []) as Array<{ room_id: string }>;
+    return { count: rows.length, roomId: rows[0]?.room_id };
+  },
+);

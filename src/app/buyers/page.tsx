@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { BuyerIndex } from "@/components/client-memory";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
+import { getStoredTasks } from "@/lib/supabase/broker-tasks";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 import { getStoredListingsForSegment } from "@/lib/supabase/listings";
 
@@ -29,15 +30,25 @@ function BuyersTopActions() {
 export default async function BuyersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    stage?: string | string[];
+    focus?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
-  const query = Array.isArray(params.q) ? params.q[0] : params.q;
+  const first = (value?: string | string[]) => (Array.isArray(value) ? value[0] : value);
+  const query = first(params.q);
+  /* Deep-link filters: Today's funnel tiles link ?stage=<stage>, and the
+     "No next step" KPI tile links ?focus=no-next-step. */
+  const initialStage = first(params.stage);
+  const focus = first(params.focus);
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
-  const [storedBuyers, storedListings] = await Promise.all([
+  const [storedBuyers, storedListings, storedTasks] = await Promise.all([
     getStoredBuyersForSegment(segment),
     getStoredListingsForSegment(segment),
+    getStoredTasks(),
   ]);
 
   return (
@@ -47,11 +58,14 @@ export default async function BuyersPage({
       pageTitle="Buyers"
     >
       <BuyerIndex
+        focusNoNextStep={focus === "no-next-step"}
         includeDemo={includeDemo}
+        initialStage={initialStage}
         query={query}
         segment={segment}
         storedBuyers={storedBuyers}
         storedListings={storedListings}
+        storedTasks={storedTasks}
       />
     </AppShell>
   );
