@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { FileText, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Dashboard } from "@/components/dashboard";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
+import { hasCompletedOnboarding } from "@/lib/onboarding-server";
 import { getStoredTasks } from "@/lib/supabase/broker-tasks";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 import { getOpenRoomQuestionSummary } from "@/lib/supabase/deal-room-questions";
@@ -47,12 +49,26 @@ export default async function DashboardPage() {
      counts, so the hero/queue run on real work), listings (to resolve
      task-linked assets), and the open buyer-question summary for the risk
      queue. Demo data merges in when the investor-demo toggle is on. */
-  const [storedBuyers, storedTasks, storedListings, openQuestions] = await Promise.all([
-    getStoredBuyersForSegment(segment),
-    getStoredTasks(),
-    getStoredListingsForSegment(segment),
-    getOpenRoomQuestionSummary(),
-  ]);
+  const [storedBuyers, storedTasks, storedListings, openQuestions, onboarded] =
+    await Promise.all([
+      getStoredBuyersForSegment(segment),
+      getStoredTasks(),
+      getStoredListingsForSegment(segment),
+      getOpenRoomQuestionSummary(),
+      hasCompletedOnboarding(),
+    ]);
+
+  /* A truly fresh broker (no real records, hasn't finished or skipped the
+     welcome flow) gets the focused onboarding instead of a dashboard —
+     demo data on by default made day one feel like someone else's desk. */
+  if (
+    !onboarded &&
+    storedBuyers.length === 0 &&
+    storedTasks.length === 0 &&
+    storedListings.length === 0
+  ) {
+    redirect("/welcome");
+  }
 
   return (
     <AppShell

@@ -11,7 +11,6 @@ import {
   MessageSquareText,
   Radio,
   ShieldCheck,
-  Sparkles,
   UserPlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -107,7 +106,12 @@ export function Dashboard({
     (item) => item.needsSummary,
   ).length;
 
-  if (!model.hasAnyData) {
+  /* First-run only when there's truly nothing to show — demo model AND the
+     broker's real records. (Checking only the demo model made a broker with
+     real data see the empty state the moment they switched demo off.) */
+  const hasRealData =
+    storedBuyers.length > 0 || storedTasks.length > 0 || storedListings.length > 0;
+  if (!model.hasAnyData && !hasRealData) {
     return <FirstRunDashboard />;
   }
 
@@ -303,11 +307,14 @@ export function Dashboard({
       {/* Pipeline funnel — the executive-view band, spans the full row. */}
       <PipelineFunnel buyers={allBuyers} className="mt-5" />
 
+      {/* items-start lets each card keep its content height — otherwise the
+          hero stretches to match the risk queue and shows a hollow middle
+          when the broker has only a couple of open tasks. */}
       <section
         aria-label="Dashboard briefing"
-        className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.42fr)_minmax(320px,0.78fr)]"
+        className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.42fr)_minmax(320px,0.78fr)] lg:items-start"
       >
-        <Card className="flex min-h-[360px] flex-col p-6">
+        <Card className="flex flex-col p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -417,7 +424,7 @@ export function Dashboard({
           )}
 
           {visibleQueueTasks.length ? (
-            <div className="mt-auto border-t border-[#E7E7E7] pt-5">
+            <div className="mt-6 border-t border-[#E7E7E7] pt-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
                   Next in queue
@@ -703,18 +710,12 @@ function PipelineCompositionStat({
 function FirstRunDashboard() {
   return (
     <div className="mx-auto w-full max-w-[1536px] px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+      {/* No CTA up here — the global Capture button sits directly above in
+          the top bar; duplicating it side-by-side read as two different
+          actions. The three quick-start cards below carry the choices. */}
       <PageHeader
         title="Start with your first signal"
         description="Add a call, buyer, or listing to build memory, matches, and follow-ups."
-        actions={
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-[#003C33] px-5 text-sm font-medium text-white hover:bg-[#0B4A3F]"
-            href="/voice-crm"
-          >
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-            Start with a voice note
-          </Link>
-        }
       />
 
       <section aria-labelledby="quick-start-heading" className="mt-12">
