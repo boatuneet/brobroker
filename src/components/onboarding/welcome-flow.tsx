@@ -18,6 +18,9 @@ import { persistBrokerSegment } from "@/lib/broker-segment-client";
 import type { BrokerSegment } from "@/lib/broker-segments";
 import { persistDemoMode } from "@/lib/demo-mode-client";
 import { ONBOARDING_DONE_COOKIE, serializeOnboardingDone } from "@/lib/onboarding";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { upsertOwnProfile } from "@/lib/supabase/profiles";
 import { cn } from "@/lib/utils";
 
 /* Two-step welcome wizard for a fresh broker:
@@ -37,8 +40,25 @@ const SEGMENTS: Array<{
   { id: "Real Estate", label: "Real estate", description: "Villas, penthouses, estates.", icon: Building2 },
 ];
 
-function markOnboardingDone() {
+async function markOnboardingDone() {
+  /* Cookie = fast-path cache for this browser; profiles.onboarded_at = the
+     durable truth across devices. Best-effort on the DB write — the cookie
+     alone keeps this session moving if the network hiccups. */
   document.cookie = `${ONBOARDING_DONE_COOKIE}=${serializeOnboardingDone()}; path=/; max-age=31536000; SameSite=Lax`;
+  if (!isSupabaseConfigured()) return;
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await upsertOwnProfile(supabase, user.id, {
+        onboarded_at: new Date().toISOString(),
+      });
+    }
+  } catch {
+    // Cookie covers this browser; the column syncs next time.
+  }
 }
 
 export function WelcomeFlow({ initialSegment }: { initialSegment: BrokerSegment }) {
@@ -54,8 +74,8 @@ export function WelcomeFlow({ initialSegment }: { initialSegment: BrokerSegment 
   }
 
   function finish(destination: string, options?: { enableDemo?: boolean }) {
-    markOnboardingDone();
     startTransition(async () => {
+      await markOnboardingDone();
       if (options?.enableDemo) {
         await persistDemoMode(true).catch(() => undefined);
       }

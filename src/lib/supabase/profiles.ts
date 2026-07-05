@@ -31,11 +31,16 @@ export async function fetchOwnProfile(
 export async function upsertOwnProfile(
   supabase: SupabaseClient,
   userId: string,
-  patch: { full_name?: string | null; avatar_url?: string | null },
+  patch: {
+    full_name?: string | null;
+    avatar_url?: string | null;
+    onboarded_at?: string | null;
+  },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const payload: Record<string, unknown> = { id: userId };
   if (patch.full_name !== undefined) payload.full_name = patch.full_name;
   if (patch.avatar_url !== undefined) payload.avatar_url = patch.avatar_url;
+  if (patch.onboarded_at !== undefined) payload.onboarded_at = patch.onboarded_at;
 
   const { error } = await supabase
     .from("profiles")
