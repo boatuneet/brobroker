@@ -360,14 +360,16 @@ export function Dashboard({
         </div>
       </div>
 
-      {/* items-start lets each card keep its content height — otherwise the
-          hero stretches to match the risk queue and shows a hollow middle
-          when the broker has only a couple of open tasks. */}
+      {/* Both cards share a row height set by the Risk queue: the Needs-me-now
+          content is taken out of flow on lg+ (absolute inset-0) so it never
+          drives the row taller than the queue, and its own body scrolls when
+          the task list overflows. On mobile it flows naturally. */}
       <section
         aria-label="Dashboard briefing"
-        className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.42fr)_minmax(320px,0.78fr)] lg:items-start"
+        className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.42fr)_minmax(320px,0.78fr)] lg:items-stretch"
       >
-        <Card className="flex flex-col p-6">
+        <Card className="p-0 lg:relative lg:overflow-hidden">
+          <div className="flex flex-col p-6 lg:absolute lg:inset-0 lg:overflow-y-auto">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -547,6 +549,7 @@ export function Dashboard({
               </ul>
             </div>
           ) : null}
+          </div>
         </Card>
 
         <Card className="p-6">
