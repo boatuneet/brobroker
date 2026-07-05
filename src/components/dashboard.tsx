@@ -311,7 +311,7 @@ export function Dashboard({
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              "repeating-linear-gradient(115deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 5px, transparent 5px, transparent 22px)",
+              "repeating-linear-gradient(115deg, rgba(255,255,255,0.045) 0px, rgba(255,255,255,0.045) 4px, transparent 4px, transparent 14px)",
           }}
         />
         <div className="relative">
