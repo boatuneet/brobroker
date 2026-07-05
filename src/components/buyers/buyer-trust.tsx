@@ -5,12 +5,17 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
   CircleAlert,
+  Eye,
   Loader2,
   RefreshCcw,
+  RotateCcw,
+  Save,
   ShieldCheck,
   Sparkles,
+  X,
   XCircle,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
@@ -23,6 +28,12 @@ import {
   type SavedBuyerScreening,
   type SavedBuyerVerification,
 } from "@/lib/buyer-verification";
+import {
+  DEFAULT_SCREENING_PROMPTS,
+  readStoredScreeningPrompts,
+  writeStoredScreeningPrompts,
+  type ScreeningPrompts,
+} from "@/lib/screening-prompts";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { mapStoredBuyerToProfile, type StoredBuyerRow } from "@/lib/stored-buyers";
@@ -143,6 +154,7 @@ function StoredBuyerVerification() {
   const [savingDecision, setSavingDecision] = useState<BuyerVerificationDecision | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [brokerNote, setBrokerNote] = useState("");
+  const [promptDrawerOpen, setPromptDrawerOpen] = useState(false);
 
   // Load buyer + existing verification + conversation count.
   useEffect(() => {
@@ -246,6 +258,8 @@ function StoredBuyerVerification() {
           country: buyer.country,
           inquirySummary,
           budgetRange,
+          // Device-saved prompt overrides (defaults when never edited).
+          prompts: readStoredScreeningPrompts(),
         }),
       });
 
@@ -388,25 +402,51 @@ function StoredBuyerVerification() {
               company, sanctions and adverse-media mentions, with sources. Advisory only.
             </p>
           </div>
-          <Button
-            disabled={screeningLoading}
-            onClick={runScreening}
-            size="sm"
-            type="button"
-            variant="secondary"
-          >
-            {screeningLoading ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                Screening…
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                {screening ? "Re-run screening" : "Run AI screening"}
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Gradient-border hero button — the border sweep (soft green →
+                brand → coral) fades in on hover over the deep-green core. */}
+            <button
+              className="group relative inline-block rounded-[10px] bg-[#003C33] p-px text-white shadow-lg shadow-[#003C33]/25 transition-transform duration-300 hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+              disabled={screeningLoading}
+              onClick={runScreening}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 rounded-[10px] bg-gradient-to-r from-[#0F8F62] via-[#7BC4A5] to-[#A86642] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+              />
+              <span className="relative z-10 block rounded-[9px] bg-[#003C33] px-4 py-2">
+                <span className="flex items-center gap-2 text-[12.5px] font-medium">
+                  {screeningLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Sparkles
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-12"
+                    />
+                  )}
+                  {screeningLoading
+                    ? "Screening…"
+                    : screening
+                      ? "Re-run screening"
+                      : "Run AI screening"}
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 transition-transform duration-500 group-hover:translate-x-1"
+                  />
+                </span>
+              </span>
+            </button>
+            <button
+              aria-label="View or edit the screening prompts"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[#D9DAD4] bg-white text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+              onClick={() => setPromptDrawerOpen(true)}
+              title="View / edit prompts"
+              type="button"
+            >
+              <Eye aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         {screeningError ? (
           <p className="mt-3 rounded-[8px] border border-[#F1D9CE] bg-white px-3 py-2 text-[13px] leading-5 text-[#A86642]">
@@ -503,6 +543,127 @@ function StoredBuyerVerification() {
         >
           Open full verification queue →
         </Link>
+      </div>
+
+      {promptDrawerOpen ? (
+        <ScreeningPromptDrawer onClose={() => setPromptDrawerOpen(false)} />
+      ) : null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Screening prompt drawer — view/edit what gets sent to OpenAI       */
+/* ------------------------------------------------------------------ */
+
+function ScreeningPromptDrawer({ onClose }: { onClose: () => void }) {
+  const [prompts, setPrompts] = useState<ScreeningPrompts>(() => readStoredScreeningPrompts());
+  const [savedNote, setSavedNote] = useState(false);
+  const isDefault =
+    prompts.plausibility === DEFAULT_SCREENING_PROMPTS.plausibility &&
+    prompts.publicSearch === DEFAULT_SCREENING_PROMPTS.publicSearch;
+
+  function save() {
+    writeStoredScreeningPrompts({
+      plausibility: prompts.plausibility.trim() || DEFAULT_SCREENING_PROMPTS.plausibility,
+      publicSearch: prompts.publicSearch.trim() || DEFAULT_SCREENING_PROMPTS.publicSearch,
+    });
+    setSavedNote(true);
+    window.setTimeout(onClose, 600);
+  }
+
+  return (
+    <div
+      aria-modal="true"
+      className="bb-overlay-enter fixed inset-0 z-[80] bg-[#171719]/30 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+    >
+      <div
+        className="bb-drawer-enter absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-[#E7E7E7] bg-white shadow-[0_0_64px_rgba(23,31,25,0.18)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E7E7E7] px-5 py-4">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[#171719]">Screening prompts</h2>
+            <p className="mt-0.5 text-[12px] text-[#8E918B]">
+              What gets sent to OpenAI when you run a screening. Saved on this device.
+            </p>
+          </div>
+          <button
+            aria-label="Close"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-[#8E918B] transition-colors hover:bg-[#F1F2EE] hover:text-[#171719]"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+          <label className="grid gap-1.5">
+            <span className="text-[13px] font-semibold text-[#171719]">
+              Inquiry plausibility
+            </span>
+            <span className="text-[12px] leading-5 text-[#8E918B]">
+              System prompt for the context-only check. The buyer&apos;s name, company,
+              budget, and inquiry notes are appended as the user message. Keep the JSON
+              contract at the end intact — the app parses it.
+            </span>
+            <textarea
+              className="min-h-64 resize-y rounded-[10px] border border-[#D9DAD4] bg-white px-3 py-2.5 font-mono text-[12px] leading-[1.6] text-[#171719] outline-none transition-colors focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+              onChange={(event) =>
+                setPrompts((current) => ({ ...current, plausibility: event.target.value }))
+              }
+              spellCheck={false}
+              value={prompts.plausibility}
+            />
+          </label>
+
+          <label className="grid gap-1.5">
+            <span className="text-[13px] font-semibold text-[#171719]">
+              Public record search
+            </span>
+            <span className="text-[12px] leading-5 text-[#8E918B]">
+              Instructions for the web-search lookup.{" "}
+              <code className="rounded bg-[#F1F2EE] px-1 py-0.5 text-[11px]">{"{{name}}"}</code>
+              {", "}
+              <code className="rounded bg-[#F1F2EE] px-1 py-0.5 text-[11px]">{"{{company}}"}</code>
+              {" and "}
+              <code className="rounded bg-[#F1F2EE] px-1 py-0.5 text-[11px]">{"{{country}}"}</code>{" "}
+              are replaced with the buyer&apos;s values at run time.
+            </span>
+            <textarea
+              className="min-h-56 resize-y rounded-[10px] border border-[#D9DAD4] bg-white px-3 py-2.5 font-mono text-[12px] leading-[1.6] text-[#171719] outline-none transition-colors focus:border-[#003C33] focus:ring-2 focus:ring-[#003C33]/15"
+              onChange={(event) =>
+                setPrompts((current) => ({ ...current, publicSearch: event.target.value }))
+              }
+              spellCheck={false}
+              value={prompts.publicSearch}
+            />
+          </label>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-[#E7E7E7] px-5 py-4">
+          <button
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:bg-[#F1F2EE] hover:text-[#171719] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isDefault}
+            onClick={() => setPrompts(DEFAULT_SCREENING_PROMPTS)}
+            type="button"
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            Reset to defaults
+          </button>
+          <div className="flex items-center gap-2">
+            {savedNote ? (
+              <span className="text-[12px] font-medium text-[#0F8F62]">Saved</span>
+            ) : null}
+            <Button onClick={save} type="button">
+              <Save className="h-4 w-4" aria-hidden="true" />
+              Save prompts
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
