@@ -132,6 +132,10 @@ export interface BuyerProfile {
   name: string;
   company?: string;
   country: string;
+  /* Optional direct-contact channels captured at intake. Powers header
+     contact chips and the WhatsApp / email send actions on approved drafts. */
+  email?: string;
+  phone?: string;
   budgetMinEur: number;
   budgetMaxEur: number;
   sizeRangeFt: [number, number];

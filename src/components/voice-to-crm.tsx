@@ -10,6 +10,8 @@ import {
   Copy,
   ExternalLink,
   Info,
+  Mail,
+  MessageCircle,
   Mic,
   RotateCcw,
   Save,
@@ -1142,16 +1144,73 @@ export function VoiceToCrmWorkspace({
                         <Badge tone="neutral">{draft.kind}</Badge>
                         <Badge tone="neutral">{draft.channel}</Badge>
                       </div>
-                      <Button
-                        disabled={draft.status === "Approved"}
-                        onClick={() => void approveDraft(draft.id)}
-                        size="sm"
-                        type="button"
-                        variant="secondary"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        {draft.status === "Approved" ? "Approved & copied" : "Approve & copy"}
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {(() => {
+                          // Send actions require an existing buyer with contact info.
+                          // For the extracted-new flow, no email/phone exists yet — skip.
+                          if (captureMode !== "existing" || !selectedBuyer) return null;
+                          const digits = selectedBuyer.phone
+                            ? selectedBuyer.phone.replace(/\D+/g, "").replace(/^0+/, "")
+                            : "";
+                          const messageText = [draft.subject, draft.body].filter(Boolean).join("\n\n");
+                          const waHref = digits
+                            ? `https://wa.me/${digits}?text=${encodeURIComponent(messageText)}`
+                            : undefined;
+                          // ponytail: mailto for now — swap to the Resend send route once email infra lands
+                          const mailHref = selectedBuyer.email
+                            ? `mailto:${selectedBuyer.email}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`
+                            : undefined;
+                          const baseCls =
+                            "inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]";
+                          const disCls = " cursor-not-allowed border-[#E7E7E7] text-[#A9ABA5] hover:border-[#E7E7E7] hover:bg-white";
+                          return (
+                            <>
+                              {waHref ? (
+                                <a className={baseCls} href={waHref} rel="noopener noreferrer" target="_blank">
+                                  <MessageCircle aria-hidden="true" className="h-3.5 w-3.5" />
+                                  Send via WhatsApp
+                                </a>
+                              ) : (
+                                <button
+                                  className={baseCls + disCls}
+                                  disabled
+                                  title="Add a phone number to this buyer first"
+                                  type="button"
+                                >
+                                  <MessageCircle aria-hidden="true" className="h-3.5 w-3.5" />
+                                  Send via WhatsApp
+                                </button>
+                              )}
+                              {mailHref ? (
+                                <a className={baseCls} href={mailHref}>
+                                  <Mail aria-hidden="true" className="h-3.5 w-3.5" />
+                                  Send email
+                                </a>
+                              ) : (
+                                <button
+                                  className={baseCls + disCls}
+                                  disabled
+                                  title="Add an email to this buyer first"
+                                  type="button"
+                                >
+                                  <Mail aria-hidden="true" className="h-3.5 w-3.5" />
+                                  Send email
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
+                        <Button
+                          disabled={draft.status === "Approved"}
+                          onClick={() => void approveDraft(draft.id)}
+                          size="sm"
+                          type="button"
+                          variant="secondary"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          {draft.status === "Approved" ? "Approved & copied" : "Approve & copy"}
+                        </Button>
+                      </div>
                     </div>
 
                     <label className="mt-4 grid gap-1.5 text-[13px] font-medium text-[#171719]">

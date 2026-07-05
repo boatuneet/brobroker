@@ -36,6 +36,8 @@ type StoredBuyerPreferences = {
   decisionTimeline?: string;
   communicationStyle?: string;
   lastContactedAt?: string;
+  email?: string;
+  phone?: string;
 };
 
 export function mapStoredBuyerToProfile(row: StoredBuyerRow): BuyerProfile {
@@ -49,6 +51,8 @@ export function mapStoredBuyerToProfile(row: StoredBuyerRow): BuyerProfile {
     name: row.name,
     company: row.company ?? undefined,
     country: row.country ?? "International",
+    email: typeof preferences.email === "string" && preferences.email.trim() ? preferences.email.trim() : undefined,
+    phone: typeof preferences.phone === "string" && preferences.phone.trim() ? preferences.phone.trim() : undefined,
     budgetMinEur: readNumber(row.budget_min_eur),
     budgetMaxEur: readNumber(row.budget_max_eur),
     sizeRangeFt: normalizeRange(preferences.sizeRangeFt),
