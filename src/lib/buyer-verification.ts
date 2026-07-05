@@ -20,6 +20,11 @@ export interface SavedBuyerScreening {
   flags: string[];
   suggestedChecks: string[];
   ranAt: string;
+  /* Web-search public-record check (identity, company, sanctions/adverse
+     media) with cited sources. Absent when the search tool wasn't available
+     at run time. */
+  publicSummary?: string;
+  publicSources?: Array<{ title: string; url: string }>;
 }
 
 export interface SavedBuyerVerification {
@@ -133,6 +138,18 @@ function readScreening(value: unknown): SavedBuyerScreening | undefined {
       ? v.suggestedChecks.filter((f): f is string => typeof f === "string")
       : [],
     ranAt: typeof v.ranAt === "string" ? v.ranAt : new Date().toISOString(),
+    publicSummary: typeof v.publicSummary === "string" ? v.publicSummary : undefined,
+    publicSources: Array.isArray(v.publicSources)
+      ? v.publicSources
+          .filter(
+            (s): s is { title: string; url: string } =>
+              !!s &&
+              typeof s === "object" &&
+              typeof (s as { url?: unknown }).url === "string" &&
+              typeof (s as { title?: unknown }).title === "string",
+          )
+          .slice(0, 8)
+      : undefined,
   };
 }
 

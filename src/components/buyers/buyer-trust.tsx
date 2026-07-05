@@ -50,6 +50,9 @@ interface ScreeningApiResult {
   summary: string;
   flags: string[];
   suggestedChecks: string[];
+  /* Web-search public-record check with cited sources; null when the
+     search tool wasn't available at run time. */
+  publicProfile?: { summary: string; sources: Array<{ title: string; url: string }> } | null;
 }
 const ASSESSMENT_COPY: Record<Assessment, { label: string; tone: "success" | "warning" | "error" }> = {
   looks_credible: { label: "Looks credible", tone: "success" },
@@ -185,6 +188,12 @@ function StoredBuyerVerification() {
           summary: savedVerification.screening.summary,
           flags: savedVerification.screening.flags,
           suggestedChecks: savedVerification.screening.suggestedChecks,
+          publicProfile: savedVerification.screening.publicSummary
+            ? {
+                summary: savedVerification.screening.publicSummary,
+                sources: savedVerification.screening.publicSources ?? [],
+              }
+            : null,
         });
       }
       if (savedVerification?.brokerNote) {
@@ -275,6 +284,8 @@ function StoredBuyerVerification() {
               flags: screening.flags,
               suggestedChecks: screening.suggestedChecks,
               ranAt: new Date().toISOString(),
+              publicSummary: screening.publicProfile?.summary,
+              publicSources: screening.publicProfile?.sources,
             }
           : undefined,
         brokerNote: brokerNote.trim() || undefined,
@@ -373,7 +384,8 @@ function StoredBuyerVerification() {
           <div className="min-w-0">
             <p className="bb-mono-label">AI screening</p>
             <p className="mt-1 text-[13px] leading-[1.55] text-[#5F625E]">
-              Rough plausibility check on the inquiry. Advisory only.
+              Plausibility check on the inquiry plus a public-record web search — identity,
+              company, sanctions and adverse-media mentions, with sources. Advisory only.
             </p>
           </div>
           <Button
@@ -435,9 +447,14 @@ function StoredBuyerVerification() {
                 </ul>
               </div>
             ) : null}
+            <PublicRecordBlock profile={screening.publicProfile} />
           </div>
         ) : null}
       </section>
+
+      {/* Free manual sources — always available, no keys, so the broker can
+          dig on the person even without OpenAI configured. */}
+      <ManualCheckLinks company={buyer.company} name={buyer.name} />
 
       <section aria-label="Broker decision" className="grid gap-3">
         <p className="bb-mono-label">Broker decision</p>
@@ -559,6 +576,14 @@ function SavedVerificationView({
               ))}
             </ul>
           ) : null}
+          {saved.screening.publicSummary ? (
+            <PublicRecordBlock
+              profile={{
+                summary: saved.screening.publicSummary,
+                sources: saved.screening.publicSources ?? [],
+              }}
+            />
+          ) : null}
         </section>
       ) : null}
 
@@ -631,5 +656,103 @@ function DecisionButton({
         label
       )}
     </Button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Public due diligence — web-search result + free manual sources     */
+/* ------------------------------------------------------------------ */
+
+function PublicRecordBlock({
+  profile,
+}: {
+  profile?: { summary: string; sources: Array<{ title: string; url: string }> } | null;
+}) {
+  // undefined → legacy screening with no lookup on file; stay quiet.
+  if (profile === undefined) return null;
+  if (profile === null) {
+    return (
+      <p className="rounded-[8px] border border-[#E7E7E7] bg-white px-3 py-2 text-[12.5px] leading-5 text-[#8E918B]">
+        Public web lookup was unavailable for this run — use the manual checks below.
+      </p>
+    );
+  }
+  return (
+    <div className="rounded-[10px] border border-[#E2ECE9] bg-[#F7FAF9] p-3.5">
+      <p className="bb-mono-label">Public record check</p>
+      <p className="mt-2 whitespace-pre-line text-[13px] leading-[1.6] text-[#171719]">
+        {profile.summary}
+      </p>
+      {profile.sources.length ? (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {profile.sources.map((source) => (
+            <a
+              className="inline-flex max-w-[260px] items-center gap-1 truncate rounded-[8px] border border-[#D0DFDC] bg-white px-2 py-0.5 text-[11.5px] font-medium text-[#003C33] transition-colors hover:border-[#003C33]"
+              href={source.url}
+              key={source.url}
+              rel="noopener noreferrer"
+              target="_blank"
+              title={source.url}
+            >
+              {source.title}
+            </a>
+          ))}
+        </div>
+      ) : null}
+      <p className="mt-2.5 text-[11.5px] leading-4 text-[#8E918B]">
+        Common names can match the wrong person — confirm identity before acting on this.
+      </p>
+    </div>
+  );
+}
+
+/* Free, no-key public sources the broker can open in one click. OpenSanctions
+   covers sanctions/PEP lists; OpenCorporates covers company registries.
+   ponytail: their APIs (free for non-commercial) are the upgrade path if we
+   ever want these checks to run automatically. */
+function ManualCheckLinks({ name, company }: { name: string; company?: string }) {
+  const q = encodeURIComponent(name);
+  const links: Array<{ label: string; hint: string; href: string }> = [
+    {
+      label: "OpenSanctions",
+      hint: "sanctions & PEP",
+      href: `https://www.opensanctions.org/search/?q=${q}`,
+    },
+    {
+      label: "Google",
+      hint: "news & profile",
+      href: `https://www.google.com/search?q=${encodeURIComponent(`"${name}"${company ? ` ${company}` : ""}`)}`,
+    },
+    {
+      label: "LinkedIn",
+      hint: "role & company",
+      href: `https://www.linkedin.com/search/results/all/?keywords=${q}`,
+    },
+  ];
+  if (company) {
+    links.push({
+      label: "OpenCorporates",
+      hint: "company registry",
+      href: `https://opencorporates.com/companies?q=${encodeURIComponent(company)}`,
+    });
+  }
+  return (
+    <section aria-label="Manual checks">
+      <p className="bb-mono-label">Manual checks · free public sources</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {links.map((link) => (
+          <a
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[12.5px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE]"
+            href={link.href}
+            key={link.label}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {link.label}
+            <span className="text-[11px] font-normal text-[#8E918B]">{link.hint}</span>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }

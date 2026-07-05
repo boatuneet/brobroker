@@ -337,6 +337,10 @@ export interface DealRoom {
   itinerary: string[];
   approvedDocumentIds: string[];
   lastUpdatedAt: string;
+  /* Which buyer requirement set this room was built from ("primary" or a
+     custom set id). Rides in deal_rooms.payload; absent on legacy rooms,
+     which read as primary. */
+  requirementSetId?: string;
 }
 
 export interface AuditEvent {

@@ -14,10 +14,16 @@ export const metadata = {
 export default async function NewDealRoomPage({
   searchParams,
 }: {
-  searchParams: Promise<{ buyer?: string | string[]; listing?: string | string[] }>;
+  searchParams: Promise<{
+    buyer?: string | string[];
+    listing?: string | string[];
+    set?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const initialBuyerId = Array.isArray(params.buyer) ? params.buyer[0] : params.buyer;
+  // Which requirement set the shortlist was curated from (buyer Matches tab).
+  const initialSetId = Array.isArray(params.set) ? params.set[0] : params.set;
   // `?listing=` may repeat (multi-select from the buyer's Matches tab) —
   // normalize to a list either way.
   const initialListingIds = Array.isArray(params.listing)
@@ -49,6 +55,7 @@ export default async function NewDealRoomPage({
         includeDemo={includeDemo}
         initialBuyerId={initialBuyerId}
         initialListingIds={initialListingIds}
+        initialSetId={initialSetId}
         segment={segment}
         storedBuyers={storedBuyers}
         storedListings={storedListings}

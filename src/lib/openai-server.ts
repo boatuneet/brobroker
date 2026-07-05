@@ -103,3 +103,84 @@ export async function chatComplete(
     return null;
   }
 }
+
+/* ------------------------------------------------------------
+   Web-search-backed answers (Responses API + web_search tool).
+   Used by the buyer due-diligence screen to look up PUBLIC info
+   with citations. Returns null on any failure so callers degrade
+   to heuristic/manual behaviour like every other helper here.
+   ------------------------------------------------------------ */
+
+export interface WebSearchSource {
+  title: string;
+  url: string;
+}
+
+function searchModel(): string {
+  /* web_search support varies by model tier; override with
+     OPENAI_SEARCH_MODEL=gpt-4o if the default is rejected. */
+  return process.env.OPENAI_SEARCH_MODEL?.trim() || "gpt-4o-mini";
+}
+
+export async function webSearchAnswer(
+  input: string,
+): Promise<{ text: string; sources: WebSearchSource[] } | null> {
+  const key = openAIKey();
+  if (!key) return null;
+  try {
+    const res = await withTimeout(
+      (signal) =>
+        fetch(`${OPENAI_BASE}/responses`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+          body: JSON.stringify({
+            model: searchModel(),
+            tools: [{ type: "web_search_preview" }],
+            input,
+          }),
+          signal,
+        }),
+      45_000,
+    );
+    if (!res.ok) {
+      console.error(
+        "OpenAI web search failed",
+        res.status,
+        (await res.text().catch(() => "")).slice(0, 300),
+      );
+      return null;
+    }
+    const data = (await res.json()) as {
+      output?: Array<{
+        type?: string;
+        content?: Array<{
+          type?: string;
+          text?: string;
+          annotations?: Array<{ type?: string; url?: string; title?: string }>;
+        }>;
+      }>;
+    };
+
+    let text = "";
+    const sources: WebSearchSource[] = [];
+    const seen = new Set<string>();
+    for (const item of data.output ?? []) {
+      if (item.type !== "message") continue;
+      for (const part of item.content ?? []) {
+        if (part.type !== "output_text" || !part.text) continue;
+        text += (text ? "\n\n" : "") + part.text;
+        for (const note of part.annotations ?? []) {
+          if (note.type === "url_citation" && note.url && !seen.has(note.url)) {
+            seen.add(note.url);
+            sources.push({ title: note.title || note.url, url: note.url });
+          }
+        }
+      }
+    }
+    if (!text.trim()) return null;
+    return { text: text.trim(), sources: sources.slice(0, 8) };
+  } catch (error) {
+    console.error("OpenAI web search errored", error);
+    return null;
+  }
+}

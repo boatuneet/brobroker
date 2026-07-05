@@ -45,6 +45,7 @@ export function DealRoomCreate({
   storedListings = [],
   initialBuyerId,
   initialListingIds = [],
+  initialSetId,
 }: {
   includeDemo?: boolean;
   segment?: BrokerSegment;
@@ -56,6 +57,9 @@ export function DealRoomCreate({
      listings the broker multi-selected there to pre-check. */
   initialBuyerId?: string;
   initialListingIds?: string[];
+  /* Requirement set the shortlist was curated from — recorded on the room so
+     the Matches tab can tell which sets already have a room. */
+  initialSetId?: string;
 }) {
   const router = useRouter();
   const pools = useMemo<DealRoomDataPools>(
@@ -177,7 +181,14 @@ export function DealRoomCreate({
   async function createRoom() {
     if (!room || isSaving) return;
     setIsSaving(true);
-    const finalRoom: DealRoom = { ...room, lastUpdatedAt: new Date().toISOString() };
+    /* Stamp the source requirement set (defaults to the buyer's primary ask)
+       so the Matches tab can offer View vs Build per set. */
+    const requirementSetId = initialSetId?.trim() || "primary";
+    const finalRoom: DealRoom = {
+      ...room,
+      requirementSetId,
+      lastUpdatedAt: new Date().toISOString(),
+    };
 
     /* Persist to Supabase when configured + signed in (mirrors buyer
        intake); fall back to localStorage so the flow still works in pure
@@ -204,7 +215,7 @@ export function DealRoomCreate({
             asset_ids: finalRoom.listingIds,
             itinerary: finalRoom.itinerary,
             approved_document_ids: finalRoom.approvedDocumentIds,
-            payload: { buyerId: finalRoom.buyerId },
+            payload: { buyerId: finalRoom.buyerId, requirementSetId },
             updated_at: finalRoom.lastUpdatedAt,
           });
           if (error) {

@@ -1051,10 +1051,6 @@ export function BuyerMemoryProfile({
      immediately (server props refresh behind it). */
   const [localRoom, setLocalRoom] = useState<DealRoom | null>(null);
   const storedDealRoom = localRoom ?? storedDealRooms[0];
-  const roomListingIds = useMemo(
-    () => new Set(storedDealRooms.flatMap((room) => room.listingIds)),
-    [storedDealRooms],
-  );
   const [shareOpen, setShareOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [aiMatches, setAiMatches] = useState<AiMatch[] | null>(null);
@@ -1092,6 +1088,26 @@ export function BuyerMemoryProfile({
         : [],
     [profile, activeSet, inventory],
   );
+
+  /* Rooms built from the ACTIVE requirement set — legacy rooms with no
+     recorded set read as primary. Drives View-vs-Build on the Matches tab
+     and the per-listing "In shortlist room" chips; other sets keep their
+     own Build action until they get a room. */
+  const roomForActiveSet = useMemo(
+    () =>
+      storedDealRooms.find(
+        (room) => (room.requirementSetId ?? "primary") === activeSetId,
+      ),
+    [storedDealRooms, activeSetId],
+  );
+  const roomListingIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const room of storedDealRooms) {
+      if ((room.requirementSetId ?? "primary") !== activeSetId) continue;
+      for (const id of room.listingIds) ids.add(id);
+    }
+    return ids;
+  }, [storedDealRooms, activeSetId]);
 
   function selectRequirementSet(nextId: string) {
     selectActive(nextId);
@@ -1618,13 +1634,13 @@ export function BuyerMemoryProfile({
                     <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                     {aiLoading ? "Ranking…" : aiMatches ? "Re-run AI ranking" : "Re-rank with AI"}
                   </button>
-                  {/* A room already exists and nothing new is ticked → view
-                      it. Ticking matches switches back to building a (new)
-                      room with the selection. */}
-                  {storedDealRoom && !shortlistIds.length ? (
+                  {/* A room already exists FOR THIS SET and nothing new is
+                      ticked → view it. Other sets (or ticking matches) keep
+                      the Build action, stamped with the active set. */}
+                  {roomForActiveSet && !shortlistIds.length ? (
                     <Link
                       className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
-                      href={`/deal-rooms/${storedDealRoom.id}`}
+                      href={`/deal-rooms/${roomForActiveSet.id}`}
                     >
                       <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                       View shortlist room
@@ -1632,7 +1648,7 @@ export function BuyerMemoryProfile({
                   ) : (
                     <Link
                       className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
-                      href={`/deal-rooms/new?buyer=${buyer.id}${shortlistIds.map((id) => `&listing=${id}`).join("")}`}
+                      href={`/deal-rooms/new?buyer=${buyer.id}&set=${encodeURIComponent(activeSetId)}${shortlistIds.map((id) => `&listing=${id}`).join("")}`}
                     >
                       <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                       {shortlistIds.length
@@ -1701,7 +1717,7 @@ export function BuyerMemoryProfile({
                     inRoom={roomListingIds.has(match.listingId)}
                     inventory={inventory}
                     match={match}
-                    roomHref={storedDealRoom ? `/deal-rooms/${storedDealRoom.id}` : undefined}
+                    roomHref={roomForActiveSet ? `/deal-rooms/${roomForActiveSet.id}` : undefined}
                     segment={segment}
                     selected={shortlistIds.includes(match.listingId)}
                     onToggleSelect={() => toggleShortlist(match.listingId)}

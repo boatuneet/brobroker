@@ -53,6 +53,7 @@ export function mapStoredDealRoomToDealRoom(row: StoredDealRoomRow): DealRoom {
     itinerary: row.itinerary ?? [],
     approvedDocumentIds: row.approved_document_ids ?? [],
     lastUpdatedAt: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+    requirementSetId: readString(payload.requirementSetId),
   };
 }
 
