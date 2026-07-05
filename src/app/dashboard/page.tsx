@@ -26,7 +26,7 @@ function DashboardTopActions() {
   return (
     <>
       <Link
-        className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] font-medium text-[#171719] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
+        className="inline-flex min-h-9 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[13px] font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]"
         href="/buyers/new"
       >
         <UserPlus className="h-4 w-4" aria-hidden="true" />

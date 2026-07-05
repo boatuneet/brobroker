@@ -52,7 +52,7 @@ function CaptureButton({ compact = false }: { compact?: boolean }) {
   return (
     <Link
       className={cn(
-        "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[13px] font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
+        "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-[8px] bg-[#F0DDD0] px-3 text-[13px] font-medium text-[#A86642] transition-colors hover:bg-[#E8D0BE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#A86642]",
         compact && "px-2.5",
       )}
       href="/voice-crm"
