@@ -10,6 +10,7 @@ import { getStoredTasks } from "@/lib/supabase/broker-tasks";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
 import { getOpenRoomQuestionSummary } from "@/lib/supabase/deal-room-questions";
 import { getStoredListingsForSegment } from "@/lib/supabase/listings";
+import { getUpcomingViewings } from "@/lib/supabase/room-viewings-server";
 
 export const metadata = {
   title: "Today · BroBroker",
@@ -49,14 +50,21 @@ export default async function DashboardPage() {
      counts, so the hero/queue run on real work), listings (to resolve
      task-linked assets), and the open buyer-question summary for the risk
      queue. Demo data merges in when the investor-demo toggle is on. */
-  const [storedBuyers, storedTasks, storedListings, openQuestions, onboarded] =
-    await Promise.all([
-      getStoredBuyersForSegment(segment),
-      getStoredTasks(),
-      getStoredListingsForSegment(segment),
-      getOpenRoomQuestionSummary(),
-      hasCompletedOnboarding(),
-    ]);
+  const [
+    storedBuyers,
+    storedTasks,
+    storedListings,
+    openQuestions,
+    upcomingViewings,
+    onboarded,
+  ] = await Promise.all([
+    getStoredBuyersForSegment(segment),
+    getStoredTasks(),
+    getStoredListingsForSegment(segment),
+    getOpenRoomQuestionSummary(),
+    getUpcomingViewings(7),
+    hasCompletedOnboarding(),
+  ]);
 
   /* A truly fresh broker (no real records, hasn't finished or skipped the
      welcome flow) gets the focused onboarding instead of a dashboard —
@@ -83,6 +91,7 @@ export default async function DashboardPage() {
         storedBuyers={storedBuyers}
         storedListings={storedListings}
         storedTasks={storedTasks}
+        upcomingViewings={upcomingViewings}
       />
     </AppShell>
   );

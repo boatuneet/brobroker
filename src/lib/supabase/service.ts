@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cache } from "react";
 import { mapStoredDealRoomToDealRoom, type StoredDealRoomRow } from "./deal-rooms";
 import { mapStoredAssetToListing, type StoredAssetRow } from "@/lib/stored-listings";
+import { readRoomViewings, type RoomViewing } from "@/lib/viewings";
 import type { DealRoom, YachtListing } from "@/lib/types";
 
 /* Service-role Supabase client — used ONLY by the public buyer-facing room
@@ -66,7 +67,7 @@ export async function insertRoomQuestion(
 
 export const getPublicDealRoomBundle = cache(async (
   roomId: string,
-): Promise<{ room: DealRoom; listings: YachtListing[] } | null> => {
+): Promise<{ room: DealRoom; listings: YachtListing[]; viewings: RoomViewing[] } | null> => {
   const supabase = createServiceClient();
   if (!supabase) return null;
 
@@ -79,8 +80,9 @@ export const getPublicDealRoomBundle = cache(async (
   if (roomError || !roomRow) return null;
 
   const room = mapStoredDealRoomToDealRoom(roomRow as StoredDealRoomRow);
+  const viewings = readRoomViewings((roomRow as StoredDealRoomRow).payload);
   if (!room.listingIds.length) {
-    return { room, listings: [] };
+    return { room, listings: [], viewings };
   }
 
   const { data: assetRows, error: assetsError } = await supabase
@@ -89,7 +91,7 @@ export const getPublicDealRoomBundle = cache(async (
     .in("id", room.listingIds);
 
   if (assetsError || !assetRows) {
-    return { room, listings: [] };
+    return { room, listings: [], viewings };
   }
 
   // Sign the first photo per listing so the buyer sees real imagery.
@@ -110,7 +112,7 @@ export const getPublicDealRoomBundle = cache(async (
     }),
   );
 
-  return { room, listings };
+  return { room, listings, viewings };
 });
 
 function getPayloadPhotos(payload: unknown) {

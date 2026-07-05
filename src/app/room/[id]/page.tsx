@@ -78,6 +78,7 @@ export default async function PublicRoomPage({
         <PrivateDealRoom
           documentUrls={documentUrls}
           includeDemo={!bundle}
+          initialViewings={bundle?.viewings ?? []}
           publicQuestions={publicQuestions}
           roomId={id}
           storedBuyers={[]}

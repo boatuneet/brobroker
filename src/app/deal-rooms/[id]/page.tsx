@@ -5,7 +5,7 @@ import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getDealRoomById } from "@/lib/services";
 import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
-import { getStoredDealRooms } from "@/lib/supabase/deal-rooms";
+import { getStoredDealRooms, getStoredRoomViewingsById } from "@/lib/supabase/deal-rooms";
 import { getRoomQuestions } from "@/lib/supabase/deal-room-questions";
 import { getStoredListingsForSegmentWithPreview } from "@/lib/supabase/listings";
 import { getRoomDocumentUrls } from "@/lib/supabase/room-document-urls";
@@ -29,12 +29,14 @@ export default async function PrivateDealRoomPage({
   const includeDemo = await isDemoModeEnabled();
   /* Preview variant signs each listing's first photo so the room renders
      real imagery for broker-stored inventory, not placeholders. */
-  const [storedBuyers, storedListings, storedRooms, roomQuestions] = await Promise.all([
-    getStoredBuyersForSegment(segment),
-    getStoredListingsForSegmentWithPreview(segment),
-    getStoredDealRooms(),
-    getRoomQuestions(id),
-  ]);
+  const [storedBuyers, storedListings, storedRooms, roomQuestions, initialViewings] =
+    await Promise.all([
+      getStoredBuyersForSegment(segment),
+      getStoredListingsForSegmentWithPreview(segment),
+      getStoredDealRooms(),
+      getRoomQuestions(id),
+      getStoredRoomViewingsById(id),
+    ]);
   /* Resolve the room title server-side for the breadcrumb. Rooms saved only
      in the browser (localStorage drafts) share deterministic IDs with their
      generated counterparts, so this lookup covers them too; anything else
@@ -66,6 +68,7 @@ export default async function PrivateDealRoomPage({
       <PrivateDealRoom
         documentUrls={documentUrls}
         includeDemo={includeDemo}
+        initialViewings={initialViewings}
         roomId={id}
         segment={segment}
         storedBuyers={storedBuyers}

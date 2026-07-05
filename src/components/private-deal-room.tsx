@@ -26,6 +26,8 @@ import {
   markRoomQuestionAnswered,
 } from "@/lib/supabase/answer-room-question";
 import type { RoomQuestion } from "@/lib/supabase/deal-room-questions";
+import { saveRoomViewings } from "@/lib/supabase/room-viewings";
+import { formatViewingLabel, sortViewings, type RoomViewing } from "@/lib/viewings";
 // Type-only import — erased at compile time, so the server-only guard in
 // service.ts never runs in this client bundle.
 import type { PublicRoomQuestion } from "@/lib/supabase/service";
@@ -58,6 +60,7 @@ export function PrivateDealRoom({
   storedRooms = [],
   viewer = "buyer",
   initialQuestions = [],
+  initialViewings = [],
   documentUrls = {},
   publicQuestions = [],
 }: {
@@ -70,6 +73,10 @@ export function PrivateDealRoom({
   storedRooms?: DealRoom[];
   viewer?: "buyer" | "broker";
   initialQuestions?: RoomQuestion[];
+  /* Structured viewings for this room, read server-side from
+     deal_rooms.payload.viewings. Broker view can edit; buyer view is
+     read-only. */
+  initialViewings?: RoomViewing[];
   /* Signed download URLs for approved documents (doc id → url), generated
      server-side by whichever page rendered us (public: service role;
      broker: authed client). Docs without a file simply have no entry. */
@@ -165,23 +172,13 @@ export function PrivateDealRoom({
         </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-2">
-          <Card>
-            <CardHeader
-              title="Broker-approved path forward"
-              action={
-                <CardHeaderIcon>
-                  <Calendar className="h-4 w-4" aria-hidden="true" />
-                </CardHeaderIcon>
-              }
-            />
-            <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
-              {[...model.room.itinerary, ...model.nextSteps].map((step) => (
-                <li key={step} className="px-6 py-3.5 text-sm leading-6 text-[#5F625E]">
-                  {step}
-                </li>
-              ))}
-            </ul>
-          </Card>
+          <PathForwardCard
+            legacySteps={[...model.room.itinerary, ...model.nextSteps]}
+            listings={model.listings}
+            roomId={roomId}
+            viewer={viewer}
+            initialViewings={initialViewings}
+          />
 
           {viewer === "broker" ? (
             <BrokerQuestionsPanel
@@ -285,6 +282,196 @@ export function PrivateDealRoom({
       </div>
     </div>
   );
+}
+
+/* ============================================================
+   Structured viewings — broker edits inline, buyer sees schedule
+   above the legacy itinerary/next-steps strings.
+   ============================================================ */
+
+function PathForwardCard({
+  legacySteps,
+  listings,
+  roomId,
+  viewer,
+  initialViewings,
+}: {
+  legacySteps: string[];
+  listings: YachtListing[];
+  roomId: string;
+  viewer: "buyer" | "broker";
+  initialViewings: RoomViewing[];
+}) {
+  const [viewings, setViewings] = useState<RoomViewing[]>(() => sortViewings(initialViewings));
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [listingId, setListingId] = useState<string>("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const listingNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const l of listings) map[l.id] = l.name;
+    return map;
+  }, [listings]);
+
+  async function persist(next: RoomViewing[]) {
+    setSaving(true);
+    setError(null);
+    const res = await saveRoomViewings(roomId, next);
+    setSaving(false);
+    if (!res.ok) setError(res.error);
+  }
+
+  async function addViewing() {
+    if (!date) return;
+    const next = sortViewings([
+      ...viewings,
+      {
+        id: newId(),
+        date,
+        ...(time ? { time } : {}),
+        ...(listingId ? { listingId } : {}),
+        ...(note.trim() ? { note: note.trim() } : {}),
+      },
+    ]);
+    setViewings(next);
+    setDate("");
+    setTime("");
+    setListingId("");
+    setNote("");
+    await persist(next);
+  }
+
+  async function removeViewing(id: string) {
+    const next = viewings.filter((v) => v.id !== id);
+    setViewings(next);
+    await persist(next);
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Broker-approved path forward"
+        action={
+          <CardHeaderIcon>
+            <Calendar className="h-4 w-4" aria-hidden="true" />
+          </CardHeaderIcon>
+        }
+      />
+
+      {viewings.length ? (
+        <ul className="grid gap-0 divide-y divide-[#E7E7E7]">
+          {viewings.map((v) => (
+            <li key={v.id} className="flex items-start gap-3 px-6 py-3.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[13.5px] font-medium text-[#171719]">
+                  {formatViewingLabel(v)}
+                  {v.listingId && listingNameById[v.listingId] ? (
+                    <span className="text-[#5F625E]"> · {listingNameById[v.listingId]}</span>
+                  ) : null}
+                </p>
+                {v.note ? (
+                  <p className="mt-1 text-[12.5px] leading-5 text-[#8E918B]">{v.note}</p>
+                ) : null}
+              </div>
+              {viewer === "broker" ? (
+                <button
+                  aria-label="Remove viewing"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border border-[#D9DAD4] bg-white text-[#8E918B] transition-colors hover:border-[#003C33] hover:bg-[#F1F2EE] hover:text-[#171719]"
+                  disabled={saving}
+                  onClick={() => removeViewing(v.id)}
+                  type="button"
+                >
+                  ×
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {legacySteps.length ? (
+        <ul className="grid gap-0 divide-y divide-[#E7E7E7] border-t border-[#E7E7E7]">
+          {legacySteps.map((step) => (
+            <li key={step} className="px-6 py-3.5 text-sm leading-6 text-[#5F625E]">
+              {step}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {viewer === "broker" ? (
+        <div className="border-t border-[#E7E7E7] px-6 py-4">
+          <p className="bb-mono-label">Add viewing</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(140px,1fr)_minmax(110px,auto)_minmax(0,1.2fr)]">
+            <input
+              aria-label="Viewing date"
+              className="h-10 w-full rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] text-[#171719] outline-none focus:border-[#003C33]"
+              onChange={(e) => setDate(e.target.value)}
+              type="date"
+              value={date}
+            />
+            <input
+              aria-label="Viewing time"
+              className="h-10 w-full rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] text-[#171719] outline-none focus:border-[#003C33]"
+              onChange={(e) => setTime(e.target.value)}
+              type="time"
+              value={time}
+            />
+            <select
+              aria-label="Listing"
+              className="h-10 w-full rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] text-[#171719] outline-none focus:border-[#003C33]"
+              onChange={(e) => setListingId(e.target.value)}
+              value={listingId}
+            >
+              <option value="">Any listing</option>
+              {listings.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <input
+            aria-label="Note"
+            className="mt-2 h-10 w-full rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] text-[#171719] outline-none focus:border-[#003C33]"
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional note (buyer name, marina, contact)"
+            type="text"
+            value={note}
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Button
+              disabled={saving || !date}
+              onClick={addViewing}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              Add viewing
+            </Button>
+            {error ? (
+              <span className="text-[12px] text-[#A86642]">Couldn&apos;t save — {error}</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {!viewings.length && !legacySteps.length && viewer !== "broker" ? (
+        <div className="px-6 py-5 text-sm leading-6 text-[#5F625E]">No viewings scheduled yet.</div>
+      ) : null}
+    </Card>
+  );
+}
+
+function newId(): string {
+  // ponytail: sufficient for local viewing ids; not a security boundary.
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `v_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 /* ============================================================

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import type { DealRoom, DealRoomStatus, VerificationStatus } from "@/lib/types";
+import { readRoomViewings, type RoomViewing } from "@/lib/viewings";
 import { getCurrentUser } from "./current-user";
 import { createClient } from "./server";
 
@@ -72,6 +73,50 @@ export const getStoredDealRooms = cache(async (): Promise<DealRoom[]> => {
   }
 
   return ((data ?? []) as StoredDealRoomRow[]).map(mapStoredDealRoomToDealRoom);
+});
+
+/* Structured viewings live inside `deal_rooms.payload.viewings`. Rather
+   than reshape the DealRoom type (owned elsewhere), expose them keyed by
+   room id — pages that need them pass the result alongside the room. */
+export const getStoredRoomViewings = cache(async (): Promise<Record<string, RoomViewing[]>> => {
+  const user = await getCurrentUser();
+  if (!user) return {};
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("deal_rooms")
+    .select("id, payload")
+    .eq("owner_user_id", user.id);
+
+  if (error) {
+    console.warn("Could not read room viewings", error.message);
+    return {};
+  }
+
+  const map: Record<string, RoomViewing[]> = {};
+  for (const row of data ?? []) {
+    const viewings = readRoomViewings(row.payload);
+    if (viewings.length) map[String(row.id)] = viewings;
+  }
+  return map;
+});
+
+/* Single-room viewings — used by /deal-rooms/[id] to avoid pulling every
+   room's payload just to read one. */
+export const getStoredRoomViewingsById = cache(async (id: string): Promise<RoomViewing[]> => {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("deal_rooms")
+    .select("payload")
+    .eq("owner_user_id", user.id)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) return [];
+  return readRoomViewings(data.payload);
 });
 
 export const getStoredDealRoomById = cache(async (id: string): Promise<DealRoom | undefined> => {

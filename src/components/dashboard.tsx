@@ -3,6 +3,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bot,
+  Calendar,
   CheckCircle,
   Clock,
   Compass,
@@ -17,6 +18,8 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { BrokerSegment } from "@/lib/broker-segments";
 import type { BrokerTask, BuyerProfile, YachtListing } from "@/lib/types";
+import { formatViewingLabel } from "@/lib/viewings";
+import type { UpcomingViewing } from "@/lib/supabase/room-viewings-server";
 import {
   getBuyerById,
   getDashboardModel,
@@ -51,6 +54,7 @@ export function Dashboard({
   storedBuyers = [],
   storedListings = [],
   storedTasks = [],
+  upcomingViewings = [],
 }: {
   includeDemo?: boolean;
   /* Open buyer questions across the broker's deal rooms (+ the room with
@@ -60,6 +64,9 @@ export function Dashboard({
   storedBuyers?: BuyerProfile[];
   storedListings?: YachtListing[];
   storedTasks?: BrokerTask[];
+  /* Structured viewings across the broker's rooms, next 7 days, fetched
+     server-side. Sorted ascending. */
+  upcomingViewings?: UpcomingViewing[];
 }) {
   const model = getDashboardModel(segment, { includeDemo });
   /* Merge stored (Supabase) records with the demo pools so every surface —
@@ -204,6 +211,28 @@ export function Dashboard({
       label: "Buyer questions",
       value: `${openQuestions.count}`,
     },
+    (() => {
+      const next = upcomingViewings[0];
+      if (!next) {
+        return {
+          detail: "No viewings scheduled.",
+          href: "/deal-rooms",
+          icon: Calendar,
+          label: "Viewings",
+          value: "0",
+        };
+      }
+      const buyerName = resolveBuyer(next.buyerId)?.name;
+      const listingName = next.listingId ? resolveListing(next.listingId)?.name : undefined;
+      const parts = [formatViewingLabel(next), listingName, buyerName].filter(Boolean);
+      return {
+        detail: parts.join(" · "),
+        href: `/deal-rooms/${next.roomId}`,
+        icon: Calendar,
+        label: "Viewings",
+        value: `${upcomingViewings.length}`,
+      };
+    })(),
     {
       detail: topRiskCase
         ? `${topRiskBuyer?.name ?? "Unknown buyer"}: ${topRiskCase.recommendedAction}`
