@@ -24,12 +24,14 @@ type StepId = "capture" | "qualify" | "match" | "share" | "view" | "close";
 type StepState = "done" | "current" | "in-progress" | "pending" | "won" | "lost";
 
 /* Where a step (or its action) sends the broker. Tabs switch in-page; hrefs
-   navigate; "stage" scrolls to the header stage control. */
+   navigate; "share" opens the share-room dialog; "close" opens the
+   close-deal dialog. */
 export type WorkflowTab = "timeline" | "trust" | "matches";
 type StepNav =
   | { kind: "tab"; tab: WorkflowTab }
   | { kind: "href"; href: string }
-  | { kind: "stage" };
+  | { kind: "share" }
+  | { kind: "close" };
 
 export type DealWorkflowInputs = {
   buyer: BuyerProfile;
@@ -136,7 +138,9 @@ export function resolveWorkflowSteps({
       : undefined,
   };
 
-  // Share — a deal room exists and is shared. Opens the buyer's room.
+  // Share — a deal room exists and is shared (status left Draft = not yet).
+  // Opens the share dialog: readiness gaps when not shareable, the copyable
+  // buyer link when it is. Without a room it routes to the create flow.
   const shareState: StepState = hasDealRoom ? (dealRoomDraft ? "in-progress" : "done") : "pending";
   const share: ResolvedStep = {
     id: "share",
@@ -144,16 +148,20 @@ export function resolveWorkflowSteps({
     state: shareState,
     hint: hasDealRoom
       ? dealRoomDraft
-        ? "Draft room, not shared"
+        ? "Room not shared yet"
         : hasUnsentDrafts
-          ? "Draft follow-up pending"
+          ? "Shared · draft follow-up pending"
           : "Shared"
       : hasMatches
         ? undefined
         : "Build a shortlist first",
-    nav: hasDealRoom || hasMatches ? { kind: "href", href: roomHref } : undefined,
+    nav: hasDealRoom
+      ? { kind: "share" }
+      : hasMatches
+        ? { kind: "href", href: roomHref }
+        : undefined,
     action: hasDealRoom
-      ? { label: dealRoomDraft ? "Open & share room" : "Open room", nav: { kind: "href", href: roomHref } }
+      ? { label: dealRoomDraft ? "Share room" : "Share link", nav: { kind: "share" } }
       : hasMatches
         ? { label: "Create deal room", nav: { kind: "href", href: roomHref } }
         : undefined,
@@ -176,7 +184,7 @@ export function resolveWorkflowSteps({
       : undefined,
   };
 
-  // Close — terminal outcome, recorded via the header Stage control.
+  // Close — terminal outcome, recorded via the close-deal dialog.
   const close: ResolvedStep = {
     id: "close",
     label: "Close",
@@ -189,9 +197,9 @@ export function resolveWorkflowSteps({
         ? buyer.closedReason
           ? `Lost · ${buyer.closedReason}`
           : "Lost"
-        : "Use the Stage button",
-    nav: { kind: "stage" },
-    action: isClosedWon || isClosedLost ? undefined : { label: "Mark won / lost", nav: { kind: "stage" } },
+        : "Record won or lost",
+    nav: { kind: "close" },
+    action: isClosedWon || isClosedLost ? undefined : { label: "Mark won / lost", nav: { kind: "close" } },
   };
 
   const steps = [capture, qualify, match, share, view, close];
@@ -217,12 +225,16 @@ const TAB_FOR_STEP: Partial<Record<StepId, WorkflowTab>> = {
 
 export function DealWorkflowStepper({
   onSelectTab,
-  onFocusStage,
+  onShare,
+  onCloseDeal,
   activeTab,
   ...inputs
 }: DealWorkflowInputs & {
   onSelectTab?: (tab: WorkflowTab) => void;
-  onFocusStage?: () => void;
+  /* Opens the share-room dialog (readiness gaps or the copyable link). */
+  onShare?: () => void;
+  /* Opens the close-deal (won/lost) dialog. */
+  onCloseDeal?: () => void;
   /* The tab currently shown in the profile card, so the matching step reads
      as selected. */
   activeTab?: string;
@@ -232,7 +244,8 @@ export function DealWorkflowStepper({
 
   function go(nav: StepNav) {
     if (nav.kind === "tab") onSelectTab?.(nav.tab);
-    else if (nav.kind === "stage") onFocusStage?.();
+    else if (nav.kind === "share") onShare?.();
+    else if (nav.kind === "close") onCloseDeal?.();
   }
 
   return (
@@ -325,7 +338,9 @@ function StepPill({
     isDone && !isCurrent && "border-[#E1F1EA] bg-[#E1F1EA]/40",
     isLost && "border-[#E7E7E7] bg-white",
     !isDone && !isCurrent && !isProgress && !isLost && "border-[#E7E7E7] bg-white",
-    isActiveTab && "ring-2 ring-[#003C33] ring-offset-1",
+    /* "You are here": the step whose tab is open gets a bottom accent bar +
+       soft fill — reads as a selected tab instead of the old heavy ring. */
+    isActiveTab && "bg-[#F1F2EE] shadow-[inset_0_-3px_0_0_#003C33]",
     interactive &&
       "cursor-pointer hover:border-[#003C33] hover:bg-[#F1F2EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#003C33]",
   );

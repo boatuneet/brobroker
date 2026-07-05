@@ -68,7 +68,8 @@ import type {
 import { DealWorkflowStepper } from "./buyers/deal-workflow-stepper";
 import { BuyerTimeline } from "./buyers/buyer-timeline";
 import { BuyerTrust } from "./buyers/buyer-trust";
-import { StageControl } from "./buyers/stage-control";
+import { ShareRoomDialog } from "./buyers/share-room-dialog";
+import { CloseDealDialog, StageControl } from "./buyers/stage-control";
 import { cn, daysUntil, formatCurrency, formatDate, percentage } from "@/lib/utils";
 import {
   Badge,
@@ -995,7 +996,7 @@ export function BuyerMemoryProfile({
   storedListings = [],
   storedConversations = [],
   storedDrafts = [],
-  storedDealRoom,
+  storedDealRooms = [],
 }: {
   buyerId: string;
   buyerOverride?: BuyerProfile;
@@ -1005,7 +1006,10 @@ export function BuyerMemoryProfile({
   storedListings?: YachtListing[];
   storedConversations?: Conversation[];
   storedDrafts?: FollowUpDraft[];
-  storedDealRoom?: DealRoom;
+  /* Every persisted room attached to this buyer, newest first. The newest
+     drives the workflow + share dialog; the union of listingIds marks
+     matches as already-in-a-room. */
+  storedDealRooms?: DealRoom[];
 }) {
   const staticProfile = includeDemo ? getBuyerMemoryProfile(buyerId, segment) : undefined;
   // Match a real (stored) buyer only against the broker's real inventory —
@@ -1043,6 +1047,16 @@ export function BuyerMemoryProfile({
   // immediately without a Supabase round trip. Stored buyers get a router
   // refresh through the stage helper.
   const [localBuyer, setLocalBuyer] = useState<BuyerProfile | null>(null);
+  /* Newest room drives the workflow; a local overlay reflects the share-mark
+     immediately (server props refresh behind it). */
+  const [localRoom, setLocalRoom] = useState<DealRoom | null>(null);
+  const storedDealRoom = localRoom ?? storedDealRooms[0];
+  const roomListingIds = useMemo(
+    () => new Set(storedDealRooms.flatMap((room) => room.listingIds)),
+    [storedDealRooms],
+  );
+  const [shareOpen, setShareOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
   const [aiMatches, setAiMatches] = useState<AiMatch[] | null>(null);
   const [aiMode, setAiMode] = useState<"ai" | "deterministic" | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -1270,21 +1284,18 @@ export function BuyerMemoryProfile({
                 Phone
               </a>
             ) : null}
-          </div>
-          <h1 className="bb-display mt-4 text-[2rem] font-medium leading-[1.04] text-[#171719] sm:text-[2.4rem]">
-            {buyer.name}
-          </h1>
-          {/* Urgency + verification badges sit above the stage control so the
-              read-only status reads first, then the editable Stage button. The
-              full ask lives in the Memory tab, so no summary box here. */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {/* Urgency + verification status ride the same eyebrow row as the
+                location/contact chips — one status line above the name. */}
             <Badge tone={urgencyTone(buyer.urgency)}>{buyer.urgency}</Badge>
             <Badge className={verificationTone.className}>
               <StatusDot className={verificationTone.dotClassName} />
               {verification?.status ?? "Needs Review"}
             </Badge>
           </div>
-          <div className="mt-2.5" ref={stageControlRef}>
+          <h1 className="bb-display mt-4 text-[2rem] font-medium leading-[1.04] text-[#171719] sm:text-[2.4rem]">
+            {buyer.name}
+          </h1>
+          <div className="mt-4" ref={stageControlRef}>
             <StageControl
               buyer={buyer}
               isStored={isStoredBuyer}
@@ -1366,11 +1377,34 @@ export function BuyerMemoryProfile({
           verification={verification}
           activeTab={tab}
           onSelectTab={goToTab}
-          onFocusStage={() =>
-            stageControlRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
-          }
+          onShare={() => setShareOpen(true)}
+          onCloseDeal={() => setCloseOpen(true)}
         />
       </div>
+
+      {shareOpen && storedDealRoom ? (
+        <ShareRoomDialog
+          isStoredRoom
+          listings={inventory}
+          matches={matches}
+          onClose={() => setShareOpen(false)}
+          onShared={(next) => {
+            setLocalRoom(next);
+            router.refresh();
+          }}
+          room={storedDealRoom}
+        />
+      ) : null}
+
+      {closeOpen ? (
+        <CloseDealDialog
+          buyer={buyer}
+          isStored={isStoredBuyer}
+          onClose={() => setCloseOpen(false)}
+          onLocalChange={(next) => setLocalBuyer(next)}
+          onSaved={() => router.refresh()}
+        />
+      ) : null}
 
       {/* Metric fold — Budget / Next action / Top match fit (with FitRing). */}
       <section
@@ -1584,15 +1618,28 @@ export function BuyerMemoryProfile({
                     <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                     {aiLoading ? "Ranking…" : aiMatches ? "Re-run AI ranking" : "Re-rank with AI"}
                   </button>
-                  <Link
-                    className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
-                    href={`/deal-rooms/new?buyer=${buyer.id}${shortlistIds.map((id) => `&listing=${id}`).join("")}`}
-                  >
-                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                    {shortlistIds.length
-                      ? `Build shortlist room (${shortlistIds.length})`
-                      : "Build shortlist room"}
-                  </Link>
+                  {/* A room already exists and nothing new is ticked → view
+                      it. Ticking matches switches back to building a (new)
+                      room with the selection. */}
+                  {storedDealRoom && !shortlistIds.length ? (
+                    <Link
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
+                      href={`/deal-rooms/${storedDealRoom.id}`}
+                    >
+                      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                      View shortlist room
+                    </Link>
+                  ) : (
+                    <Link
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] bg-[#003C33] px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-[#0B4A3F]"
+                      href={`/deal-rooms/new?buyer=${buyer.id}${shortlistIds.map((id) => `&listing=${id}`).join("")}`}
+                    >
+                      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                      {shortlistIds.length
+                        ? `Build shortlist room (${shortlistIds.length})`
+                        : "Build shortlist room"}
+                    </Link>
+                  )}
                 </div>
               </div>
 
@@ -1651,8 +1698,10 @@ export function BuyerMemoryProfile({
                 {sortedMatches.map((match) => (
                   <MatchPanel
                     key={match.id}
+                    inRoom={roomListingIds.has(match.listingId)}
                     inventory={inventory}
                     match={match}
+                    roomHref={storedDealRoom ? `/deal-rooms/${storedDealRoom.id}` : undefined}
                     segment={segment}
                     selected={shortlistIds.includes(match.listingId)}
                     onToggleSelect={() => toggleShortlist(match.listingId)}
@@ -2130,11 +2179,13 @@ function BuyerMemoryNav({
   value: BuyerProfileTab;
   onChange: (next: BuyerProfileTab) => void;
 }) {
+  /* Ordered to mirror the workflow steps: Memory (the buyer's ask), then
+     Capture→Timeline, Qualify→Trust, Match→Matches, Share→Drafts. */
   const items: { label: string; key: BuyerProfileTab }[] = [
     { label: "Memory", key: "memory" },
-    { label: "Matches", key: "matches" },
     { label: "Timeline", key: "timeline" },
     { label: "Trust", key: "trust" },
+    { label: "Matches", key: "matches" },
     { label: "Drafts", key: "drafts" },
   ];
 
@@ -2299,14 +2350,20 @@ function getCleanRationale(match: MatchResult, listingName: string) {
 }
 
 function MatchPanel({
+  inRoom = false,
   inventory,
   match,
+  roomHref,
   segment,
   selected,
   onToggleSelect,
 }: {
+  /* Listing already lives in one of this buyer's shortlist rooms. */
+  inRoom?: boolean;
   inventory?: YachtListing[];
   match: MatchResult;
+  /* The buyer's newest room — where the "In shortlist room" chip links. */
+  roomHref?: string;
   segment?: BrokerSegment;
   selected: boolean;
   onToggleSelect: () => void;
@@ -2453,29 +2510,48 @@ function MatchPanel({
               room once via "Build shortlist room" above. This is how the Match
               stage advances to Share. */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button
-              aria-pressed={selected}
-              className={cn(
-                "inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12.5px] font-medium transition-colors",
-                selected
-                  ? "border-[#003C33] bg-[#F1F2EE] text-[#003C33] hover:bg-[#E7EAE4]"
-                  : "border-[#003C33] bg-white text-[#003C33] hover:bg-[#F1F2EE]",
-              )}
-              onClick={onToggleSelect}
-              type="button"
-            >
-              {selected ? (
-                <>
+            {inRoom ? (
+              /* Already curated into a shortlist room — no re-adding; the chip
+                 links to the room so "where is it?" is one click. */
+              roomHref ? (
+                <Link
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E1F1EA] bg-[#E1F1EA]/60 px-3 text-[12.5px] font-medium text-[#0F8F62] transition-colors hover:bg-[#E1F1EA]"
+                  href={roomHref}
+                >
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  Added to shortlist
-                </>
+                  In shortlist room
+                </Link>
               ) : (
-                <>
-                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  Add to shortlist
-                </>
-              )}
-            </button>
+                <span className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E1F1EA] bg-[#E1F1EA]/60 px-3 text-[12.5px] font-medium text-[#0F8F62]">
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  In shortlist room
+                </span>
+              )
+            ) : (
+              <button
+                aria-pressed={selected}
+                className={cn(
+                  "inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12.5px] font-medium transition-colors",
+                  selected
+                    ? "border-[#003C33] bg-[#F1F2EE] text-[#003C33] hover:bg-[#E7EAE4]"
+                    : "border-[#003C33] bg-white text-[#003C33] hover:bg-[#F1F2EE]",
+                )}
+                onClick={onToggleSelect}
+                type="button"
+              >
+                {selected ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    Added to shortlist
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    Add to shortlist
+                  </>
+                )}
+              </button>
+            )}
             {listing ? (
               <Link
                 className="inline-flex min-h-8 items-center gap-1.5 rounded-[8px] border border-[#E7E7E7] bg-white px-3 text-[12.5px] font-medium text-[#5F625E] transition-colors hover:border-[#003C33] hover:text-[#003C33]"

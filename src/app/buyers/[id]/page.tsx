@@ -91,9 +91,11 @@ export default async function BuyerMemoryPage({
     safeAwait(getStoredFollowUpDraftsForBuyer(id), []),
     safeAwait(getStoredDealRooms(), []),
   ]);
-  // Deal rooms live in a shared table — pick the one attached to this buyer.
-  // Newest wins (getStoredDealRooms already orders by updated_at desc).
-  const storedDealRoom = allDealRooms.find((room) => room.buyerId === id);
+  // Deal rooms live in a shared table — keep every room attached to this
+  // buyer, newest first (getStoredDealRooms orders by updated_at desc). The
+  // profile uses the newest for the workflow and the full list to mark
+  // matches that already sit in a room.
+  const storedDealRooms = allDealRooms.filter((room) => room.buyerId === id);
 
   if (!profile && !storedBuyer) {
     notFound();
@@ -122,7 +124,7 @@ export default async function BuyerMemoryPage({
         storedListings={storedListings}
         storedConversations={storedConversations}
         storedDrafts={storedDrafts}
-        storedDealRoom={storedDealRoom}
+        storedDealRooms={storedDealRooms}
       />
     </AppShell>
   );

@@ -237,3 +237,166 @@ function ClosePopover({
     </div>
   );
 }
+
+/* Centered close-deal dialog — the Close workflow step opens this so the
+   broker can record the outcome without hunting for the Stage control.
+   Persists exactly like StageControl: updateBuyerStage for stored buyers,
+   optimistic local overlay for demo ones. */
+export function CloseDealDialog({
+  buyer,
+  isStored,
+  onClose,
+  onLocalChange,
+  onSaved,
+}: {
+  buyer: BuyerProfile;
+  isStored: boolean;
+  onClose: () => void;
+  onLocalChange?: (next: BuyerProfile) => void;
+  /* Called after a successful stored save so the caller can refresh. */
+  onSaved?: () => void;
+}) {
+  const [outcome, setOutcome] = useState<"Closed Won" | "Closed Lost">("Closed Won");
+  const [value, setValue] = useState<string>(String(buyer.budgetMaxEur || ""));
+  const [reason, setReason] = useState("");
+  const [saving, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const canConfirm = outcome === "Closed Won" ? Boolean(value) : Boolean(reason.trim());
+
+  function confirm() {
+    const close: CloseValues =
+      outcome === "Closed Won"
+        ? { closedValueEur: Number(value) || undefined }
+        : { closedReason: reason.trim() };
+    if (isStored) {
+      startTransition(async () => {
+        const { updateBuyerStage } = await import("@/lib/buyer-stage");
+        const result = await updateBuyerStage(buyer.id, outcome, close);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        onLocalChange?.({
+          ...buyer,
+          currentStage: outcome,
+          closedAt: new Date().toISOString(),
+          closedReason: close.closedReason,
+          closedValueEur: close.closedValueEur,
+        });
+        onSaved?.();
+        onClose();
+      });
+    } else {
+      onLocalChange?.({
+        ...buyer,
+        currentStage: outcome,
+        closedAt: new Date().toISOString(),
+        closedReason: close.closedReason,
+        closedValueEur: close.closedValueEur,
+      });
+      onClose();
+    }
+  }
+
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-[#171719]/40 p-6"
+      onClick={onClose}
+      role="dialog"
+    >
+      <div
+        className="w-full max-w-md rounded-[12px] border border-[#E7E7E7] bg-white p-6 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h3 className="bb-display text-lg font-medium text-[#171719]">Close this deal</h3>
+        <p className="mt-1.5 text-[13px] leading-6 text-[#5F625E]">
+          Record the outcome for {buyer.name}. This moves the deal out of the live pipeline.
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            aria-pressed={outcome === "Closed Won"}
+            className={cn(
+              "inline-flex min-h-10 items-center justify-center gap-2 rounded-[8px] border text-[13px] font-semibold transition-colors",
+              outcome === "Closed Won"
+                ? "border-[#0F8F62] bg-[#E1F1EA] text-[#0F8F62]"
+                : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#0F8F62]",
+            )}
+            onClick={() => setOutcome("Closed Won")}
+            type="button"
+          >
+            Closed Won
+          </button>
+          <button
+            aria-pressed={outcome === "Closed Lost"}
+            className={cn(
+              "inline-flex min-h-10 items-center justify-center gap-2 rounded-[8px] border text-[13px] font-semibold transition-colors",
+              outcome === "Closed Lost"
+                ? "border-[#A86642] bg-[#F0DDD0] text-[#A86642]"
+                : "border-[#E7E7E7] bg-white text-[#5F625E] hover:border-[#A86642]",
+            )}
+            onClick={() => setOutcome("Closed Lost")}
+            type="button"
+          >
+            Closed Lost
+          </button>
+        </div>
+
+        {outcome === "Closed Won" ? (
+          <label className="mt-4 block">
+            <span className="bb-mono-label">Closed value (EUR)</span>
+            <input
+              className="mt-1.5 h-10 w-full rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] text-[#171719] outline-none focus:border-[#003C33]"
+              inputMode="numeric"
+              onChange={(event) => setValue(event.target.value.replace(/[^\d]/g, ""))}
+              placeholder="e.g. 2500000"
+              type="text"
+              value={value}
+            />
+            {value ? (
+              <p className="mt-1 text-[11px] text-[#8E918B]">{formatCurrency(Number(value))}</p>
+            ) : null}
+          </label>
+        ) : (
+          <label className="mt-4 block">
+            <span className="bb-mono-label">Reason</span>
+            <input
+              className="mt-1.5 h-10 w-full rounded-[8px] border border-[#D9DAD4] bg-white px-3 text-[13px] text-[#171719] outline-none focus:border-[#003C33]"
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Chose another broker"
+              type="text"
+              value={reason}
+            />
+          </label>
+        )}
+
+        {error ? <p className="mt-3 text-[12px] text-[#A86642]">{error}</p> : null}
+        {!isStored ? (
+          <p className="mt-3 text-[11.5px] text-[#8E918B]">
+            Demo buyer — the outcome is session-only.
+          </p>
+        ) : null}
+
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            className="inline-flex min-h-9 items-center rounded-[8px] px-4 text-[13px] font-medium text-[#5F625E] hover:bg-[#F1F2EE]"
+            onClick={onClose}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="inline-flex min-h-9 items-center rounded-[8px] bg-[#003C33] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0B4A3F] disabled:opacity-50"
+            disabled={!canConfirm || saving}
+            onClick={confirm}
+            type="button"
+          >
+            {saving ? "Saving…" : "Confirm outcome"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
