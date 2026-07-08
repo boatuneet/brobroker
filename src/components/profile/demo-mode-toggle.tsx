@@ -7,7 +7,7 @@ import { persistDemoMode } from "@/lib/demo-mode-client";
 import { cn } from "@/lib/utils";
 
 /* Switch the broker between "demo + real data" and "real data only". The
-   preference lives in a cookie (see lib/demo-mode-*); after toggling we
+   preference lives in a cookie (see lib / demo-mode-*); after toggling we
    refresh so server components re-read and the dashboard / pulse reflect
    the new mode immediately. */
 export function DemoModeToggle({ initialEnabled }: { initialEnabled: boolean }) {
