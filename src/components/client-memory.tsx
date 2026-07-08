@@ -1340,19 +1340,21 @@ export function BuyerMemoryProfile({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            className="inline-flex min-h-10 items-center gap-2 rounded-[8px] border border-[#D9DAD4] bg-white px-4 text-sm font-medium text-[#171719] transition-colors hover:border-[#003C33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
-            href="/voice-crm"
-          >
-            <Bot className="h-4 w-4" aria-hidden="true" />
-            Capture voice note
-          </Link>
+          {/* Capture lives in the global top bar — no duplicate here. The deal
+              room button targets the ACTIVE flow: open its room if built, else
+              start room creation prefilled for that requirement set. */}
           <Link
             className="inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-[#003C33] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0B4A3F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4c6ee6]"
-            href={storedDealRoom ? `/deal-rooms/${storedDealRoom.id}` : `/deal-rooms/new?buyer=${buyer.id}`}
+            href={
+              roomForActiveSet
+                ? `/deal-rooms/${roomForActiveSet.id}`
+                : `/deal-rooms/new?buyer=${buyer.id}&set=${encodeURIComponent(activeSetId)}`
+            }
           >
             <FileText className="h-4 w-4" aria-hidden="true" />
-            {storedDealRoom ? "Open deal room" : "New deal room"}
+            {roomForActiveSet
+              ? `Open ${activeSetId === "primary" ? "Primary" : activeSet?.label ?? "deal"} room`
+              : "New deal room"}
           </Link>
           <div className="relative" ref={actionMenuRef}>
             <button
