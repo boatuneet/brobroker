@@ -6,7 +6,7 @@ import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getBuyerMemoryProfile } from "@/lib/services";
-import { getStoredBuyerById, getStoredBuyerVerification } from "@/lib/supabase/buyers";
+import { getStoredBuyerById, getStoredBuyerVerificationStatus } from "@/lib/supabase/buyers";
 import { getStoredConversationsForBuyer } from "@/lib/supabase/conversations";
 import { getStoredDealRooms } from "@/lib/supabase/deal-rooms";
 import { getStoredFollowUpDraftsForBuyer } from "@/lib/supabase/follow-up-drafts";
@@ -82,7 +82,7 @@ export default async function BuyerMemoryPage({
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
   const profile = includeDemo ? getBuyerMemoryProfile(id, segment) : undefined;
-  const [storedBuyer, storedListings, storedConversations, storedDrafts, allDealRooms, savedVerification] =
+  const [storedBuyer, storedListings, storedConversations, storedDrafts, allDealRooms, savedVerificationStatus] =
     await Promise.all([
       profile
         ? Promise.resolve(undefined)
@@ -93,7 +93,7 @@ export default async function BuyerMemoryPage({
       safeAwait(getStoredDealRooms(), []),
       // Demo buyers carry verification in the profile model; stored buyers
       // keep the broker's Trust-tab decision in payload.verification.
-      profile ? Promise.resolve(undefined) : safeAwait(getStoredBuyerVerification(id), undefined),
+      profile ? Promise.resolve(undefined) : safeAwait(getStoredBuyerVerificationStatus(id), undefined),
     ]);
   // Deal rooms live in a shared table — keep every room attached to this
   // buyer, newest first (getStoredDealRooms orders by updated_at desc). The
@@ -129,7 +129,7 @@ export default async function BuyerMemoryPage({
         storedConversations={storedConversations}
         storedDrafts={storedDrafts}
         storedDealRooms={storedDealRooms}
-        savedVerificationStatus={savedVerification?.status}
+        savedVerificationStatus={savedVerificationStatus}
       />
     </AppShell>
   );

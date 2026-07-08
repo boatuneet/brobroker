@@ -182,10 +182,15 @@ export function DealRoomCreate({
     if (!room || isSaving) return;
     setIsSaving(true);
     /* Stamp the source requirement set (defaults to the buyer's primary ask)
-       so the Matches tab can offer View vs Build per set. */
+       so the Matches tab can offer View vs Build per set. The room id is
+       DETERMINISTIC PER SET — otherwise a second set's room reused the
+       buyer-only id ("room-<buyer>-generated") and overwrote the first.
+       Deterministic-per-set means one room per set, idempotent on rebuild. */
     const requirementSetId = initialSetId?.trim() || "primary";
+    const perSetRoomId = `room-${room.buyerId}-${requirementSetId}`.replace(/[^a-zA-Z0-9_-]/g, "-");
     const finalRoom: DealRoom = {
       ...room,
+      id: perSetRoomId,
       requirementSetId,
       lastUpdatedAt: new Date().toISOString(),
     };

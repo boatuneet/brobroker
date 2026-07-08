@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Circle, Trophy, XCircle } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Circle, Trophy, XCircle } from "lucide-react";
 import type {
   BuyerProfile,
   Conversation,
@@ -237,6 +237,9 @@ export function DealWorkflowStepper({
   onShare,
   onCloseDeal,
   activeTab,
+  flows,
+  activeFlowId,
+  onSelectFlow,
   ...inputs
 }: DealWorkflowInputs & {
   onSelectTab?: (tab: WorkflowTab) => void;
@@ -247,9 +250,14 @@ export function DealWorkflowStepper({
   /* The tab currently shown in the profile card, so the matching step reads
      as selected. */
   activeTab?: string;
+  /* Requirement sets the buyer can run in parallel — each is its own flow
+     (its own Match/Share/View + room). The selector replaces the old NEXT
+     button; Capture/Qualify/Close are person-level and shared across flows. */
+  flows?: Array<{ id: string; label: string }>;
+  activeFlowId?: string;
+  onSelectFlow?: (id: string) => void;
 }) {
   const steps = resolveWorkflowSteps(inputs);
-  const current = steps.find((s) => s.state === "current" || s.state === "in-progress");
 
   function go(nav: StepNav) {
     if (nav.kind === "tab") onSelectTab?.(nav.tab);
@@ -257,19 +265,39 @@ export function DealWorkflowStepper({
     else if (nav.kind === "close") onCloseDeal?.();
   }
 
+  const showFlowSelector = Boolean(flows && flows.length > 0 && onSelectFlow);
+
   return (
     <section
       aria-label="Deal workflow"
       className="rounded-[12px] border border-[#E7E7E7] bg-white px-4 py-4 sm:px-5"
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="bb-mono-label">Deal workflow</p>
-        {current?.action ? (
-          <StepActionButton
-            action={current.action}
-            go={go}
-            prominent
-          />
+        {showFlowSelector ? (
+          <label className="inline-flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8E918B]">
+              Flow
+            </span>
+            <span className="relative inline-flex items-center">
+              <select
+                aria-label="Requirement set flow"
+                className="h-8 appearance-none rounded-[8px] border border-[#D9DAD4] bg-white pl-3 pr-8 text-[12.5px] font-medium text-[#171719] outline-none transition-colors hover:border-[#003C33] focus:border-[#003C33]"
+                onChange={(event) => onSelectFlow?.(event.target.value)}
+                value={activeFlowId ?? flows![0].id}
+              >
+                {flows!.map((flow) => (
+                  <option key={flow.id} value={flow.id}>
+                    {flow.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                aria-hidden="true"
+                className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[#8E918B]"
+              />
+            </span>
+          </label>
         ) : (
           <p className="text-[11px] uppercase tracking-[0.14em] text-[#8E918B]">
             Capture · Qualify · Match · Share · View · Close
@@ -369,45 +397,6 @@ function StepPill({
   return (
     <button className={baseClass} onClick={() => go(step.nav!)} type="button">
       {body}
-    </button>
-  );
-}
-
-function StepActionButton({
-  action,
-  go,
-  prominent,
-}: {
-  action: { label: string; nav: StepNav };
-  go: (nav: StepNav) => void;
-  prominent?: boolean;
-}) {
-  const cls = cn(
-    "inline-flex items-center gap-1.5 rounded-[8px] px-3 text-[12.5px] font-medium transition-colors",
-    prominent
-      ? "min-h-8 bg-[#003C33] text-white hover:bg-[#0B4A3F]"
-      : "min-h-8 border border-[#E7E7E7] bg-white text-[#003C33] hover:border-[#003C33]",
-  );
-  const label = (
-    <>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
-        Next
-      </span>
-      {action.label}
-      <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
-    </>
-  );
-
-  if (action.nav.kind === "href") {
-    return (
-      <Link className={cls} href={action.nav.href}>
-        {label}
-      </Link>
-    );
-  }
-  return (
-    <button className={cls} onClick={() => go(action.nav)} type="button">
-      {label}
     </button>
   );
 }

@@ -52,24 +52,32 @@ export const getStoredBuyerById = cache(async (id: string) => {
   return data ? mapStoredBuyerToProfile(data as StoredBuyerRow) : undefined;
 });
 
-/* The buyer's saved Trust-tab verification decision (payload.verification).
-   Kept separate from the profile because BuyerProfile has no verification
-   field and this is only needed on the detail page. One indexed lookup.
-   ponytail: fold into getStoredBuyerById if a second caller ever needs it. */
-export const getStoredBuyerVerification = cache(async (id: string) => {
-  const user = await getCurrentUser();
-  if (!user) return undefined;
+/* The buyer's saved Trust-tab verification status (payload.verification.status).
+   Parsed inline — no import of the browser-client module, no error swallowing —
+   so the header badge / Qualify step reliably reflect the broker's decision.
+   One indexed lookup. */
+export const getStoredBuyerVerificationStatus = cache(
+  async (id: string): Promise<"Verified" | "Needs Review" | "High Risk" | undefined> => {
+    const user = await getCurrentUser();
+    if (!user) return undefined;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("buyers")
-    .select("payload")
-    .eq("owner_user_id", user.id)
-    .eq("id", id)
-    .maybeSingle();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("buyers")
+      .select("payload")
+      .eq("owner_user_id", user.id)
+      .eq("id", id)
+      .maybeSingle();
 
-  if (error || !data) return undefined;
-  const { readSavedVerification } = await import("@/lib/buyer-verification");
-  return readSavedVerification((data as { payload: unknown }).payload);
-});
+    if (error || !data) return undefined;
+    const payload = (data as { payload: unknown }).payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
+    const verification = (payload as Record<string, unknown>).verification;
+    if (!verification || typeof verification !== "object") return undefined;
+    const status = (verification as Record<string, unknown>).status;
+    return status === "Verified" || status === "Needs Review" || status === "High Risk"
+      ? status
+      : undefined;
+  },
+);
 

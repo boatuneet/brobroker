@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Check, Circle, Copy, ShieldAlert, X } from "lucide-react";
 import { markRoomShared } from "@/lib/supabase/room-share";
-import type { DealRoom, MatchResult, YachtListing } from "@/lib/types";
+import type { DealRoom, YachtListing } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /* Share dialog for the buyer-detail Share step.
@@ -20,28 +20,29 @@ import { cn } from "@/lib/utils";
    - Ready → the public /room link with a copy button; copying marks the
      room shared (status Active + broker-approved + payload.sharedAt). */
 export function ShareRoomDialog({
-  buyerId,
   buyerVerified,
   rooms,
+  defaultRoomId,
   listings,
-  matches,
   onClose,
   onShared,
   onVerifyBuyer,
 }: {
-  buyerId: string;
   /* Broker's Trust-tab decision === "Verified". */
   buyerVerified: boolean;
   /* Every persisted room for this buyer, newest first. */
   rooms: DealRoom[];
+  /* Room to open on — the active flow's room. Falls back to the newest. */
+  defaultRoomId?: string;
   listings: YachtListing[];
-  matches: MatchResult[];
   onClose: () => void;
   onShared: (next: DealRoom) => void;
   /* Close the dialog and jump to the Trust tab (offered when unverified). */
   onVerifyBuyer?: () => void;
 }) {
-  const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id ?? "");
+  const [selectedRoomId, setSelectedRoomId] = useState(
+    defaultRoomId && rooms.some((r) => r.id === defaultRoomId) ? defaultRoomId : rooms[0]?.id ?? "",
+  );
   const room = rooms.find((r) => r.id === selectedRoomId) ?? rooms[0];
 
   const [copied, setCopied] = useState(false);

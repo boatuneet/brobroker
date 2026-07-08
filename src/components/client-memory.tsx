@@ -1112,6 +1112,16 @@ export function BuyerMemoryProfile({
     }
     return ids;
   }, [storedDealRooms, activeSetId]);
+  /* Each requirement set is its own deal flow (its own Match/Share/View +
+     room). The workflow's flow selector switches which set drives those
+     steps — and stays in sync with the Matches-tab set selector. */
+  const workflowFlows = useMemo(
+    () => [
+      { id: "primary", label: "Primary" },
+      ...requirementSets.map((set) => ({ id: set.id, label: set.label })),
+    ],
+    [requirementSets],
+  );
 
   function selectRequirementSet(nextId: string) {
     selectActive(nextId);
@@ -1397,12 +1407,15 @@ export function BuyerMemoryProfile({
         <DealWorkflowStepper
           buyer={buyer}
           conversations={conversations}
-          matches={matches}
+          matches={activeMatches}
           drafts={drafts}
-          dealRoom={storedDealRoom}
+          dealRoom={roomForActiveSet}
           verification={verification}
           verificationStatus={savedVerificationStatus}
           activeTab={tab}
+          flows={workflowFlows}
+          activeFlowId={activeSetId}
+          onSelectFlow={selectRequirementSet}
           onSelectTab={goToTab}
           onShare={() => setShareOpen(true)}
           onCloseDeal={() => setCloseOpen(true)}
@@ -1411,10 +1424,9 @@ export function BuyerMemoryProfile({
 
       {shareOpen && storedDealRooms.length ? (
         <ShareRoomDialog
-          buyerId={buyer.id}
           buyerVerified={isBuyerVerified}
+          defaultRoomId={roomForActiveSet?.id}
           listings={inventory}
-          matches={matches}
           onClose={() => setShareOpen(false)}
           onShared={(next) => {
             setLocalRoom(next);

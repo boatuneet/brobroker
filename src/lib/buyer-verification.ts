@@ -75,13 +75,24 @@ export async function saveBuyerVerification(
     verification,
   };
 
-  const { error } = await supabase
+  // `.select("id")` so a 0-row update (row owned by another account, or RLS
+  // mismatch) surfaces as an error instead of a silent "ok" that never
+  // persisted — that was making a saved decision vanish on reload.
+  const { data: updated, error } = await supabase
     .from("buyers")
     .update({ payload: nextPayload })
     .eq("id", buyerId)
-    .eq("owner_user_id", user.id);
+    .eq("owner_user_id", user.id)
+    .select("id");
 
   if (error) return { ok: false, error: error.message };
+  if (!updated || updated.length === 0) {
+    return {
+      ok: false,
+      error:
+        "Could not save — this buyer isn't under your account (try re-signing in). The decision was not stored.",
+    };
+  }
   return { ok: true };
 }
 
