@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
@@ -49,6 +50,7 @@ export function DealRoomsWorkspace({
   storedBuyers = [],
   storedListings = [],
   storedRooms = [],
+  verificationByBuyerId = {},
 }: {
   includeDemo?: boolean;
   segment?: BrokerSegment;
@@ -58,6 +60,9 @@ export function DealRoomsWorkspace({
   storedBuyers?: BuyerProfile[];
   storedListings?: YachtListing[];
   storedRooms?: DealRoom[];
+  /* Per-buyer Trust decision, so "Buyer verified" reflects the person-level
+     decision instead of the stale per-room column. */
+  verificationByBuyerId?: Record<string, "Verified" | "Needs Review" | "High Risk">;
 }) {
   const pools = useMemo<DealRoomDataPools>(
     () => ({ buyers: storedBuyers, listings: storedListings, includeDemo }),
@@ -97,6 +102,17 @@ export function DealRoomsWorkspace({
     () => getBrokerDealRoomWorkspace(roomsWithOverrides, segment, pools),
     [roomsWithOverrides, segment, pools],
   );
+  const router = useRouter();
+  /* Readiness for an entry with the buyer's person-level verification folded
+     in — so "Buyer verified" tracks the Trust decision, not the room column. */
+  const readinessFor = useCallback(
+    (entry: WorkspaceEntry) =>
+      getDealRoomReadiness({
+        ...entry,
+        buyerVerified: verificationByBuyerId[entry.room.buyerId] === "Verified",
+      }),
+    [verificationByBuyerId],
+  );
   const [copiedRoomId, setCopiedRoomId] = useState<string | null>(null);
 
   const markRoomReviewed = useCallback(async (room: DealRoom) => {
@@ -119,7 +135,11 @@ export function DealRoomsWorkspace({
       writePersisted("brobroker:deal-rooms:saved", next);
     }
 
-    /* Persist to Supabase when possible — same pattern as room create. */
+    /* Persist to Supabase when possible — same pattern as room create.
+       `.select()` so a 0-row write (room under another account) is caught
+       instead of silently "succeeding", and router.refresh() reconciles the
+       server state so a quick reload can't show the stale (unreviewed) row —
+       that race is why the chip appeared to un-mark itself. */
     if (isSupabaseConfigured()) {
       try {
         const supabase = createClient();
@@ -127,17 +147,27 @@ export function DealRoomsWorkspace({
           data: { user },
         } = await supabase.auth.getUser();
         if (user) {
-          const { error } = await supabase
+          const { data: rows, error } = await supabase
             .from("deal_rooms")
             .update({
               broker_approval_status: "Approved",
               updated_at: updated.lastUpdatedAt,
             })
             .eq("id", room.id)
-            .eq("owner_user_id", user.id);
-          if (error) {
-            console.warn("Could not save reviewed state to Supabase", error.message);
+            .eq("owner_user_id", user.id)
+            .select("id");
+          if (error || !rows || rows.length === 0) {
+            // Revert the optimistic flip so the UI doesn't lie about a save
+            // that never landed.
+            setApprovalOverrides((current) => {
+              const next = { ...current };
+              delete next[room.id];
+              return next;
+            });
+            console.warn("Could not save reviewed state to Supabase", error?.message ?? "0 rows");
+            return;
           }
+          router.refresh();
         }
       } catch (error) {
         console.warn("Could not save reviewed state to Supabase", error);
@@ -145,7 +175,7 @@ export function DealRoomsWorkspace({
     }
 
     mirrorWorkflowEvent("deal_room_reviewed", room.id, { roomId: room.id });
-  }, []);
+  }, [router]);
 
   if (buyers.length === 0 && existingRooms.length === 0) {
     return <FirstRunDealRooms />;
@@ -180,7 +210,7 @@ export function DealRoomsWorkspace({
   const persistedRoomIds = new Set(savedRooms.map((room) => room.id));
   const activeEntries = existingRooms.filter((entry) => entry.origin !== "suggested");
   const suggestedEntries = existingRooms.filter((entry) => entry.origin === "suggested");
-  const readyCount = activeEntries.filter((entry) => getDealRoomReadiness(entry).isShareable).length;
+  const readyCount = activeEntries.filter((entry) => readinessFor(entry).isShareable).length;
   const pendingApproval = activeEntries.filter(
     (entry) => entry.room.brokerApprovalStatus !== "Approved",
   ).length;
@@ -213,6 +243,7 @@ export function DealRoomsWorkspace({
               {activeEntries.map((entry) => (
                 <RoomRow
                   key={entry.room.id}
+                  buyerVerified={verificationByBuyerId[entry.room.buyerId] === "Verified"}
                   copied={copiedRoomId === entry.room.id}
                   entry={entry}
                   onCopy={() => copyRoomLink(entry.room.id)}
@@ -301,6 +332,7 @@ function NewRoomButton() {
 
 function RoomRow({
   entry,
+  buyerVerified,
   copied,
   onCopy,
   onMarkReviewed,
@@ -308,6 +340,7 @@ function RoomRow({
   saved,
 }: {
   entry: WorkspaceEntry;
+  buyerVerified: boolean;
   copied: boolean;
   onCopy: () => void;
   onMarkReviewed: () => void;
@@ -315,7 +348,7 @@ function RoomRow({
   saved: boolean;
 }) {
   const { room, buyer, listings } = entry;
-  const readiness = getDealRoomReadiness(entry);
+  const readiness = getDealRoomReadiness({ ...entry, buyerVerified });
   const statusTone =
     room.status === "Active" ? "success" : room.status === "Paused" ? "warning" : "neutral";
 
@@ -383,6 +416,7 @@ function RoomRow({
             checks={readiness.checks}
             context={{
               roomId: room.id,
+              buyerId: room.buyerId,
               firstListingId: listings[0]?.id,
               onMarkReviewed,
             }}

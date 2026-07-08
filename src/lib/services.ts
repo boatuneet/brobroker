@@ -2121,16 +2121,21 @@ export function getDealRoomReadiness(entry: {
   listings: YachtListing[];
   matches: MatchResult[];
   approvedDocuments: { id: string }[];
+  /* Person-level Trust decision. When provided it is authoritative for
+     "Buyer verified" — the room's own verificationStatus column is only a
+     stale fallback (never synced to the broker's decision for real buyers). */
+  buyerVerified?: boolean;
 }): DealRoomReadiness {
+  const verified = entry.buyerVerified ?? entry.room.verificationStatus === "Verified";
   const checks: DealRoomReadinessCheck[] = [
-    { label: "Buyer verified", done: entry.room.verificationStatus === "Verified" },
+    { label: "Buyer verified", done: verified },
     { label: "Broker approved", done: entry.room.brokerApprovalStatus === "Approved" },
     { label: "Listings added", done: entry.listings.length > 0 },
     { label: "Approved docs", done: entry.approvedDocuments.length > 0 },
   ];
   const readyCount = checks.filter((check) => check.done).length;
   const isShareable =
-    entry.room.verificationStatus === "Verified" &&
+    verified &&
     entry.room.brokerApprovalStatus === "Approved" &&
     entry.listings.length > 0;
   const avgFit = entry.matches.length

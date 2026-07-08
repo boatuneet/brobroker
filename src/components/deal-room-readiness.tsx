@@ -15,6 +15,10 @@ export interface ReadinessPillContext {
   /* Deal room id — powers "Listings added" (links to the room edit /
      picker) and the "Reviewed" self-approval action. */
   roomId?: string;
+  /* Buyer id — the "Buyer verified" chip routes to THIS buyer's Trust tab
+     (verification is run there with full context), not the generic queue
+     which would preselect whoever's first. */
+  buyerId?: string;
   /* Called when the broker clicks the unchecked "Reviewed" chip. When
      omitted the chip stays a passive label — safe fallback for surfaces
      that can't mutate the room yet (e.g. the New-room review card). */
@@ -35,7 +39,13 @@ function resolvePill(
 } {
   switch (check.label) {
     case "Buyer verified":
-      return { displayLabel: "Buyer verified", href: "/verification" };
+      /* Route to the specific buyer's Trust tab — the generic /verification
+         queue preselects the first case (wrong buyer). Falls back to the
+         queue only when the buyer id is unknown. */
+      return {
+        displayLabel: "Buyer verified",
+        href: ctx.buyerId ? `/buyers/${ctx.buyerId}?tab=trust` : "/verification",
+      };
     case "Broker approved":
       /* The broker is the only user — "approved" reads as a mystery. Frame
          this as self-attestation: they confirm they've reviewed the room

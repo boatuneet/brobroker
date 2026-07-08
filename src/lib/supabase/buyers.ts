@@ -81,3 +81,33 @@ export const getStoredBuyerVerificationStatus = cache(
   },
 );
 
+/* Saved verification status for ALL of the broker's buyers, keyed by id.
+   The deal-rooms workspace uses it so a room's "Buyer verified" check
+   reflects the person-level Trust decision, not the stale room column. */
+export const getStoredBuyerVerificationMap = cache(
+  async (): Promise<Record<string, "Verified" | "Needs Review" | "High Risk">> => {
+    const user = await getCurrentUser();
+    if (!user) return {};
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("buyers")
+      .select("id, payload")
+      .eq("owner_user_id", user.id);
+
+    if (error || !data) return {};
+    const map: Record<string, "Verified" | "Needs Review" | "High Risk"> = {};
+    for (const row of data as Array<{ id: string; payload: unknown }>) {
+      const payload = row.payload;
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
+      const verification = (payload as Record<string, unknown>).verification;
+      if (!verification || typeof verification !== "object") continue;
+      const status = (verification as Record<string, unknown>).status;
+      if (status === "Verified" || status === "Needs Review" || status === "High Risk") {
+        map[row.id] = status;
+      }
+    }
+    return map;
+  },
+);
+

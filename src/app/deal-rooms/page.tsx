@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { DealRoomsWorkspace } from "@/components/deal-rooms-workspace";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
-import { getStoredBuyersForSegment } from "@/lib/supabase/buyers";
+import { getStoredBuyersForSegment, getStoredBuyerVerificationMap } from "@/lib/supabase/buyers";
 import { getStoredDealRooms } from "@/lib/supabase/deal-rooms";
 import { getStoredListingsForSegment } from "@/lib/supabase/listings";
 
@@ -30,10 +30,11 @@ function DealRoomsTopActions() {
 export default async function DealRoomsPage() {
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
-  const [storedBuyers, storedListings, storedRooms] = await Promise.all([
+  const [storedBuyers, storedListings, storedRooms, verificationByBuyerId] = await Promise.all([
     getStoredBuyersForSegment(segment),
     getStoredListingsForSegment(segment),
     getStoredDealRooms(),
+    getStoredBuyerVerificationMap(),
   ]);
 
   return (
@@ -49,6 +50,7 @@ export default async function DealRoomsPage() {
         storedBuyers={storedBuyers}
         storedListings={storedListings}
         storedRooms={storedRooms}
+        verificationByBuyerId={verificationByBuyerId}
       />
     </AppShell>
   );
