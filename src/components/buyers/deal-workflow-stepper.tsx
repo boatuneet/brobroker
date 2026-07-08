@@ -40,6 +40,9 @@ export type DealWorkflowInputs = {
   drafts: FollowUpDraft[];
   dealRoom?: DealRoom;
   verification?: VerificationCase;
+  /* Broker's saved Trust-tab decision for a stored buyer (demo buyers use
+     `verification`). Authoritative for whether Qualify is done. */
+  verificationStatus?: "Verified" | "Needs Review" | "High Risk";
 };
 
 type ResolvedStep = {
@@ -76,7 +79,11 @@ export function resolveWorkflowSteps({
   drafts,
   dealRoom,
   verification,
+  verificationStatus,
 }: DealWorkflowInputs): ResolvedStep[] {
+  // Broker's decision (stored buyers) or the demo case status.
+  const decisionStatus = verificationStatus ?? verification?.status;
+  const isVerified = decisionStatus === "Verified";
   const stage = buyer.currentStage;
   const stageIdx = stageIndex(stage);
   const isClosedWon = stage === "Closed Won";
@@ -109,15 +116,17 @@ export function resolveWorkflowSteps({
       : { label: "Capture a call", nav: { kind: "href", href: captureHref } },
   };
 
-  // Qualify — verification decided + stage advanced. Lives on the Trust tab.
-  const qualifyDone = stageIdx >= STAGE_ORDER.indexOf("Qualified");
+  // Qualify — verification decided (Trust tab) or stage advanced past intake.
+  const qualifyDone = isVerified || stageIdx >= STAGE_ORDER.indexOf("Qualified");
   const qualify: ResolvedStep = {
     id: "qualify",
     label: "Qualify",
     state: qualifyDone ? "done" : "pending",
-    hint: verification ? `Verification · ${verification.status}` : "Not verified yet",
+    hint: decisionStatus ? `Verification · ${decisionStatus}` : "Not verified yet",
     nav: { kind: "tab", tab: "trust" },
-    action: { label: "Review & verify", nav: { kind: "tab", tab: "trust" } },
+    action: isVerified
+      ? { label: "Review verification", nav: { kind: "tab", tab: "trust" } }
+      : { label: "Review & verify", nav: { kind: "tab", tab: "trust" } },
   };
 
   // Match — matches surfaced; advances once a shortlist room is created.

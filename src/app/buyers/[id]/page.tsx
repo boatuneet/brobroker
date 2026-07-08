@@ -6,7 +6,7 @@ import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { getActiveBrokerSegment } from "@/lib/broker-segment-server";
 import { isDemoModeEnabled } from "@/lib/demo-mode-server";
 import { getBuyerMemoryProfile } from "@/lib/services";
-import { getStoredBuyerById } from "@/lib/supabase/buyers";
+import { getStoredBuyerById, getStoredBuyerVerification } from "@/lib/supabase/buyers";
 import { getStoredConversationsForBuyer } from "@/lib/supabase/conversations";
 import { getStoredDealRooms } from "@/lib/supabase/deal-rooms";
 import { getStoredFollowUpDraftsForBuyer } from "@/lib/supabase/follow-up-drafts";
@@ -82,15 +82,19 @@ export default async function BuyerMemoryPage({
   const segment = await getActiveBrokerSegment();
   const includeDemo = await isDemoModeEnabled();
   const profile = includeDemo ? getBuyerMemoryProfile(id, segment) : undefined;
-  const [storedBuyer, storedListings, storedConversations, storedDrafts, allDealRooms] = await Promise.all([
-    profile
-      ? Promise.resolve(undefined)
-      : safeAwait(getStoredBuyerById(id), undefined),
-    safeAwait(getStoredListingsForSegment(segment), []),
-    safeAwait(getStoredConversationsForBuyer(id), []),
-    safeAwait(getStoredFollowUpDraftsForBuyer(id), []),
-    safeAwait(getStoredDealRooms(), []),
-  ]);
+  const [storedBuyer, storedListings, storedConversations, storedDrafts, allDealRooms, savedVerification] =
+    await Promise.all([
+      profile
+        ? Promise.resolve(undefined)
+        : safeAwait(getStoredBuyerById(id), undefined),
+      safeAwait(getStoredListingsForSegment(segment), []),
+      safeAwait(getStoredConversationsForBuyer(id), []),
+      safeAwait(getStoredFollowUpDraftsForBuyer(id), []),
+      safeAwait(getStoredDealRooms(), []),
+      // Demo buyers carry verification in the profile model; stored buyers
+      // keep the broker's Trust-tab decision in payload.verification.
+      profile ? Promise.resolve(undefined) : safeAwait(getStoredBuyerVerification(id), undefined),
+    ]);
   // Deal rooms live in a shared table — keep every room attached to this
   // buyer, newest first (getStoredDealRooms orders by updated_at desc). The
   // profile uses the newest for the workflow and the full list to mark
@@ -125,6 +129,7 @@ export default async function BuyerMemoryPage({
         storedConversations={storedConversations}
         storedDrafts={storedDrafts}
         storedDealRooms={storedDealRooms}
+        savedVerificationStatus={savedVerification?.status}
       />
     </AppShell>
   );

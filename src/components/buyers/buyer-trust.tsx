@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
@@ -140,6 +140,7 @@ function DemoVerificationView({ verification }: { verification: VerificationCase
 
 function StoredBuyerVerification() {
   const params = useParams<{ id?: string }>();
+  const router = useRouter();
   const buyerId = typeof params?.id === "string" ? params.id : undefined;
 
   const [buyer, setBuyer] = useState<BuyerProfile | null>(null);
@@ -313,8 +314,11 @@ function StoredBuyerVerification() {
         return;
       }
       setSaved(record);
+      // Re-run the server page so the header badge, Qualify step, and share
+      // gate pick up the new decision (they read it from server props).
+      router.refresh();
     },
-    [buyer, baselineSignals, screening, brokerNote],
+    [buyer, baselineSignals, screening, brokerNote, router],
   );
 
   const clearDecision = useCallback(() => {
@@ -385,12 +389,26 @@ function StoredBuyerVerification() {
       </div>
 
       <section aria-label="Signals">
-        <p className="bb-mono-label">Signals from buyer record</p>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="bb-mono-label">Signals from buyer record</p>
+          <Link
+            className="text-[12px] font-medium text-[#003C33] hover:underline"
+            href={`/buyers/${buyer.id}/edit`}
+          >
+            Enrich buyer →
+          </Link>
+        </div>
         <ul className="mt-3 divide-y divide-[#E7E7E7] rounded-[12px] border border-[#E7E7E7] bg-white">
           {baselineSignals.map((signal, index) => (
             <SignalRow key={`${signal.label}-${index}`} signal={signal} />
           ))}
         </ul>
+        <p className="mt-2 text-[12px] leading-5 text-[#8E918B]">
+          These signals are advisory. A <span className="font-medium text-[#5F625E]">Fail</span> or{" "}
+          <span className="font-medium text-[#5F625E]">Unclear</span> won&apos;t block you — clear it
+          by enriching the buyer, or override it with your decision below, which is what gates
+          sharing.
+        </p>
       </section>
 
       <section aria-label="AI screening" className="rounded-[12px] border border-[#E7E7E7] bg-[#FBFBFB] p-4">

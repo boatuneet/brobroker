@@ -52,3 +52,24 @@ export const getStoredBuyerById = cache(async (id: string) => {
   return data ? mapStoredBuyerToProfile(data as StoredBuyerRow) : undefined;
 });
 
+/* The buyer's saved Trust-tab verification decision (payload.verification).
+   Kept separate from the profile because BuyerProfile has no verification
+   field and this is only needed on the detail page. One indexed lookup.
+   ponytail: fold into getStoredBuyerById if a second caller ever needs it. */
+export const getStoredBuyerVerification = cache(async (id: string) => {
+  const user = await getCurrentUser();
+  if (!user) return undefined;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("buyers")
+    .select("payload")
+    .eq("owner_user_id", user.id)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) return undefined;
+  const { readSavedVerification } = await import("@/lib/buyer-verification");
+  return readSavedVerification((data as { payload: unknown }).payload);
+});
+

@@ -3,10 +3,11 @@
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-/* Mark a deal room as shared: flip status Draft → Active (the stepper's
-   "Shared" signal) and stamp payload.sharedAt. Called when the broker copies
-   the share link from the buyer-detail share dialog. Read-merge-write on the
-   payload so viewings and other keys survive (same pattern as buyer-stage). */
+/* Mark a deal room as shared: flip status Draft → Active, grant broker
+   approval (sharing IS the broker approving the room for the buyer), and
+   stamp payload.sharedAt. Called when the broker copies the share link from
+   the buyer-detail share dialog. Read-merge-write on the payload so viewings
+   and other keys survive (same pattern as buyer-stage). */
 export async function markRoomShared(
   roomId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -43,6 +44,7 @@ export async function markRoomShared(
     .from("deal_rooms")
     .update({
       status: "Active",
+      broker_approval_status: "Approved",
       payload: { ...priorPayload, sharedAt: now },
       updated_at: now,
     })

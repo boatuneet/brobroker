@@ -997,6 +997,7 @@ export function BuyerMemoryProfile({
   storedConversations = [],
   storedDrafts = [],
   storedDealRooms = [],
+  savedVerificationStatus,
 }: {
   buyerId: string;
   buyerOverride?: BuyerProfile;
@@ -1006,6 +1007,9 @@ export function BuyerMemoryProfile({
   storedListings?: YachtListing[];
   storedConversations?: Conversation[];
   storedDrafts?: FollowUpDraft[];
+  /* Broker's saved Trust-tab decision for a stored buyer — the source of
+     truth for the header badge, the Qualify step, and the share gate. */
+  savedVerificationStatus?: "Verified" | "Needs Review" | "High Risk";
   /* Every persisted room attached to this buyer, newest first. The newest
      drives the workflow + share dialog; the union of listingIds marks
      matches as already-in-a-room. */
@@ -1179,7 +1183,13 @@ export function BuyerMemoryProfile({
   const buyerTasks = getTasksForSegment(segment).filter((task) => task.buyerId === buyer.id);
   const conversations = mergeById(storedConversations, demoConversations);
   const drafts = mergeById(storedDrafts, demoDrafts);
-  const verificationTone = getVerificationTone(verification?.status ?? "Needs Review");
+  /* Source of truth for the buyer's verification: the broker's saved
+     Trust-tab decision (stored buyers) falls back to the demo case. Drives
+     the header badge, the Qualify step, and the share gate so clicking
+     "Cleared to share" actually flows through the whole page. */
+  const effectiveVerificationStatus = savedVerificationStatus ?? verification?.status ?? "Needs Review";
+  const isBuyerVerified = effectiveVerificationStatus === "Verified";
+  const verificationTone = getVerificationTone(effectiveVerificationStatus);
   const segmentMeta = getBrokerSegmentMeta(segment);
   const SegmentIcon = segmentIcons[segmentMeta.id];
   const eyebrowDetail = [buyer.company, buyer.country].filter(Boolean).join(" · ");
@@ -1305,7 +1315,7 @@ export function BuyerMemoryProfile({
             <Badge tone={urgencyTone(buyer.urgency)}>{buyer.urgency}</Badge>
             <Badge className={verificationTone.className}>
               <StatusDot className={verificationTone.dotClassName} />
-              {verification?.status ?? "Needs Review"}
+              {effectiveVerificationStatus}
             </Badge>
           </div>
           <h1 className="bb-display mt-4 text-[2rem] font-medium leading-[1.04] text-[#171719] sm:text-[2.4rem]">
@@ -1391,6 +1401,7 @@ export function BuyerMemoryProfile({
           drafts={drafts}
           dealRoom={storedDealRoom}
           verification={verification}
+          verificationStatus={savedVerificationStatus}
           activeTab={tab}
           onSelectTab={goToTab}
           onShare={() => setShareOpen(true)}
@@ -1398,9 +1409,10 @@ export function BuyerMemoryProfile({
         />
       </div>
 
-      {shareOpen && storedDealRoom ? (
+      {shareOpen && storedDealRooms.length ? (
         <ShareRoomDialog
-          isStoredRoom
+          buyerId={buyer.id}
+          buyerVerified={isBuyerVerified}
           listings={inventory}
           matches={matches}
           onClose={() => setShareOpen(false)}
@@ -1408,7 +1420,11 @@ export function BuyerMemoryProfile({
             setLocalRoom(next);
             router.refresh();
           }}
-          room={storedDealRoom}
+          onVerifyBuyer={() => {
+            setShareOpen(false);
+            goToTab("trust");
+          }}
+          rooms={storedDealRooms}
         />
       ) : null}
 
